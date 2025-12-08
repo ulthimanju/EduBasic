@@ -36,7 +36,7 @@ function FeedPageContent({ onLogout, onNavigate, user }) {
       setFeedItems([
         {
           id: 1,
-          title: 'Welcome to EduBas Feed',
+          title: 'Welcome to EduBasic Feed',
           description: 'Stay updated with the latest course updates and announcements',
           timestamp: new Date(Date.now() - 3600000),
           type: 'announcement'
