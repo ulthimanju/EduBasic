@@ -458,12 +458,6 @@ docker run -p 8080:8080 -e GOOGLE_API_KEY=... edubas-backend
 
 ---
 
-## ⚖️ License
-
-This project is part of an educational initiative. See LICENSE file for details.
-
----
-
 ## 👨‍💻 About
 
 **EduBas** is developed as a comprehensive learning platform integrating modern web technologies with AI capabilities.
