@@ -1,0 +1,124 @@
+%% Mermaid class diagram for Login & Register
+classDiagram
+  %% Frontend (React)
+  class LoginPage {
+    - email : string
+    - password : string
+    - captchaText : string
+    - error : string
+    + generateCaptcha() : string
+    + handleSubmit(e) : Promise<void>
+  }
+
+  class RegisterPage {
+    - username : string
+    - email : string
+    - password : string
+    - confirmPassword : string
+    - captchaText : string
+    - error : string
+    + generateCaptcha() : string
+    + handleSubmit(e) : Promise<void>
+  }
+
+  class AuthContext {
+    - user
+    - token : string
+    - isReady : bool
+    + login(user, token) : void
+    + logout() : void
+    + getUserFromToken() : Promise<User>
+  }
+
+  class ApiClient {
+    + apiFetch(endpoint, options) : Promise<Response>
+    + endpoints : object
+  }
+
+  class AuthStorage {
+    + persistAuth(token) : void
+    + getStoredAuth() : object
+    + clearStoredAuth() : void
+  }
+
+  %% DTO / Entities
+  class LoginRequest {
+    + usernameOrEmail : string
+    + password : string
+    + captcha : string
+  }
+
+  class RegisterRequest {
+    + username : string
+    + email : string
+    + password : string
+    + confirmPassword : string
+    + captcha : string
+  }
+
+  class AuthResponse {
+    + status : string
+    + message : string
+    + token : string
+    + userId : string
+    + username : string
+    + email : string
+    + role : string
+  }
+
+  class LogoutRequest {
+    + userId : string
+    + token : string
+  }
+
+  %% Backend (Spring Boot)
+  class AuthController {
+    + login(LoginRequest) : ResponseEntity<AuthResponse>
+    + register(RegisterRequest) : ResponseEntity<AuthResponse>
+    + me(Authentication) : ResponseEntity<AuthResponse>
+    + logout(LogoutRequest) : ResponseEntity<AuthResponse>
+  }
+
+  class UserService {
+    + registerUser(username,email,password,role) : User
+    + loginUser(usernameOrEmail,password) : User
+    + getUserByUsername(username) : User
+    + changePassword(userId,old,new) : void
+  }
+
+  class JwtTokenProvider {
+    + generateToken(userId,username,email,role) : string
+    + validateToken(token) : bool
+    + parseClaims(token) : Map
+  }
+
+  class UserRepository {
+    + save(user) : User
+    + findByUsername(username) : Optional<User>
+    + findByEmail(email) : Optional<User>
+    + findById(userId) : Optional<User>
+  }
+
+  class User {
+    + id : string
+    + username : string
+    + email : string
+    + password : string
+    + role : string
+    + avatar : string
+    + profileVisibility : bool
+    + emailNotifications : bool
+  }
+
+  %% Relationships
+  LoginPage --> ApiClient : POST /api/auth/login
+  RegisterPage --> ApiClient : POST /api/auth/register
+  ApiClient --> AuthController : HTTP
+  AuthController --> UserService : uses
+  AuthController --> JwtTokenProvider : uses
+  LoginPage --> AuthContext : onLogin(user, token)
+  RegisterPage --> AuthContext : onLogin(user, token)
+  AuthContext --> AuthStorage : persistAuth(token)
+  AuthContext --> ApiClient : GET /api/auth/me
+  UserService --> UserRepository : reads/writes
+  UserService --> User : returns

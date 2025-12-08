@@ -1,0 +1,22 @@
+%% Mermaid sequence diagram for login
+sequenceDiagram
+  participant UI as LoginPage
+  participant Client as ApiClient
+  participant Server as AuthController
+  participant Service as UserService
+  participant Repo as UserRepository
+  participant Token as JwtTokenProvider
+  participant AuthCtx as AuthContext
+
+  UI->>Client: POST /api/auth/login(LoginRequest)
+  Client->>Server: forward request
+  Server->>Service: loginUser(usernameOrEmail,password)
+  Service->>Repo: findByUsername or findByEmail
+  Repo-->>Service: returns User
+  Service-->>Server: return User
+  Server->>Token: generateToken(user)
+  Token-->>Server: token
+  Server-->>Client: AuthResponse { token, user }
+  Client-->>UI: return AuthResponse
+  UI->>AuthCtx: onLogin(user, token)
+  AuthCtx->>AuthStorage: persistAuth(token)
