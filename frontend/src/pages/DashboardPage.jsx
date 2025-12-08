@@ -217,7 +217,7 @@ function DashboardContent({ user, onLogout, onNavigate }) {
 
 function DashboardPage({ user, onLogout, onNavigate }) {
   return (
-    <AppLayout user={user} onLogout={onLogout} onNavigate={onNavigate} title="EduBas Dashboard">
+    <AppLayout user={user} onLogout={onLogout} onNavigate={onNavigate} title="EduBasic Dashboard">
       <DashboardContent user={user} onLogout={onLogout} onNavigate={onNavigate} />
     </AppLayout>
   );

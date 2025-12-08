@@ -3,7 +3,7 @@ import { ThemeProvider, Navbar } from '../components';
 import { useThemeState } from '../hooks/useThemeState';
 import apiFetch, { apiEndpoints } from '../utils/apiClient';
 
-function AppLayout({ children, user, onLogout, onNavigate, title = 'EduBas' }) {
+function AppLayout({ children, user, onLogout, onNavigate, title = 'EduBasic' }) {
   const [selectedTheme, handleThemeChange] = useThemeState();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 

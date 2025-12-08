@@ -1,4 +1,4 @@
-# EduBas - Adaptive AI-Powered Learning Platform
+# EduBasic - Adaptive AI-Powered Learning Platform
 
 An intelligent learning management system with AI-powered code execution, course management, and personalized learning paths.
 
@@ -21,7 +21,7 @@ An intelligent learning management system with AI-powered code execution, course
 
 ## 🎯 Project Overview
 
-**EduBas** is a full-stack adaptive learning platform that combines:
+**EduBasic** is a full-stack adaptive learning platform that combines:
 - **Graph-based course management** using Neo4j
 - **AI-powered code execution** with Google Gemini API
 - **Real-time announcements** and user feedback
@@ -460,4 +460,4 @@ docker run -p 8080:8080 -e GOOGLE_API_KEY=... edubas-backend
 
 ## 👨‍💻 About
 
-**EduBas** is developed as a comprehensive learning platform integrating modern web technologies with AI capabilities.
+**EduBasic** is developed as a comprehensive learning platform integrating modern web technologies with AI capabilities.
