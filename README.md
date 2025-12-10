@@ -12,6 +12,7 @@ An intelligent learning management system with AI-powered code execution, course
 - [Backend Architecture](#backend-architecture)
 - [Frontend Architecture](#frontend-architecture)
 - [Key Features](#key-features)
+- [Features API Reference](#-features-api-reference)
 - [Getting Started](#getting-started)
 - [API Endpoints](#api-endpoints)
 - [Environment Configuration](#environment-configuration)
@@ -268,6 +269,70 @@ Organisms (Complex)
 - Dark/Light theme support
 - Accessible UI components
 - Cross-browser compatibility
+
+---
+
+## 📋 Features API Reference
+
+This table provides a comprehensive overview of all features with their API endpoints, request/response structures.
+
+### Authentication Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **User Registration** | Register new user account | `POST /api/auth/register` | `POST /api/auth/register` | `{ "username": "string", "email": "string", "password": "string", "confirmPassword": "string", "captcha": "string", "role": "USER\|ADMIN" }` | `{ "status": "success\|error", "message": "string", "token": "string", "userId": "string", "username": "string", "email": "string", "role": "string", "avatar": "string", "profileVisibility": boolean, "emailNotifications": boolean }` |
+| **User Login** | Authenticate user and receive JWT token | `POST /api/auth/login` | `POST /api/auth/login` | `{ "usernameOrEmail": "string", "password": "string", "captcha": "string" }` | `{ "status": "success\|error", "message": "string", "token": "string", "userId": "string", "username": "string", "email": "string", "role": "string", "avatar": "string", "profileVisibility": boolean, "emailNotifications": boolean }` |
+| **User Logout** | Logout user and invalidate session | `POST /api/auth/logout` | `POST /api/auth/logout` | `{ "userId": "string", "token": "string" }` | `{ "status": "success\|error", "message": "string" }` |
+| **Get Current User** | Retrieve authenticated user information | `GET /api/auth/me` | `GET /api/auth/me` | N/A (requires Authorization header) | `{ "status": "success\|error", "message": "string", "userId": "string", "username": "string", "email": "string", "role": "string", "avatar": "string", "profileVisibility": boolean, "emailNotifications": boolean }` |
+
+### Course Management Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **List All Courses** | Get list of all available courses | `GET /api/courses` | `GET /api/courses` | N/A | `[{ "courseId": "string", "title": "string", "description": "string", "uploadedBy": "string", "uploadedByUserId": "string", "uploadedOn": "timestamp", "ipAddress": "string" }]` |
+| **Get Course Details** | Get specific course information | `GET /api/courses/:courseId` | `GET /api/courses/{courseId}` | N/A | `{ "courseId": "string", "title": "string", "description": "string", "uploadedBy": "string", "uploadedByUserId": "string", "uploadedOn": "timestamp", "ipAddress": "string" }` |
+| **Get Course Levels** | Retrieve all levels for a course | `GET /api/courses/:courseId/levels` | `GET /api/courses/{courseId}/levels` | N/A | `[{ "levelId": "string", "levelName": "string", "summary": "string" }]` |
+| **Get Level Modules** | Retrieve all modules in a level | `GET /api/courses/:courseId/levels/:levelId/modules` | `GET /api/courses/{courseId}/levels/{levelId}/modules` | N/A | `[{ "moduleId": "string", "moduleTitle": "string" }]` |
+| **Get Module Lessons** | Retrieve all lessons in a module | `GET /api/courses/:courseId/levels/:levelId/modules/:moduleId/lessons` | `GET /api/courses/{courseId}/levels/{levelId}/modules/{moduleId}/lessons` | N/A | `[{ "lessonId": "string", "title": "string" }]` |
+| **Get Lesson Content** | Retrieve full lesson content with markdown | `GET /api/courses/:courseId/levels/:levelId/modules/:moduleId/lessons/:lessonId` | `GET /api/courses/{courseId}/levels/{levelId}/modules/{moduleId}/lessons/{lessonId}` | N/A | `{ "lessonId": "string", "title": "string", "objectives": ["string"], "theoryMarkdown": "string", "visualizationJson": "string", "interactiveContent": {} }` |
+| **Upload Course Dataset** | Upload JSON file with course structure | `POST /api/upload` | `POST /api/upload` | `multipart/form-data: { "file": File }` (requires Authorization header) | `{ "status": "success\|error", "message": "string", "uploadedCourses": [{ "courseId": "string", "courseTitle": "string" }], "recordsProcessed": number }` |
+
+### Code Execution Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **Execute Code** | Run code with test cases | `POST /api/code/execute` | `POST /api/code/execute` | `{ "language": "string", "code": "string", "inputs": ["string"], "expectedOutputs": ["string"] }` | `{ "success": boolean, "output": "string", "error": "string", "executionTime": number, "testResults": [{ "passed": boolean, "input": "string", "expected": "string", "actual": "string" }] }` |
+| **Submit Solution** | Submit and save code solution | `POST /api/code/submit` | `POST /api/code/submit` | `{ "problemId": "string", "code": "string", "language": "string" }` (requires Authorization header) | `{ "solutionId": "string", "message": "string", "success": boolean }` |
+
+### Practice Problem Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **Generate Practice Problem** | AI-generated practice problem for lesson | `POST /api/courses/:courseId/levels/:levelId/modules/:moduleId/lessons/:lessonId/practice-problem` | `POST /api/courses/{courseId}/levels/{levelId}/modules/{moduleId}/lessons/{lessonId}/practice-problem` | `{ "courseTitle": "string", "levelType": "string", "moduleName": "string", "lessonTitle": "string", "username": "string" }` | `{ "success": boolean, "message": "string", "title": "string", "statement": "string", "hints": ["string"], "inputFormat": "string", "outputFormat": "string", "testCases": [{ "input": "string", "expectedOutput": "string", "explanation": "string" }], "constraints": "string" }` |
+
+### Visualization Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **Fix Mermaid Visualization** | AI-powered fix for broken mermaid diagrams | `POST /api/courses/:courseId/levels/:levelId/modules/:moduleId/lessons/:lessonId/fix-visualization` | `POST /api/courses/{courseId}/levels/{levelId}/modules/{moduleId}/lessons/{lessonId}/fix-visualization` | N/A (path parameters only) | `{ "success": boolean, "fixedCode": "string", "message": "string" }` |
+
+### Announcement Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **Create Announcement** | Create new announcement (ADMIN only) | `POST /api/announcements` | `POST /api/announcements` | `form-params: { "title": "string", "description": "string", "type": "string", "userId": "string" }` | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
+| **Update Announcement** | Update existing announcement (ADMIN only) | `PUT /api/announcements/:id` | `PUT /api/announcements/{id}` | `form-params: { "title": "string", "description": "string", "type": "string" }` | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
+| **Delete Announcement** | Delete announcement (ADMIN only) | `DELETE /api/announcements/:id` | `DELETE /api/announcements/{id}` | N/A | `{ "message": "string" }` |
+| **Get Announcement** | Get specific announcement details | `GET /api/announcements/:id` | `GET /api/announcements/{id}` | N/A | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
+| **List All Announcements** | Get all announcements | `GET /api/announcements` | `GET /api/announcements` | N/A | `[{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }]` |
+| **List User Announcements** | Get announcements by specific user | `GET /api/announcements/user/:userId` | `GET /api/announcements/user/{userId}` | N/A | `[{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }]` |
+
+### Profile Management Features
+
+| Feature | Description | Frontend API | Backend API | Request Body | Response Body |
+|---------|-------------|--------------|-------------|--------------|---------------|
+| **Get Profile Settings** | Retrieve user profile settings | `GET /api/profile/settings?userId=:userId` | `GET /api/profile/settings` | Query param: `userId=string` | `{ "status": "success\|error", "message": "string", "profileVisibility": boolean, "emailNotifications": boolean }` |
+| **Update Profile Settings** | Update user profile preferences | `POST /api/profile/settings` | `POST /api/profile/settings` | `{ "userId": "string", "profileVisibility": boolean, "emailNotifications": boolean }` | `{ "status": "success\|error", "message": "string", "profileVisibility": boolean, "emailNotifications": boolean }` |
 
 ---
 
