@@ -12,7 +12,7 @@ An intelligent learning management system with AI-powered code execution, course
 - [Backend Architecture](#backend-architecture)
 - [Frontend Architecture](#frontend-architecture)
 - [Key Features](#key-features)
-- [Features API Reference](#-features-api-reference)
+- [Features API Reference](#features-api-reference)
 - [Getting Started](#getting-started)
 - [API Endpoints](#api-endpoints)
 - [Environment Configuration](#environment-configuration)
@@ -295,7 +295,7 @@ This table provides a comprehensive overview of all features with their API endp
 | **Get Level Modules** | Retrieve all modules in a level | `GET /api/courses/:courseId/levels/:levelId/modules` | `GET /api/courses/{courseId}/levels/{levelId}/modules` | N/A | `[{ "moduleId": "string", "moduleTitle": "string" }]` |
 | **Get Module Lessons** | Retrieve all lessons in a module | `GET /api/courses/:courseId/levels/:levelId/modules/:moduleId/lessons` | `GET /api/courses/{courseId}/levels/{levelId}/modules/{moduleId}/lessons` | N/A | `[{ "lessonId": "string", "title": "string" }]` |
 | **Get Lesson Content** | Retrieve full lesson content with markdown | `GET /api/courses/:courseId/levels/:levelId/modules/:moduleId/lessons/:lessonId` | `GET /api/courses/{courseId}/levels/{levelId}/modules/{moduleId}/lessons/{lessonId}` | N/A | `{ "lessonId": "string", "title": "string", "objectives": ["string"], "theoryMarkdown": "string", "visualizationJson": "string", "interactiveContent": {} }` |
-| **Upload Course Dataset** | Upload JSON file with course structure | `POST /api/upload` | `POST /api/upload` | `multipart/form-data: { "file": File }` (requires Authorization header) | `{ "status": "success\|error", "message": "string", "uploadedCourses": [{ "courseId": "string", "courseTitle": "string" }], "recordsProcessed": number }` |
+| **Upload Course Dataset** | Upload JSON file with course structure | `POST /api/upload` | `POST /api/upload` | `multipart/form-data` with `file` field (requires Authorization header) | `{ "status": "success\|error", "message": "string", "uploadedCourses": [{ "courseId": "string", "courseTitle": "string" }], "recordsProcessed": number }` |
 
 ### Code Execution Features
 
@@ -320,8 +320,8 @@ This table provides a comprehensive overview of all features with their API endp
 
 | Feature | Description | Frontend API | Backend API | Request Body | Response Body |
 |---------|-------------|--------------|-------------|--------------|---------------|
-| **Create Announcement** | Create new announcement (ADMIN only) | `POST /api/announcements` | `POST /api/announcements` | `form-params: { "title": "string", "description": "string", "type": "string", "userId": "string" }` | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
-| **Update Announcement** | Update existing announcement (ADMIN only) | `PUT /api/announcements/:id` | `PUT /api/announcements/{id}` | `form-params: { "title": "string", "description": "string", "type": "string" }` | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
+| **Create Announcement** | Create new announcement (ADMIN only) | `POST /api/announcements` | `POST /api/announcements` | `application/x-www-form-urlencoded`: `{ "title": "string", "description": "string", "type": "string", "userId": "string" }` | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
+| **Update Announcement** | Update existing announcement (ADMIN only) | `PUT /api/announcements/:id` | `PUT /api/announcements/{id}` | `application/x-www-form-urlencoded`: `{ "title": "string", "description": "string", "type": "string" }` | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
 | **Delete Announcement** | Delete announcement (ADMIN only) | `DELETE /api/announcements/:id` | `DELETE /api/announcements/{id}` | N/A | `{ "message": "string" }` |
 | **Get Announcement** | Get specific announcement details | `GET /api/announcements/:id` | `GET /api/announcements/{id}` | N/A | `{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }` |
 | **List All Announcements** | Get all announcements | `GET /api/announcements` | `GET /api/announcements` | N/A | `[{ "id": "string", "title": "string", "description": "string", "type": "string", "createdAt": timestamp, "updatedAt": timestamp, "createdByUserId": "string", "createdByUsername": "string" }]` |
