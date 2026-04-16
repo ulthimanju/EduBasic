@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: auth-app
+
+  # ── OAuth2 ──────────────────────────────────────────────────────────────────
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,profile,email
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+  # ── Neo4j ───────────────────────────────────────────────────────────────────
+  neo4j:
+    uri: bolt://neo4j:7687
+    authentication:
+      username: neo4j
+      password: ${NEO4J_PASSWORD}
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: ${REDIS_PASSWORD}
+      connect-timeout: 2000ms
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          min-idle: 2
+          max-wait: 2000ms
+
+  # ── Cache ───────────────────────────────────────────────────────────────────
+  cache:
+    type: redis
+
+# ── Application properties ────────────────────────────────────────────────────
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-seconds: 3600
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:5173}
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+
+# ── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.app.auth: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.data.neo4j.cypher.deprecation: ERROR
