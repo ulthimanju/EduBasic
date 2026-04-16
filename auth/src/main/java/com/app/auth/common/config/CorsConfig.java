@@ -34,7 +34,7 @@ public class CorsConfig {
         // Required for cookies to be sent cross-origin
         config.setAllowCredentials(true);
 
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
 
         // Allow standard headers + Authorization (future-proofing)
         config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Requested-With"));

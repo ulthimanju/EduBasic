@@ -31,15 +31,16 @@ public class UserServiceImpl implements UserService {
      * <ol>
      *   <li>findByGoogleId — check for existing user</li>
      *   <li>NOT found → create new node with createdAt + lastLogin = now</li>
-     *   <li>FOUND → update name + lastLogin, save</li>
+     *   <li>FOUND → update email + name + lastLogin, save</li>
      * </ol>
-     * NOTE: googleId is the merge key; email is updated but not used as a key.
+     * NOTE: googleId is the merge key; email is also updated on each login to
+     * capture Google email changes (OAuth email drift).
      */
     @Override
     @Transactional
     public UserNode upsertUser(String googleId, String email, String name) {
         return userRepository.findByGoogleId(googleId)
-                .map(existing -> updateExistingUser(existing, name))
+                .map(existing -> updateExistingUser(existing, email, name))
                 .orElseGet(() -> createNewUser(googleId, email, name));
     }
 
@@ -70,11 +71,12 @@ public class UserServiceImpl implements UserService {
         return saved;
     }
 
-    private UserNode updateExistingUser(UserNode existing, String name) {
+    private UserNode updateExistingUser(UserNode existing, String email, String name) {
+        existing.setEmail(email);
         existing.setName(name);
         existing.setLastLogin(LocalDateTime.now());
         UserNode saved = userRepository.save(existing);
-        log.debug("Returning user updated: id={}", saved.getId());
+        log.debug("Returning user updated: id={}, email={}", saved.getId(), saved.getEmail());
         return saved;
     }
 }

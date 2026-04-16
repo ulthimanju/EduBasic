@@ -49,6 +49,9 @@ app:
     url: ${FRONTEND_URL:http://localhost:5173}
   cookie:
     secure: ${COOKIE_SECURE:false}
+  security:
+    admin:
+      allowed-emails: ${ADMIN_ALLOWED_EMAILS:}
 
 # ── Actuator ──────────────────────────────────────────────────────────────────
 management:

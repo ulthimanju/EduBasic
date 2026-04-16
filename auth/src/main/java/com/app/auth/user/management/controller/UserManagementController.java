@@ -14,14 +14,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import java.util.List;
 
 /**
- * User management endpoints.
+ * User management endpoints — restricted to allowlisted admin users.
+ *
+ * <p>Access is guarded at the class level by an {@code @PreAuthorize} expression
+ * that delegates to {@link com.app.auth.user.management.service.AdminAccessService}.
+ * Any authenticated user whose email is NOT in {@code ADMIN_ALLOWED_EMAILS} receives
+ * a {@code 403 Forbidden} response.</p>
  */
 @RestController
 @RequestMapping("/api/user-management")
 @RequiredArgsConstructor
+@PreAuthorize("@adminAccessService.isAdmin(authentication)")
 public class UserManagementController {
 
     private final UserManagementService userManagementService;
