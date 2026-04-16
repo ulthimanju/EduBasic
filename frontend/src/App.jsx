@@ -2,24 +2,30 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage      from './features/auth/components/LoginPage';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
+import PublicOnlyRoute from './features/auth/components/PublicOnlyRoute';
 import Dashboard      from './pages/Dashboard';
 import Navbar         from './components/layout/Navbar';
 import useAuthStore   from './features/auth/store/authStore';
+import useCurrentUser from './features/auth/hooks/useCurrentUser';
 import { ROUTES }     from './constants/appConstants';
 
 /**
  * Root application component.
  *
  * Routing:
- *   /login      → LoginPage (public)
+ *   /login      → LoginPage (public restricted)
  *   /           → redirect to /dashboard
  *   /dashboard  → Dashboard (protected via ProtectedRoute)
  *
  * Global: Listens for the 'auth:unauthorized' event dispatched by apiClient
- * interceptor — clears auth state and lets ProtectedRoute redirect to /login.
+ * interceptor — sets anonymous state and lets ProtectedRoute redirect to /login.
  */
 function AppShell() {
-  const clear = useAuthStore((s) => s.clear);
+  const resolveAnonymous = useAuthStore((s) => s.resolveAnonymous);
+  
+  // Triggers the shared auth bootstrap exactly once per app load
+  useCurrentUser();
+
   const location = useLocation();
   const isLoginRoute = location.pathname === ROUTES.LOGIN;
   const [themeMode, setThemeMode] = useState(() => {
@@ -40,10 +46,10 @@ function AppShell() {
 
   // Listen for 401 event emitted by apiClient interceptor
   useEffect(() => {
-    const handler = () => clear();
+    const handler = () => resolveAnonymous();
     window.addEventListener('auth:unauthorized', handler);
     return () => window.removeEventListener('auth:unauthorized', handler);
-  }, [clear]);
+  }, [resolveAnonymous]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
@@ -80,7 +86,9 @@ function AppShell() {
       )}
       <main className={`app-main ${isLoginRoute ? 'app-main--auth' : ''}`}>
         <Routes>
-          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+          <Route element={<PublicOnlyRoute />}>
+            <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+          </Route>
 
           <Route element={<ProtectedRoute />}>
             <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />

@@ -1,54 +1,55 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { getCurrentUser } from '../services/authService';
 import useAuthStore from '../store/authStore';
 
+let inFlightPromise = null;
+
 /**
- * Hook that resolves the current authenticated user on mount.
+ * Hook that resolves the current authenticated user.
  *
- * Algorithm (§9.10 of design doc):
- * 1. Set isLoading = true on mount
- * 2. Call authService.getCurrentUser()
- * 3. SUCCESS → authStore.setUser(user), isLoading = false
- * 4. 401 error → authStore.clear(), isLoading = false
- * 5. Other error → set error state, isLoading = false
+ * Uses module-scoped promise to deduplicate simultaneous bootstrap calls.
  *
- * @returns {{ user, isAuthenticated, isLoading, error }}
+ * @returns {{ user, isAuthenticated, isLoading, error, authStatus, retry }}
  */
 export default function useCurrentUser() {
-  const { user, isAuthenticated, setUser, clear } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError]         = useState(null);
+  const { 
+    user, isAuthenticated, authStatus, authError,
+    startBootstrap, resolveAuthenticated, resolveAnonymous, resolveError
+  } = useAuthStore();
+
+  const loadUser = async () => {
+    startBootstrap();
+    try {
+      const fetchedUser = await getCurrentUser();
+      resolveAuthenticated(fetchedUser);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        resolveAnonymous();
+      } else {
+        resolveError(err);
+      }
+    } finally {
+      inFlightPromise = null;
+    }
+  };
+
+  const executeBootstrap = () => {
+    const currentState = useAuthStore.getState();
+    if (!inFlightPromise && currentState.authStatus === 'idle') {
+      inFlightPromise = loadUser();
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
+    executeBootstrap();
+  }, []);
 
-    async function fetchUser() {
-      try {
-        const fetchedUser = await getCurrentUser();
-        if (!cancelled) {
-          setUser(fetchedUser);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          if (err.response?.status === 401) {
-            clear();
-          } else {
-            setError(err);
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
+  const retry = () => {
+    inFlightPromise = null;
+    inFlightPromise = loadUser();
+  };
 
-    fetchUser();
+  const isLoading = authStatus === 'idle' || authStatus === 'loading';
 
-    return () => {
-      cancelled = true;
-    };
-  }, []); // runs once on mount
-
-  return { user, isAuthenticated, isLoading, error };
+  return { user, isAuthenticated, isLoading, error: authError, authStatus, retry };
 }
