@@ -7,6 +7,7 @@ import Dashboard      from './pages/Dashboard';
 import Navbar         from './components/layout/Navbar';
 import useAuthStore   from './features/auth/store/authStore';
 import useCurrentUser from './features/auth/hooks/useCurrentUser';
+import useThemeMode   from './hooks/useThemeMode';
 import { ROUTES }     from './constants/appConstants';
 
 /**
@@ -28,21 +29,8 @@ function AppShell() {
 
   const location = useLocation();
   const isLoginRoute = location.pathname === ROUTES.LOGIN;
-  const [themeMode, setThemeMode] = useState(() => {
-    if (typeof window === 'undefined') {
-      return 'system';
-    }
-
-    return window.localStorage.getItem('ui-theme-mode') ?? 'system';
-  });
-
-  const [systemTheme, setSystemTheme] = useState(() => {
-    if (typeof window === 'undefined') {
-      return 'dark';
-    }
-
-    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  });
+  
+  const { themeMode, setThemeMode: updateThemeMode, effectiveTheme } = useThemeMode();
 
   // Listen for 401 event emitted by apiClient interceptor
   useEffect(() => {
@@ -50,30 +38,6 @@ function AppShell() {
     window.addEventListener('auth:unauthorized', handler);
     return () => window.removeEventListener('auth:unauthorized', handler);
   }, [resolveAnonymous]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
-
-    const handleChange = (event) => {
-      setSystemTheme(event.matches ? 'light' : 'dark');
-    };
-
-    handleChange(mediaQuery);
-    mediaQuery.addEventListener('change', handleChange);
-
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  const effectiveTheme = themeMode === 'system' ? systemTheme : themeMode;
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = effectiveTheme;
-    window.localStorage.setItem('ui-theme-mode', themeMode);
-  }, [effectiveTheme, themeMode]);
-
-  const updateThemeMode = (nextThemeMode) => {
-    setThemeMode(nextThemeMode);
-  };
 
   return (
     <div className="app-shell">
