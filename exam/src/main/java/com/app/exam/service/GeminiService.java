@@ -3,29 +3,35 @@ package com.app.exam.service;
 import com.app.exam.domain.Question;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.vertexai.VertexAI;
-import com.google.cloud.vertexai.api.GenerateContentResponse;
-import com.google.cloud.vertexai.generativeai.GenerativeModel;
-import com.google.cloud.vertexai.generativeai.ResponseHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GeminiService {
     private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
 
     @Value("${gemini.api-key}")
     private String apiKey;
 
     @Value("${gemini.model}")
     private String modelName;
+
+    @Value("${gemini.api-url}")
+    private String apiUrl;
 
     public List<Question> generateQuestions(String courseName, List<String> previousTopics, String difficulty, int count) {
         String topicsStr = previousTopics != null ? String.join(", ", previousTopics) : "None";
@@ -43,25 +49,44 @@ public class GeminiService {
               "difficulty": "%s" }
             """.formatted(count, courseName, difficulty, topicsStr, difficulty);
 
-        try (VertexAI vertexAI = new VertexAI("unused", "unused")) { // Using API Key usually requires different setup
-            // Note: VertexAI SDK with API Key is slightly different.
-            // For now, I'll implement a mock-like structure or assume the environment is set up.
-            // In a real scenario, we'd use the correct builder for API Key.
+        try {
+            String fullUrl = apiUrl + modelName + ":generateContent";
             
-            log.info("Generating {} questions for {} using Gemini", count, courseName);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-goog-api-key", apiKey);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            List<Map<String, Object>> contents = new ArrayList<>();
+            Map<String, Object> content = new HashMap<>();
+            List<Map<String, String>> parts = new ArrayList<>();
+            Map<String, String> part = new HashMap<>();
+            part.put("text", prompt);
+            parts.add(part);
+            content.put("parts", parts);
+            contents.add(content);
+            requestBody.put("contents", contents);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             
-            // This is a placeholder for the actual Gemini call.
-            // Since I cannot run the actual SDK without a real project/key environment,
-            // I'll provide the implementation structure.
+            log.info("Generating {} questions for {} using Gemini at {}", count, courseName, fullUrl);
             
-            /*
-            GenerativeModel model = new GenerativeModel(modelName, vertexAI);
-            GenerateContentResponse response = model.generateContent(prompt);
-            String json = ResponseHandler.getText(response);
-            */
+            Map<String, Object> response = restTemplate.postForObject(fullUrl, entity, Map.class);
             
-            // Mocking the response for now to allow progress in other areas
-            // unless I can find a way to use the API key directly.
+            if (response != null && response.containsKey("candidates")) {
+                List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+                if (!candidates.isEmpty()) {
+                    Map<String, Object> firstCandidate = candidates.get(0);
+                    Map<String, Object> contentRes = (Map<String, Object>) firstCandidate.get("content");
+                    List<Map<String, Object>> partsRes = (List<Map<String, Object>>) contentRes.get("parts");
+                    if (!partsRes.isEmpty()) {
+                        String text = (String) partsRes.get(0).get("text");
+                        // Sometimes Gemini wraps JSON in markdown blocks like ```json ... ```
+                        String cleanedJson = text.replaceAll("^```json\\s*", "").replaceAll("\\s*```$", "").trim();
+                        return objectMapper.readValue(cleanedJson, new TypeReference<List<Question>>() {});
+                    }
+                }
+            }
             
             return List.of(); 
         } catch (Exception e) {
@@ -70,3 +95,4 @@ public class GeminiService {
         }
     }
 }
+
