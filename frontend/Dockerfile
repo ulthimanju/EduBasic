@@ -15,6 +15,8 @@ RUN npm run build
 # ─── Stage 2: Runtime (Nginx) ──────────────────────────────────────────────────
 FROM nginx:alpine AS runtime
 
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # Copy compiled static assets only
 COPY --from=builder /app/dist /usr/share/nginx/html
 
