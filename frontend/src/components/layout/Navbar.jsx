@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Bot, LayoutDashboard, LogOut, Monitor, MoonStar, SunMedium, UserCircle2 } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Monitor, MoonStar, SunMedium, UserCircle2, BookOpen } from 'lucide-react';
 import useAuthStore from '../../features/auth/store/authStore';
 import useLogout from '../../features/auth/hooks/useLogout';
 import { ROUTES } from '../../constants/appConstants';
@@ -29,6 +29,14 @@ export default function Navbar({ themeMode, effectiveTheme, onThemeModeChange })
         >
           <LayoutDashboard size={18} strokeWidth={1.5} />
           <span>Dashboard</span>
+        </NavLink>
+
+        <NavLink
+          to={ROUTES.COURSES}
+          className={({ isActive }) => `sidebar__item ${isActive ? 'is-active' : ''}`}
+        >
+          <BookOpen size={18} strokeWidth={1.5} />
+          <span>Exams</span>
         </NavLink>
       </nav>
 
