@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import useCurrentUser from '../hooks/useCurrentUser';
+import useAuthStore from '../store/authStore';
 import ErrorMessage from '../../../components/ui/ErrorMessage/ErrorMessage';
 import { ROUTES } from '../../../constants/appConstants';
 
@@ -10,11 +11,13 @@ import { ROUTES } from '../../../constants/appConstants';
  * Branching based on authStatus:
  * - idle/loading  → show skeleton
  * - anonymous     → <Navigate to="/login" replace />
+ * - authenticated without user → <Navigate to="/login" replace />
  * - error         → inline ErrorMessage + Retry
  * - authenticated → <Outlet />
  */
 export default function ProtectedRoute() {
   const { authStatus, retry } = useCurrentUser();
+  const user = useAuthStore((state) => state.user);
 
   if (authStatus === 'idle' || authStatus === 'loading') {
     return (
@@ -32,6 +35,10 @@ export default function ProtectedRoute() {
   }
 
   if (authStatus === 'anonymous') {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
+  if (authStatus === 'authenticated' && !user) {
     return <Navigate to={ROUTES.LOGIN} replace />;
   }
 

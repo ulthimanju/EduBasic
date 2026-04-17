@@ -1,7 +1,7 @@
 import React, { StrictMode } from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicOnlyRoute from '../components/PublicOnlyRoute';
@@ -82,6 +82,16 @@ describe('Auth Bootstrap Integration', () => {
 
     it('redirects to /login when anonymous (401)', async () => {
       authService.getCurrentUser.mockRejectedValue({ response: { status: 401 } });
+
+      renderApp(['/dashboard']);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-display').textContent).toBe('/login');
+      });
+    });
+
+    it('redirects to /login when auth resolves without a user payload', async () => {
+      authService.getCurrentUser.mockResolvedValue(null);
 
       renderApp(['/dashboard']);
 

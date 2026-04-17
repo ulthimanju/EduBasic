@@ -1,6 +1,8 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { Database, ShieldCheck, UserRound } from 'lucide-react';
 import useAuthStore from '../features/auth/store/authStore';
+import { ROUTES } from '../constants/appConstants';
 
 /**
  * Dashboard — the main authenticated landing page.
@@ -10,17 +12,7 @@ export default function Dashboard() {
   const { user } = useAuthStore();
 
   if (!user) {
-    return (
-      <section className="empty-state page-enter">
-        <div className="empty-state__icon" aria-hidden="true">
-          <UserRound size={48} strokeWidth={1.5} />
-        </div>
-        <h2 className="empty-state__title">No account loaded</h2>
-        <p className="empty-state__text">
-          Your profile will appear here after authentication completes.
-        </p>
-      </section>
-    );
+    return <Navigate to={ROUTES.LOGIN} replace />;
   }
 
   return (
