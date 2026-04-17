@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { Database, ShieldCheck, UserRound } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 import useAuthStore from '../features/auth/store/authStore';
 import { ROUTES } from '../constants/appConstants';
 
@@ -40,30 +40,6 @@ export default function Dashboard() {
             <dt>User ID</dt>
             <dd id="profile-id" className="profile-id">{user.id}</dd>
           </dl>
-        </article>
-
-        <article className="dashboard-card panel">
-          <div className="dashboard-card__icon" aria-hidden="true">
-            <ShieldCheck size={18} strokeWidth={1.5} />
-          </div>
-          <h2 className="dashboard-card__title">Session</h2>
-          <p className="dashboard-card__body">
-            Session validity is backed by Neo4j and accelerated through Redis. JWT is
-            delivered via secure HttpOnly cookie and checked on each request.
-          </p>
-        </article>
-
-        <article className="dashboard-card panel">
-          <div className="dashboard-card__icon" aria-hidden="true">
-            <Database size={18} strokeWidth={1.5} />
-          </div>
-          <h2 className="dashboard-card__title">Stack</h2>
-          <ul className="stack-list">
-            <li>Spring Boot 3 · Spring Security 6</li>
-            <li>Neo4j 5 for user and session relationships</li>
-            <li>Redis 7 for JWT and profile caching</li>
-            <li>React 18 + Vite + Zustand</li>
-          </ul>
         </article>
       </section>
     </section>
