@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight, Bot } from 'lucide-react';
+import { API_BASE_URL } from '../../../config/runtimeConfig';
 
 /**
  * LoginPage — displays the Google OAuth login button.
@@ -11,8 +12,7 @@ import { ArrowRight, Bot } from 'lucide-react';
  * - No JS fetch, no state, no hooks.
  */
 export default function LoginPage() {
-  const backendUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
-  const googleAuthUrl = `${backendUrl}/oauth2/authorization/google`;
+  const googleAuthUrl = `${API_BASE_URL}/oauth2/authorization/google`;
 
   return (
     <section className="login-page page-enter">

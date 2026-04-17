@@ -21,7 +21,11 @@ export default function useCurrentUser() {
     startBootstrap();
     try {
       const fetchedUser = await getCurrentUser();
-      resolveAuthenticated(fetchedUser);
+      if (fetchedUser) {
+        resolveAuthenticated(fetchedUser);
+      } else {
+        resolveAnonymous();
+      }
     } catch (err) {
       if (err.response?.status === 401) {
         resolveAnonymous();

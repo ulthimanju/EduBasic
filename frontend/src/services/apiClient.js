@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/runtimeConfig';
 
 /**
  * Shared Axios instance for all API calls.
@@ -12,7 +13,7 @@ import axios from 'axios';
  * - Response: on 401 redirect to /login (passive — no store import to avoid circular deps)
  */
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080',
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 
+const getResolvedAuthState = (user) => (
+  user
+    ? { user, isAuthenticated: true, authStatus: 'authenticated', authError: null }
+    : { user: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }
+);
+
 /**
  * Zustand store for authentication state.
  *
@@ -16,12 +22,12 @@ const useAuthStore = create((set) => ({
   authError: null,
 
   startBootstrap: () => set({ authStatus: 'loading', authError: null }),
-  resolveAuthenticated: (user) => set({ user, isAuthenticated: true, authStatus: 'authenticated', authError: null }),
+  resolveAuthenticated: (user) => set(getResolvedAuthState(user)),
   resolveAnonymous: () => set({ user: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }),
   resolveError: (error) => set({ authStatus: 'error', authError: error }),
 
   /** Called after successful getCurrentUser() — populates user and marks authenticated. */
-  setUser: (user) => set({ user, isAuthenticated: true, authStatus: 'authenticated', authError: null }),
+  setUser: (user) => set(getResolvedAuthState(user)),
 
   /** Called on logout or 401 — wipes all auth state. */
   clear: () => set({ user: null, isAuthenticated: false, authStatus: 'idle', authError: null }),

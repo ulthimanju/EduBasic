@@ -149,6 +149,17 @@ describe('Auth Bootstrap Integration', () => {
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
       });
     });
+
+    it('keeps users on /login when auth resolves without a user payload', async () => {
+      authService.getCurrentUser.mockResolvedValue(null);
+
+      renderApp(['/login']);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-display').textContent).toBe('/login');
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      });
+    });
     
     it('renders login page WITH inline error when non-401 error occurs', async () => {
       authService.getCurrentUser.mockRejectedValue(new Error('Network error'));
