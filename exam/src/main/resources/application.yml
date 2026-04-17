@@ -24,7 +24,8 @@ spring:
 
 gemini:
   api-key: ${GEMINI_API_KEY}
-  model: gemini-1.5-flash
+  model: gemini-flash-latest
+  api-url: https://generativelanguage.googleapis.com/v1beta/models/
 
 jwt:
   secret: ${JWT_SECRET}
