@@ -28,6 +28,19 @@ services:
       retries: 20
       start_period: 10s
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: edubasic-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-exam_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   auth:
     build:
       context: ./auth
@@ -49,20 +62,42 @@ services:
       - neo4j
       - redis
 
+  exam:
+    build:
+      context: ./exam
+      dockerfile: Dockerfile
+    container_name: edubasic-exam
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-exam_db}
+    depends_on:
+      - postgres
+      - redis
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+        VITE_EXAM_API_BASE_URL: ${VITE_EXAM_API_BASE_URL:-http://localhost:8081}
     container_name: edubasic-frontend
     restart: unless-stopped
     ports:
       - "5173:80"
     depends_on:
       - auth
+      - exam
 
 volumes:
   neo4j_data:
   neo4j_logs:
   redis_data:
+  postgres_data:

@@ -4,9 +4,12 @@
  */
 
 export const ROUTES = {
-  LOGIN:     '/login',
-  DASHBOARD: '/dashboard',
-  HOME:      '/',
+  LOGIN:         '/login',
+  DASHBOARD:     '/dashboard',
+  COURSES:       '/courses',
+  EXAM:          '/exam/:sessionId',
+  RESULT:        '/result/:sessionId',
+  HOME:          '/',
 };
 
 export const API_PATHS = {
