@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target, Hash } from 'lucide-react';
+import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
@@ -110,15 +110,7 @@ const ExamPage = () => {
   if (!question) return null;
 
   const totalQuestions = 20;
-  const progress = Math.round((question.index / totalQuestions) * 100);
   const timerStateClass = timeLeft < 10 ? ' exam-timer__spotlight--urgent' : '';
-  const answerState = feedback
-    ? feedback.correct
-      ? 'Correct'
-      : 'Reviewing a miss'
-    : submitting
-      ? 'Analyzing response'
-      : 'Awaiting answer';
 
   return (
     <div className="dashboard dashboard--wide exam-page animate-page-enter">
@@ -216,37 +208,11 @@ const ExamPage = () => {
               </div>
             </div>
 
-            <div className="exam-meta__stats">
-              <article className="exam-meta__stat">
-                <span className="exam-meta__stat-label">
-                  <Hash size={12} />
-                  Question
-                </span>
-                <span className="exam-meta__stat-value">
-                  {question.index} / {totalQuestions}
-                </span>
-              </article>
-
-              <article className="exam-meta__stat">
-                <span className="exam-meta__stat-label">Completion</span>
-                <span className="exam-meta__stat-value">{progress}%</span>
-              </article>
-
-              <article className="exam-meta__stat">
-                <span className="exam-meta__stat-label">Response state</span>
-                <span className="exam-meta__stat-value">{answerState}</span>
-              </article>
-
-              <article className="exam-meta__stat">
-                <span className="exam-meta__stat-label">Question ID</span>
-                <span className="exam-meta__stat-value exam-meta__stat-value--mono">{question.questionId}</span>
-              </article>
-            </div>
-
-            <div className="exam-meta__note">
-              {feedback
-                ? 'Review the adaptive insight, then continue when you are ready.'
-                : 'Choose one option before the timer runs out. Unanswered questions are submitted automatically.'}
+            <div className="exam-meta__summary">
+              <span className="exam-meta__summary-label">Current question</span>
+              <span className="exam-meta__summary-value">
+                {question.index} of {totalQuestions}
+              </span>
             </div>
           </div>
         </aside>
