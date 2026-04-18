@@ -34,4 +34,14 @@ public class ExamController {
     public ExamResultResponse getResult(@PathVariable UUID sessionId) {
         return examService.getResult(sessionId);
     }
+
+    @PostMapping("/{sessionId}/violation")
+    public ExamSession reportViolation(@PathVariable UUID sessionId, @RequestBody ViolationRequest request) {
+        return examService.reportViolation(sessionId, request);
+    }
+
+    @PostMapping("/{sessionId}/terminate")
+    public ExamSession terminateSession(@PathVariable UUID sessionId, @RequestBody ViolationRequest request) {
+        return examService.terminateSession(sessionId, request.getReason());
+    }
 }

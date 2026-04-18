@@ -1,5 +1,6 @@
 package com.app.exam.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ExamSession {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -47,7 +49,14 @@ public class ExamSession {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "violation_count")
+    @Builder.Default
+    private Integer violationCount = 0;
+
+    @Column(name = "termination_reason")
+    private String terminationReason;
+
     public enum Status {
-        ACTIVE, COMPLETED, ABANDONED
+        ACTIVE, COMPLETED, ABANDONED, TERMINATED
     }
 }

@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target } from 'lucide-react';
+import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target, ShieldAlert, Maximize2, AlertOctagon } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
+import { useExamIntegrity } from '../hooks/useExamIntegrity';
 
 const ExamPage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  
+  // State
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,16 +18,38 @@ const ExamPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [timeLeft, setTimeLeft] = useState(60);
+  const [examStarted, setExamStarted] = useState(false);
+  const [isTerminated, setIsTerminated] = useState(false);
+  const [terminationReason, setTerminationReason] = useState('');
+
+  // Refs
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
   const autoNextTimeoutRef = useRef(null);
 
+  // Integrity Hook - Now passes examStarted as isActive
+  const { 
+    violationCount, 
+    showWarning, 
+    warningReason, 
+    dismissWarning, 
+    isFullscreen,
+    enterFullscreen 
+  } = useExamIntegrity(sessionId, (reason) => {
+    setIsTerminated(true);
+    setTerminationReason(reason);
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, examStarted);
+
   useEffect(() => {
-    fetchQuestion();
+    if (examStarted && !isTerminated) {
+      fetchQuestion();
+    }
     return () => {
       if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [sessionId]);
+  }, [sessionId, examStarted, isTerminated]);
 
   const fetchQuestion = async () => {
     if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
@@ -60,16 +85,16 @@ const ExamPage = () => {
   };
 
   const handleTimeout = () => {
-    if (!feedback) {
+    if (!feedback && !isTerminated) {
       handleSubmit('NONE');
     }
   };
 
   const handleSubmit = async (option) => {
-    if (submitting || feedback) return;
+    if (submitting || feedback || isTerminated) return;
     setSubmitting(true);
     setSelectedOption(option);
-    clearInterval(timerRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
     const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
     try {
@@ -81,15 +106,11 @@ const ExamPage = () => {
       setFeedback(response.data);
       setSubmitting(false);
 
-      // Auto-advance after 2 seconds
-      autoNextTimeoutRef.current = setTimeout(() => {
-        if (response.data.sessionComplete) {
-          navigate(`/result/${sessionId}`);
-        } else {
-          fetchQuestion();
-        }
-      }, 2000);
-
+      if (!response.data.sessionComplete) {
+        autoNextTimeoutRef.current = setTimeout(() => {
+          if (!isTerminated) fetchQuestion();
+        }, 2000);
+      }
     } catch (err) {
       setError('Failed to submit answer');
       setSubmitting(false);
@@ -105,7 +126,62 @@ const ExamPage = () => {
     }
   };
 
-  if (loading) return <Spinner />;
+  const handleStartExam = () => {
+    enterFullscreen();
+    setExamStarted(true);
+  };
+
+  if (!examStarted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] page-enter">
+        <div className="panel max-w-md w-full p-10 text-center flex flex-col items-center gap-6">
+          <div className="w-16 h-16 rounded-2xl bg-accent-subtle text-accent flex items-center justify-center">
+            <ShieldAlert size={32} />
+          </div>
+          <div className="grid gap-2">
+            <h1 className="text-2xl font-bold">Secure Exam Environment</h1>
+            <p className="text-text-secondary text-sm">
+              To ensure assessment integrity, this exam will run in <b>fullscreen mode</b>. 
+              Switching tabs, minimizing the window, or exiting fullscreen will result in a violation strike.
+            </p>
+          </div>
+          <button onClick={handleStartExam} className="btn btn-primary w-full py-4 text-base gap-3">
+            <Maximize2 size={18} />
+            Enter Fullscreen & Start
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTerminated) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] page-enter">
+        <div className="panel max-w-md w-full p-10 text-center flex flex-col items-center gap-6 border-accent/30 bg-accent/5">
+          <div className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
+            <AlertOctagon size={32} />
+          </div>
+          <div className="grid gap-2">
+            <h1 className="text-2xl font-bold text-text-primary">Exam Terminated</h1>
+            <p className="text-text-secondary text-sm">
+              Your session has been ended due to multiple integrity violations:
+            </p>
+            <div className="p-3 bg-interactive-hover rounded-lg text-xs font-mono text-accent mt-2">
+              {terminationReason}
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate(`/result/${sessionId}`)} 
+            className="btn btn-primary w-full py-4 text-base"
+          >
+            View Partial Result
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && !question) return <Spinner />;
   if (error) return <ErrorMessage message={error} />;
   if (!question) return null;
 
@@ -114,6 +190,23 @@ const ExamPage = () => {
 
   return (
     <div className="dashboard dashboard--wide exam-page animate-page-enter">
+      {showWarning && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="panel max-w-sm w-full p-8 text-center animate-page-enter shadow-2xl border-accent">
+            <ShieldAlert size={48} className="text-accent mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Integrity Warning</h2>
+            <p className="text-text-secondary text-sm mb-6 leading-relaxed">
+              We detected a focus change or navigation event: <br/>
+              <span className="font-semibold text-text-primary">"{warningReason}"</span>. <br/>
+              Remaining strikes: <span className="text-accent font-bold">{2 - violationCount}</span>.
+            </p>
+            <button onClick={dismissWarning} className="btn btn-primary w-full py-3">
+              I Understand, Resume Exam
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="exam-layout">
         <main className="exam-main">
           <section className="exam-question panel">
@@ -140,7 +233,7 @@ const ExamPage = () => {
                 return (
                   <button
                     key={index}
-                    disabled={!!feedback || submitting}
+                    disabled={!!feedback || submitting || showWarning}
                     onClick={() => handleSubmit(option)}
                     className={`option-btn ${btnClass}`}
                   >
@@ -213,6 +306,12 @@ const ExamPage = () => {
               <span className="exam-meta__summary-value">
                 {question.index} of {totalQuestions}
               </span>
+            </div>
+            
+            <div className="divider" />
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-text-muted">
+              <ShieldAlert size={10} className={violationCount > 0 ? 'text-accent' : ''} />
+              Integrity Active
             </div>
           </div>
         </aside>

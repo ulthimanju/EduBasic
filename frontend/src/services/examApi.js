@@ -25,6 +25,8 @@ export const examApi = {
   getQuestion: (sessionId) => examClient.get(`/api/exam/${sessionId}/question`),
   submitAnswer: (sessionId, answer) => examClient.post(`/api/exam/${sessionId}/answer`, answer),
   getResult: (sessionId) => examClient.get(`/api/exam/${sessionId}/result`),
+  reportViolation: (sessionId, reason) => examClient.post(`/api/exam/${sessionId}/violation`, { reason }),
+  terminateSession: (sessionId, reason) => examClient.post(`/api/exam/${sessionId}/terminate`, { reason }),
 };
 
 export default examApi;

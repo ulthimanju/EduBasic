@@ -4,6 +4,7 @@ import com.app.exam.domain.*;
 import com.app.exam.dto.*;
 import com.app.exam.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExamService {
     private final ExamSessionRepository sessionRepository;
     private final CourseRepository courseRepository;
@@ -38,6 +40,7 @@ public class ExamService {
                 .currentDifficulty("MEDIUM")
                 .streak(0)
                 .status(ExamSession.Status.ACTIVE)
+                .violationCount(0)
                 .build();
 
         return sessionRepository.save(session);
@@ -126,6 +129,48 @@ public class ExamService {
                 .build();
     }
 
+    @Transactional
+    public ExamSession reportViolation(UUID sessionId, ViolationRequest request) {
+        ExamSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+
+        if (session.getStatus() != ExamSession.Status.ACTIVE) {
+            return session;
+        }
+
+        session.setViolationCount(session.getViolationCount() + 1);
+        log.warn("Integrity violation reported for session {}: {}. Count: {}", 
+                sessionId, request.getReason(), session.getViolationCount());
+
+        if (session.getViolationCount() >= 2) {
+            return terminateSession(session, "Multiple integrity violations: " + request.getReason());
+        }
+
+        return sessionRepository.save(session);
+    }
+
+    @Transactional
+    public ExamSession terminateSession(UUID sessionId, String reason) {
+        ExamSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        return terminateSession(session, reason);
+    }
+
+    private ExamSession terminateSession(ExamSession session, String reason) {
+        if (session.getStatus() != ExamSession.Status.ACTIVE) {
+            return session;
+        }
+
+        log.info("Terminating session {} due to: {}", session.getId(), reason);
+        session.setStatus(ExamSession.Status.TERMINATED);
+        session.setTerminationReason(reason);
+        session.setCompletedAt(LocalDateTime.now());
+        
+        calculateAndSaveResult(session);
+        
+        return sessionRepository.save(session);
+    }
+
     private void calculateAndSaveResult(ExamSession session) {
         List<UserAnswer> answers = userAnswerRepository.findBySessionId(session.getId());
         
@@ -133,15 +178,15 @@ public class ExamService {
         int maxPossibleRaw = 0;
         
         for (UserAnswer ans : answers) {
-            // This logic is simplified; we'd need the question difficulty at the time of answer
-            // For now, assume we can fetch it from Question repository or it was saved in UserAnswer
-            // I'll assume we can fetch it for now.
             Question q = questionRepository.findById(ans.getQuestionId()).orElse(null);
             if (q != null) {
                 rawScore += scoreEngine.calculatePoints(q.getDifficulty(), ans.getIsCorrect(), ans.getTimeTaken(), 60);
-                maxPossibleRaw += 4; // Assuming max 4 points per question
+                maxPossibleRaw += 4;
             }
         }
+
+        // Handle case with no answers
+        if (maxPossibleRaw == 0) maxPossibleRaw = 1;
         
         float normalizedScore = (rawScore / maxPossibleRaw) * 100;
         String level = levelClassifier.classify(normalizedScore);
@@ -160,6 +205,9 @@ public class ExamService {
     }
 
     public ExamResultResponse getResult(UUID sessionId) {
+        ExamSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        
         ExamResult result = resultRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found"));
 
@@ -171,6 +219,9 @@ public class ExamService {
                 .topicsStrong(result.getTopicsStrong())
                 .topicsWeak(result.getTopicsWeak())
                 .difficultyBreakdown(result.getDifficultyBreakdown())
+                .status(session.getStatus().name())
+                .terminationReason(session.getTerminationReason())
+                .violationCount(session.getViolationCount())
                 .build();
     }
 }

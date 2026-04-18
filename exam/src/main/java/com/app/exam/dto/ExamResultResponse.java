@@ -15,4 +15,7 @@ public class ExamResultResponse {
     private Map<String, Integer> topicsStrong;
     private Map<String, Integer> topicsWeak;
     private Map<String, Integer> difficultyBreakdown;
+    private String status;
+    private String terminationReason;
+    private Integer violationCount;
 }
