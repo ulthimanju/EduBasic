@@ -12,7 +12,6 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
-import java.util.UUID;
 
 /**
  * Stateless JWT utility — all six methods are atomic and side-effect-free.

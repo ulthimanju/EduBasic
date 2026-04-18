@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,7 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
@@ -51,13 +52,15 @@ public class SecurityConfig {
      * and is also reachable without authentication in the filter chain. Adding a route in
      * only one place will cause an inconsistency.</p>
      */
-    public static final RequestMatcher PUBLIC_ROUTES = new OrRequestMatcher(
-            new AntPathRequestMatcher("/oauth2/**"),
-            new AntPathRequestMatcher("/login/**"),
-            new AntPathRequestMatcher("/actuator/health"),
-            new AntPathRequestMatcher("/actuator/info"),
-            new AntPathRequestMatcher("/api/auth/logout", "POST")
-    );
+    public static RequestMatcher getPublicRoutes() {
+        return new OrRequestMatcher(
+                antMatcher("/oauth2/**"),
+                antMatcher("/login/**"),
+                antMatcher("/actuator/health"),
+                antMatcher("/actuator/info"),
+                antMatcher(HttpMethod.POST, "/api/auth/logout")
+        );
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -78,7 +81,7 @@ public class SecurityConfig {
 
             // ── Authorization rules ───────────────────────────────────────────
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(PUBLIC_ROUTES).permitAll()
+                .requestMatchers(getPublicRoutes()).permitAll()
                 .anyRequest().authenticated()
             )
 
@@ -86,7 +89,7 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                    new AntPathRequestMatcher("/api/**")
+                    antMatcher("/api/**")
                 )
             )
 

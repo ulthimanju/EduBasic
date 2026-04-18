@@ -68,7 +68,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Step 1 — Public route: skip filter entirely, regardless of cookie state.
         // Stale or malformed cookies must never block logout, OAuth callbacks, etc.
-        if (SecurityConfig.PUBLIC_ROUTES.matches(request)) {
+        if (SecurityConfig.getPublicRoutes().matches(request)) {
             chain.doFilter(request, response);
             return;
         }
