@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,24 +26,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Uses {@code OPTIONS} preflight requests from the configured frontend origin.</p>
  */
 @WebMvcTest(controllers = com.app.auth.user.management.controller.UserManagementController.class)
-@Import({SecurityConfig.class, AdminProperties.class, CorsConfig.class})
+@Import({SecurityConfig.class, AdminProperties.class, CorsConfig.class, JwtAuthFilter.class})
 class CorsTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     // Stub all dependencies to prevent context failure
-    @MockBean private com.app.auth.user.management.service.UserManagementService userManagementService;
-    @MockBean private com.app.auth.user.management.service.AdminAccessService    adminAccessService;
-    @MockBean private JwtAuthFilter  jwtAuthFilter;
-    @MockBean private JwtService     jwtService;
-    @MockBean private CacheService   cacheService;
-    @MockBean private CookieFactory  cookieFactory;
-    @MockBean private com.app.auth.auth.service.OAuthUserService        oAuthUserService;
-    @MockBean private com.app.auth.auth.handler.OAuth2LoginSuccessHandler successHandler;
-    @MockBean private SessionRepository sessionRepository;
-    @MockBean private UserService       userServiceBean;
-    @MockBean private UserMapper        userMapperBean;
+    @MockitoBean private com.app.auth.user.management.service.UserManagementService userManagementService;
+    @MockitoBean private com.app.auth.user.management.service.AdminAccessService    adminAccessService;
+    @MockitoBean private JwtService     jwtService;
+    @MockitoBean private CacheService   cacheService;
+    @MockitoBean private CookieFactory  cookieFactory;
+    @MockitoBean private com.app.auth.auth.service.OAuthUserService        oAuthUserService;
+    @MockitoBean private com.app.auth.auth.handler.OAuth2LoginSuccessHandler successHandler;
+    @MockitoBean private SessionRepository sessionRepository;
+    @MockitoBean private UserService       userServiceBean;
+    @MockitoBean private UserMapper        userMapperBean;
 
     // This must match ${app.frontend.url} — default in application.yml
     private static final String FRONTEND_ORIGIN = "http://localhost:5173";

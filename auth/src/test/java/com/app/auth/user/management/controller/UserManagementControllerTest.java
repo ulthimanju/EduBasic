@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -97,19 +97,19 @@ class UserManagementControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    @MockBean private UserManagementService                    userManagementService;
-    @MockBean(name = "adminAccessService") private AdminAccessService adminAccessService;
+    @MockitoBean private UserManagementService                    userManagementService;
+    @MockitoBean(name = "adminAccessService") private AdminAccessService adminAccessService;
 
     // JwtAuthFilter (@Component) is in component scan — stub its constructor deps
-    @MockBean private JwtService        jwtService;
-    @MockBean private CacheService      cacheService;
-    @MockBean private CookieFactory     cookieFactory;
-    @MockBean private SessionRepository sessionRepository;
-    @MockBean private UserService       userService;
-    @MockBean private UserMapper        userMapper;
+    @MockitoBean private JwtService        jwtService;
+    @MockitoBean private CacheService      cacheService;
+    @MockitoBean private CookieFactory     cookieFactory;
+    @MockitoBean private SessionRepository sessionRepository;
+    @MockitoBean private UserService       userService;
+    @MockitoBean private UserMapper        userMapper;
     // OAuthUserService and successHandler needed by OAuth2 login config stubs
-    @MockBean private com.app.auth.auth.service.OAuthUserService        oAuthUserService;
-    @MockBean private com.app.auth.auth.handler.OAuth2LoginSuccessHandler successHandler;
+    @MockitoBean private com.app.auth.auth.service.OAuthUserService        oAuthUserService;
+    @MockitoBean private com.app.auth.auth.handler.OAuth2LoginSuccessHandler successHandler;
 
     private static final UserResponseDTO SAMPLE_USER =
             new UserResponseDTO("uid-1", "admin@example.com", "Admin User");

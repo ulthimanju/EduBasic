@@ -9,7 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.test.web.servlet.MockMvc;
@@ -48,15 +48,15 @@ class AuthControllerLogoutTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean private JwtService      jwtService;
-    @MockBean private SessionService  sessionService;
-    @MockBean private CacheService    cacheService;
-    @MockBean private CookieFactory   cookieFactory;
+    @MockitoBean private JwtService      jwtService;
+    @MockitoBean private SessionService  sessionService;
+    @MockitoBean private CacheService    cacheService;
+    @MockitoBean private CookieFactory   cookieFactory;
 
     // JwtAuthFilter is a @Component — its dependencies must be mocked to avoid context failure
-    @MockBean private SessionRepository sessionRepository;
-    @MockBean private com.app.auth.user.service.UserService userService;
-    @MockBean private com.app.auth.user.mapper.UserMapper   userMapper;
+    @MockitoBean private SessionRepository sessionRepository;
+    @MockitoBean private com.app.auth.user.service.UserService userService;
+    @MockitoBean private com.app.auth.user.mapper.UserMapper   userMapper;
 
     private static final String VALID_JWT = "header.payload.sig";
     private static final String JWT_ID    = "test-jwt-id";
