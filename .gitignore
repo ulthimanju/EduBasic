@@ -24,3 +24,5 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+AGENTS.md
+.github/
