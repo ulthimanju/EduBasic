@@ -28,6 +28,7 @@ public class Course {
     @Column(columnDefinition = "jsonb")
     private List<String> topics;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
