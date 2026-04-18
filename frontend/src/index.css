@@ -592,16 +592,43 @@ select:focus {
 
 .exam-main {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-4);
+}
+
+.exam-progress-pills {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.exam-progress-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-border-subtle);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.exam-progress-pill--active {
+  color: var(--color-accent);
+  border-color: var(--color-accent-subtle);
+  background: var(--color-accent-subtle);
 }
 
 .exam-progress {
   width: 100%;
-  height: 6px;
+  height: 4px;
   background: var(--color-interactive-hover);
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .exam-progress__bar {
@@ -610,7 +637,13 @@ select:focus {
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.exam-meta {
+.exam-options-grid {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.option-btn {
+
   display: grid;
   gap: var(--space-4);
   position: sticky;
