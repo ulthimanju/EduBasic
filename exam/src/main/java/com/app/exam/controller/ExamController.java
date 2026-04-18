@@ -1,8 +1,7 @@
 package com.app.exam.controller;
 
 import com.app.exam.domain.ExamSession;
-import com.app.exam.dto.QuestionResponse;
-import com.app.exam.dto.StartExamRequest;
+import com.app.exam.dto.*;
 import com.app.exam.service.ExamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
