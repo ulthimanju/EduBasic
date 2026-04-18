@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,21 +26,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = UserController.class)
-@Import({SecurityConfig.class, AdminProperties.class, CorsConfig.class})
+@Import({SecurityConfig.class, AdminProperties.class, CorsConfig.class, JwtAuthFilter.class})
 class UserControllerSecurityTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean private UserService userService;
-    @MockBean private CacheService cacheService;
-    @MockBean private UserMapper userMapper;
-    @MockBean private JwtAuthFilter jwtAuthFilter;
-    @MockBean private JwtService jwtService;
-    @MockBean private CookieFactory cookieFactory;
-    @MockBean private OAuthUserService oAuthUserService;
-    @MockBean private OAuth2LoginSuccessHandler successHandler;
-    @MockBean private SessionRepository sessionRepository;
+    @MockitoBean private UserService userService;
+    @MockitoBean private CacheService cacheService;
+    @MockitoBean private UserMapper userMapper;
+    @MockitoBean private JwtService jwtService;
+    @MockitoBean private CookieFactory cookieFactory;
+    @MockitoBean private OAuthUserService oAuthUserService;
+    @MockitoBean private OAuth2LoginSuccessHandler successHandler;
+    @MockitoBean private SessionRepository sessionRepository;
 
     @Test
     @DisplayName("GET /api/auth/me without auth returns 401 instead of redirecting to OAuth")
