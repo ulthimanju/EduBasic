@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BookOpen, GraduationCap } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
@@ -37,29 +38,49 @@ const CourseSelectPage = () => {
   if (error) return <ErrorMessage message={error} />;
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Select a Course</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {courses.map((course) => (
-          <div key={course.id} className="bg-white p-6 rounded-lg shadow-md border hover:border-blue-500 transition-colors">
-            <h2 className="text-xl font-semibold mb-2">{course.name}</h2>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {course.topics.map((topic, index) => (
-                <span key={index} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                  {topic}
-                </span>
-              ))}
+    <section className="dashboard page-enter">
+      <header className="dashboard-hero panel mb-8">
+        <div className="dashboard-hero__content">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="login-logo">
+              <GraduationCap size={20} />
             </div>
+            <h1 className="dashboard-hero__greeting">Select Your Path</h1>
+          </div>
+          <p className="dashboard-hero__subtitle">
+            Choose a course to begin your adaptive proficiency assessment.
+          </p>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {courses.map((course) => (
+          <article key={course.id} className="dashboard-card panel flex flex-col h-full">
+            <div className="dashboard-card__icon" aria-hidden="true">
+              <BookOpen size={18} strokeWidth={1.5} />
+            </div>
+            
+            <div className="flex-1">
+              <h2 className="dashboard-card__title mb-2">{course.name}</h2>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {course.topics.map((topic, index) => (
+                  <span key={index} className="bg-surface-glass border border-border-subtle text-text-secondary text-xs font-medium px-2 py-0.5 rounded-md">
+                    {topic}
+                  </span>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={() => handleStartExam(course.id)}
-              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+              className="btn btn-primary w-full mt-auto"
             >
-              Start Exam
+              Start Assessment
             </button>
-          </div>
+          </article>
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Trophy, Target, Award, LineChart, ChevronRight, LayoutDashboard, RotateCcw } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
+import { ROUTES } from '../constants/appConstants';
 
 const ResultPage = () => {
   const { sessionId } = useParams();
@@ -28,54 +30,98 @@ const ResultPage = () => {
   if (error) return <ErrorMessage message={error} />;
   if (!result) return null;
 
-  const getLevelColor = (level) => {
+  const getLevelColorClass = (level) => {
     switch (level) {
-      case 'Expert': return 'text-purple-600';
-      case 'Advanced': return 'text-blue-600';
-      case 'Intermediate': return 'text-green-600';
-      default: return 'text-gray-600';
+      case 'Expert': return 'text-purple-500';
+      case 'Advanced': return 'text-blue-500';
+      case 'Intermediate': return 'text-green-500';
+      default: return 'text-accent';
     }
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-blue-600 p-8 text-white text-center">
-          <h1 className="text-3xl font-bold mb-2">Exam Completed!</h1>
-          <p className="opacity-90">Here is your proficiency analysis</p>
+    <div className="max-w-4xl mx-auto page-enter">
+      <header className="dashboard-hero panel mb-8">
+        <div className="dashboard-hero__content flex flex-col items-center text-center py-4">
+          <div className="login-logo w-16 h-16 mb-4">
+            <Trophy size={32} />
+          </div>
+          <h1 className="dashboard-hero__greeting text-3xl">Assessment Complete</h1>
+          <p className="dashboard-hero__subtitle text-base mt-2">
+            We've analyzed your performance. Here is your proficiency profile.
+          </p>
         </div>
+      </header>
 
-        <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            <div className="text-center p-8 bg-gray-50 rounded-2xl border">
-              <p className="text-sm uppercase tracking-wider text-gray-500 font-bold mb-2">Your Level</p>
-              <h2 className={`text-5xl font-black ${getLevelColor(result.level)}`}>
-                {result.level}
-              </h2>
-            </div>
-            <div className="text-center p-8 bg-gray-50 rounded-2xl border">
-              <p className="text-sm uppercase tracking-wider text-gray-500 font-bold mb-2">Normalized Score</p>
-              <h2 className="text-5xl font-black text-gray-800">
-                {Math.round(result.normalizedScore)}%
-              </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <article className="panel flex flex-col items-center justify-center p-10 text-center">
+          <div className="dashboard-card__icon mb-4" aria-hidden="true">
+            <Award size={24} className="text-text-secondary" />
+          </div>
+          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-2">Proficiency Level</p>
+          <h2 className={`text-4xl font-bold ${getLevelColorClass(result.level)}`}>
+            {result.level}
+          </h2>
+        </article>
+
+        <article className="panel flex flex-col items-center justify-center p-10 text-center">
+          <div className="dashboard-card__icon mb-4" aria-hidden="true">
+            <Target size={24} className="text-text-secondary" />
+          </div>
+          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-2">Adaptive Score</p>
+          <h2 className="text-4xl font-bold text-text-primary">
+            {Math.round(result.normalizedScore)}%
+          </h2>
+        </article>
+      </div>
+
+      <div className="panel p-8 mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="dashboard-card__icon">
+            <LineChart size={18} />
+          </div>
+          <h3 className="text-lg font-semibold">Performance Insights</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Strong Topics</h4>
+            <div className="flex flex-wrap gap-2">
+              {result.topicsStrong?.length > 0 ? result.topicsStrong.map((topic, i) => (
+                <span key={i} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-lg text-sm font-medium">
+                  {topic}
+                </span>
+              )) : <span className="text-text-muted text-sm italic">Not enough data to determine</span>}
             </div>
           </div>
-
-          <div className="flex justify-center space-x-4">
-            <Link
-              to="/courses"
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors"
-            >
-              Take Another Exam
-            </Link>
-            <Link
-              to="/dashboard"
-              className="bg-gray-100 text-gray-700 px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors"
-            >
-              Go to Dashboard
-            </Link>
+          <div>
+            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Focus Areas</h4>
+            <div className="flex flex-wrap gap-2">
+              {result.topicsWeak?.length > 0 ? result.topicsWeak.map((topic, i) => (
+                <span key={i} className="px-3 py-1 bg-accent/10 text-accent border border-accent/20 rounded-lg text-sm font-medium">
+                  {topic}
+                </span>
+              )) : <span className="text-text-muted text-sm italic">You handled all topics well</span>}
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+        <Link
+          to={ROUTES.COURSES}
+          className="btn btn-primary px-8 py-3 text-base w-full sm:w-auto flex items-center gap-2"
+        >
+          <RotateCcw size={18} />
+          Try Another Course
+        </Link>
+        <Link
+          to={ROUTES.DASHBOARD}
+          className="btn btn-secondary px-8 py-3 text-base w-full sm:w-auto flex items-center gap-2"
+        >
+          <LayoutDashboard size={18} />
+          Return to Dashboard
+        </Link>
       </div>
     </div>
   );

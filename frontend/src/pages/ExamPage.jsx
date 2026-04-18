@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Clock, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
@@ -90,47 +91,54 @@ const ExamPage = () => {
   if (!question) return null;
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">Question {question.index} / 20</h1>
-        <div className={`text-xl font-mono ${timeLeft < 10 ? 'text-red-500' : ''}`}>
+    <div className="max-w-3xl mx-auto page-enter">
+      <div className="flex justify-between items-end mb-8">
+        <div>
+          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-1">Adaptive Assessment</p>
+          <h1 className="text-2xl font-semibold">Question {question.index} <span className="text-text-muted font-normal">/ 20</span></h1>
+        </div>
+        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-mono text-lg ${
+          timeLeft < 10 ? 'border-accent text-accent animate-pulse' : 'border-border text-text-primary'
+        }`}>
+          <Clock size={18} />
           {timeLeft}s
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-xl shadow-lg border">
-        <div className="mb-2">
-          <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
-            question.difficulty === 'EASY' ? 'bg-green-100 text-green-800' :
-            question.difficulty === 'MEDIUM' ? 'bg-blue-100 text-blue-800' :
-            question.difficulty === 'HARD' ? 'bg-orange-100 text-orange-800' :
-            'bg-red-100 text-red-800'
+      <div className="panel p-8 md:p-10">
+        <div className="mb-6">
+          <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
+            question.difficulty === 'EASY' ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
+            question.difficulty === 'MEDIUM' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+            question.difficulty === 'HARD' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' :
+            'bg-accent/10 text-accent border border-accent/20'
           }`}>
             {question.difficulty}
           </span>
         </div>
-        <h2 className="text-2xl font-semibold mb-6">{question.question}</h2>
+        
+        <h2 className="text-2xl font-medium leading-relaxed mb-10 text-text-primary">
+          {question.question}
+        </h2>
 
-        <div className="space-y-4">
+        <div className="grid gap-3">
           {question.options.map((option, index) => {
             const isSelected = selectedOption === option;
             const isCorrect = feedback?.correctAnswer === option;
             const isWrong = feedback && isSelected && !feedback.correct;
 
-            let bgColor = 'bg-gray-50 hover:bg-gray-100';
-            let borderColor = 'border-gray-200';
-
+            let stateClass = 'border-border-subtle bg-surface-glass hover:bg-interactive-hover';
+            
             if (feedback) {
               if (isCorrect) {
-                bgColor = 'bg-green-100';
-                borderColor = 'border-green-500';
+                stateClass = 'border-green-500/50 bg-green-500/5 text-text-primary ring-1 ring-green-500/20';
               } else if (isWrong) {
-                bgColor = 'bg-red-100';
-                borderColor = 'border-red-500';
+                stateClass = 'border-accent/50 bg-accent/5 text-text-primary ring-1 ring-accent/20';
+              } else {
+                stateClass = 'border-border-subtle bg-surface-glass opacity-50';
               }
             } else if (isSelected) {
-              borderColor = 'border-blue-500';
-              bgColor = 'bg-blue-50';
+              stateClass = 'border-accent bg-accent-subtle text-text-primary ring-1 ring-accent';
             }
 
             return (
@@ -138,38 +146,46 @@ const ExamPage = () => {
                 key={index}
                 disabled={!!feedback || submitting}
                 onClick={() => setSelectedOption(option)}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${bgColor} ${borderColor} flex items-center justify-between`}
+                className={`w-full text-left p-5 rounded-xl border transition-all flex items-center justify-between group ${stateClass}`}
               >
-                <span>{option}</span>
-                {feedback && isCorrect && <span className="text-green-600">✓</span>}
-                {feedback && isWrong && <span className="text-red-600">✗</span>}
+                <span className="font-medium">{option}</span>
+                <div className="flex items-center">
+                  {feedback && isCorrect && <CheckCircle2 size={20} className="text-green-500" />}
+                  {feedback && isWrong && <XCircle size={20} className="text-accent" />}
+                  {!feedback && isSelected && <div className="w-2 h-2 rounded-full bg-accent" />}
+                </div>
               </button>
             );
           })}
         </div>
 
         {feedback && (
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200 animate-fadeIn">
-            <p className="font-semibold mb-2">Explanation:</p>
-            <p className="text-gray-700">{feedback.explanation}</p>
+          <div className="mt-10 p-6 rounded-xl bg-surface-glass border border-border-subtle animate-page-enter">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary mb-3 flex items-center gap-2">
+              Analysis & Explanation
+            </h3>
+            <p className="text-text-secondary leading-relaxed">
+              {feedback.explanation}
+            </p>
           </div>
         )}
 
-        <div className="mt-8 flex justify-end">
+        <div className="mt-10 pt-6 border-t border-border-subtle flex justify-end">
           {!feedback ? (
             <button
               disabled={!selectedOption || submitting}
               onClick={handleSubmit}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+              className="btn btn-primary px-10 py-4 text-base"
             >
-              {submitting ? 'Submitting...' : 'Submit Answer'}
+              {submitting ? 'Analyzing...' : 'Submit Answer'}
             </button>
           ) : (
             <button
               onClick={handleNext}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700"
+              className="btn btn-primary px-10 py-4 text-base flex items-center gap-2"
             >
-              {feedback.sessionComplete ? 'See Result' : 'Next Question'}
+              {feedback.sessionComplete ? 'View Proficiency Report' : 'Next Question'}
+              <ChevronRight size={18} />
             </button>
           )}
         </div>
