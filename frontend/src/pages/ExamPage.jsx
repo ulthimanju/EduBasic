@@ -152,10 +152,10 @@ const ExamPage = () => {
                     onClick={() => handleSubmit(option)}
                     className={`option-btn ${btnClass}`}
                   >
-                    <span className="font-medium pr-4">{option}</span>
+                    <span className="option-btn__label">{option}</span>
                     <div className="option-indicator">
-                      {feedback && isCorrect && <CheckCircle2 size={14} className="text-white" />}
-                      {feedback && isWrong && <XCircle size={14} className="text-white" />}
+                      {feedback && isCorrect && <CheckCircle2 size={14} />}
+                      {feedback && isWrong && <XCircle size={14} />}
                       {!feedback && isSelected && <div className="option-dot" />}
                     </div>
                   </button>
