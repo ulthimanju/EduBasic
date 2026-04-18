@@ -25,7 +25,7 @@ public class UserAnswer {
     @Column(name = "question_id")
     private UUID questionId;
 
-    @Column(name = "selected_option", length = 5)
+    @Column(name = "selected_option", length = 255)
     private String selectedOption;
 
     @Column(name = "is_correct")

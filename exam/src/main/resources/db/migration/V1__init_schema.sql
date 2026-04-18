@@ -25,7 +25,7 @@ CREATE TABLE questions (
   course_id UUID REFERENCES courses(id),
   question TEXT NOT NULL,
   options JSONB NOT NULL,
-  correct_answer VARCHAR(5),
+  correct_answer VARCHAR(255),
   explanation TEXT,
   topic VARCHAR(100),
   difficulty VARCHAR(20),
@@ -37,7 +37,7 @@ CREATE TABLE user_answers (
   id UUID PRIMARY KEY,
   session_id UUID REFERENCES exam_sessions(id),
   question_id UUID,
-  selected_option VARCHAR(5),
+  selected_option VARCHAR(255),
   is_correct BOOLEAN,
   time_taken INT,
   answered_at TIMESTAMP

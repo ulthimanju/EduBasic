@@ -31,7 +31,7 @@ public class Question {
     @Column(columnDefinition = "jsonb", nullable = false)
     private List<String> options;
 
-    @Column(name = "correct_answer", length = 5)
+    @Column(name = "correct_answer", length = 255)
     private String correctAnswer;
 
     @Column(columnDefinition = "TEXT")
