@@ -33,6 +33,7 @@ public class GeminiService {
     @Value("${gemini.api-url}")
     private String apiUrl;
 
+    @SuppressWarnings("unchecked")
     public List<Question> generateQuestions(String courseName, List<String> previousTopics, String difficulty, int count) {
         String topicsStr = previousTopics != null ? String.join(", ", previousTopics) : "None";
         

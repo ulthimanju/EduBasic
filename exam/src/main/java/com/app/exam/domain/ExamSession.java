@@ -40,6 +40,7 @@ public class ExamSession {
     @Builder.Default
     private Integer streak = 0;
 
+    @Builder.Default
     @Column(name = "started_at")
     private LocalDateTime startedAt = LocalDateTime.now();
 
