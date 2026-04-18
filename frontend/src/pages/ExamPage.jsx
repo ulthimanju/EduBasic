@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Clock, ChevronRight, CheckCircle2, XCircle, Info, Brain } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
@@ -90,105 +90,136 @@ const ExamPage = () => {
   if (error) return <ErrorMessage message={error} />;
   if (!question) return null;
 
+  const progress = (question.index / 20) * 100;
+
   return (
-    <div className="max-w-3xl mx-auto page-enter">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-1">Adaptive Assessment</p>
-          <h1 className="text-2xl font-semibold">Question {question.index} <span className="text-text-muted font-normal">/ 20</span></h1>
-        </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-mono text-lg ${
-          timeLeft < 10 ? 'border-accent text-accent animate-pulse' : 'border-border text-text-primary'
-        }`}>
-          <Clock size={18} />
-          {timeLeft}s
-        </div>
-      </div>
-
-      <div className="panel p-8 md:p-10">
-        <div className="mb-6">
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
-            question.difficulty === 'EASY' ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
-            question.difficulty === 'MEDIUM' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
-            question.difficulty === 'HARD' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' :
-            'bg-accent/10 text-accent border border-accent/20'
-          }`}>
-            {question.difficulty}
-          </span>
-        </div>
-        
-        <h2 className="text-2xl font-medium leading-relaxed mb-10 text-text-primary">
-          {question.question}
-        </h2>
-
-        <div className="grid gap-3">
-          {question.options.map((option, index) => {
-            const isSelected = selectedOption === option;
-            const isCorrect = feedback?.correctAnswer === option;
-            const isWrong = feedback && isSelected && !feedback.correct;
-
-            let stateClass = 'border-border-subtle bg-surface-glass hover:bg-interactive-hover';
-            
-            if (feedback) {
-              if (isCorrect) {
-                stateClass = 'border-green-500/50 bg-green-500/5 text-text-primary ring-1 ring-green-500/20';
-              } else if (isWrong) {
-                stateClass = 'border-accent/50 bg-accent/5 text-text-primary ring-1 ring-accent/20';
-              } else {
-                stateClass = 'border-border-subtle bg-surface-glass opacity-50';
-              }
-            } else if (isSelected) {
-              stateClass = 'border-accent bg-accent-subtle text-text-primary ring-1 ring-accent';
-            }
-
-            return (
-              <button
-                key={index}
-                disabled={!!feedback || submitting}
-                onClick={() => setSelectedOption(option)}
-                className={`w-full text-left p-5 rounded-xl border transition-all flex items-center justify-between group ${stateClass}`}
-              >
-                <span className="font-medium">{option}</span>
-                <div className="flex items-center">
-                  {feedback && isCorrect && <CheckCircle2 size={20} className="text-green-500" />}
-                  {feedback && isWrong && <XCircle size={20} className="text-accent" />}
-                  {!feedback && isSelected && <div className="w-2 h-2 rounded-full bg-accent" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {feedback && (
-          <div className="mt-10 p-6 rounded-xl bg-surface-glass border border-border-subtle animate-page-enter">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-text-secondary mb-3 flex items-center gap-2">
-              Analysis & Explanation
-            </h3>
-            <p className="text-text-secondary leading-relaxed">
-              {feedback.explanation}
-            </p>
+    <div className="dashboard--wide mx-auto animate-page-enter">
+      <div className="exam-layout">
+        <main className="exam-main">
+          <div className="exam-header">
+            <div className="exam-progress">
+              <div 
+                className="exam-progress__bar" 
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center mt-2 px-1">
+              <span className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                Progress: {question.index} / 20
+              </span>
+              <span className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                {Math.round(progress)}% Complete
+              </span>
+            </div>
           </div>
-        )}
 
-        <div className="mt-10 pt-6 border-t border-border-subtle flex justify-end">
-          {!feedback ? (
-            <button
-              disabled={!selectedOption || submitting}
-              onClick={handleSubmit}
-              className="btn btn-primary px-10 py-4 text-base"
-            >
-              {submitting ? 'Analyzing...' : 'Submit Answer'}
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="btn btn-primary px-10 py-4 text-base flex items-center gap-2"
-            >
-              {feedback.sessionComplete ? 'View Proficiency Report' : 'Next Question'}
-              <ChevronRight size={18} />
-            </button>
-          )}
-        </div>
+          <div className="panel p-8 md:p-12">
+            <h1 className="text-2xl md:text-3xl font-semibold leading-snug mb-10 text-text-primary">
+              {question.question}
+            </h1>
+
+            <div className="grid gap-4">
+              {question.options.map((option, index) => {
+                const isSelected = selectedOption === option;
+                const isCorrect = feedback?.correctAnswer === option;
+                const isWrong = feedback && isSelected && !feedback.correct;
+
+                let btnClass = isSelected ? 'is-selected' : '';
+                if (feedback) {
+                  if (isCorrect) btnClass = 'is-correct';
+                  else if (isWrong) btnClass = 'is-wrong';
+                }
+
+                return (
+                  <button
+                    key={index}
+                    disabled={!!feedback || submitting}
+                    onClick={() => setSelectedOption(option)}
+                    className={`option-btn ${btnClass}`}
+                  >
+                    <span className="font-medium pr-4">{option}</span>
+                    <div className="option-indicator">
+                      {feedback && isCorrect && <CheckCircle2 size={14} className="text-white" />}
+                      {feedback && isWrong && <XCircle size={14} className="text-white" />}
+                      {!feedback && isSelected && <div className="option-dot" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {feedback && (
+              <div className="feedback-panel panel animate-page-enter">
+                <h3 className="feedback-panel__title flex items-center gap-2">
+                  <Brain size={14} />
+                  Adaptive Insight
+                </h3>
+                <p className="feedback-panel__text">
+                  {feedback.explanation}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-12 flex justify-end">
+              {!feedback ? (
+                <button
+                  disabled={!selectedOption || submitting}
+                  onClick={handleSubmit}
+                  className="btn btn-primary px-10 py-4 text-base shadow-lg"
+                >
+                  {submitting ? 'Analyzing Response...' : 'Confirm Answer'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="btn btn-primary px-10 py-4 text-base flex items-center gap-2 shadow-lg"
+                >
+                  {feedback.sessionComplete ? 'Finalize Assessment' : 'Next Question'}
+                  <ChevronRight size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+        </main>
+
+        <aside className="exam-meta">
+          <div className={`exam-timer panel ${timeLeft < 10 ? 'exam-timer--urgent' : ''}`}>
+            <span className="exam-timer__label flex items-center gap-2">
+              <Clock size={12} />
+              Time Remaining
+            </span>
+            <span className="exam-timer__value">
+              {timeLeft}<span className="text-lg ml-1 font-medium opacity-50">s</span>
+            </span>
+          </div>
+
+          <div className="exam-info-card panel">
+            <div className="exam-info-item">
+              <span className="exam-info-label">Difficulty</span>
+              <span className={`exam-info-value font-bold ${
+                question.difficulty === 'EASY' ? 'text-green-500' :
+                question.difficulty === 'MEDIUM' ? 'text-blue-500' :
+                question.difficulty === 'HARD' ? 'text-orange-500' :
+                'text-accent'
+              }`}>
+                {question.difficulty}
+              </span>
+            </div>
+            <div className="divider my-1" />
+            <div className="exam-info-item">
+              <span className="exam-info-label">Assessment Type</span>
+              <span className="exam-info-value">Adaptive Signal</span>
+            </div>
+            <div className="divider my-1" />
+            <div className="exam-info-item">
+              <span className="exam-info-label flex items-center gap-1">
+                <Info size={10} />
+                Benchmark
+              </span>
+              <span className="exam-info-value">Standard placement</span>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
