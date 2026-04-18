@@ -86,7 +86,7 @@ class JwtAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // Verify the matcher works correctly with our MockHttpServletRequest setup
-        assertThat(SecurityConfig.PUBLIC_ROUTES.matches(request)).isTrue();
+        assertThat(SecurityConfig.getPublicRoutes().matches(request)).isTrue();
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -102,7 +102,7 @@ class JwtAuthFilterTest {
         MockHttpServletRequest  request  = buildRequest("GET", "/oauth2/authorization/google", VALID_JWT);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        assertThat(SecurityConfig.PUBLIC_ROUTES.matches(request)).isTrue();
+        assertThat(SecurityConfig.getPublicRoutes().matches(request)).isTrue();
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -116,7 +116,7 @@ class JwtAuthFilterTest {
         MockHttpServletRequest  request  = buildRequest("GET", "/actuator/health", null);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        assertThat(SecurityConfig.PUBLIC_ROUTES.matches(request)).isTrue();
+        assertThat(SecurityConfig.getPublicRoutes().matches(request)).isTrue();
 
         filter.doFilterInternal(request, response, filterChain);
 
