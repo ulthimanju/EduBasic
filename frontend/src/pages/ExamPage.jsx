@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target, ShieldAlert, Maximize2, AlertOctagon } from 'lucide-react';
+import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target, ShieldAlert, Maximize2, AlertOctagon, LogOut, Hash, Lock } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
@@ -27,7 +27,7 @@ const ExamPage = () => {
   const startTimeRef = useRef(null);
   const autoNextTimeoutRef = useRef(null);
 
-  // Integrity Hook - Now passes examStarted as isActive
+  // Integrity Hook
   const { 
     violationCount, 
     showWarning, 
@@ -126,6 +126,17 @@ const ExamPage = () => {
     }
   };
 
+  const handleExit = async () => {
+    if (window.confirm('Are you sure you want to end the exam early? This will finalize your current score.')) {
+      try {
+        await examApi.terminateSession(sessionId, 'User manually exited the exam');
+        navigate(`/result/${sessionId}`);
+      } catch (err) {
+        console.error('Failed to exit exam:', err);
+      }
+    }
+  };
+
   const handleStartExam = () => {
     enterFullscreen();
     setExamStarted(true);
@@ -186,10 +197,9 @@ const ExamPage = () => {
   if (!question) return null;
 
   const totalQuestions = 20;
-  const timerStateClass = timeLeft < 10 ? ' exam-timer__spotlight--urgent' : '';
 
   return (
-    <div className="dashboard dashboard--wide exam-page animate-page-enter">
+    <div className="animate-page-enter">
       {showWarning && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="panel max-w-sm w-full p-8 text-center animate-page-enter shadow-2xl border-accent">
@@ -207,114 +217,92 @@ const ExamPage = () => {
         </div>
       )}
 
-      <div className="exam-layout">
-        <main className="exam-main">
-          <section className="exam-question panel">
-            <header className="exam-question__header">
-              <div className="exam-question__eyebrow">
-                <span className="exam-question__kicker">Adaptive assessment</span>
-                <span className="exam-question__index">Question {question.index}</span>
-              </div>
-              <h1 className="exam-question__title">{question.question}</h1>
-            </header>
+      {/* HEADER META ACCURATE TO IMAGE */}
+      <div className="exam-header-meta">
+        <div className="exam-meta-group">
+          <span className="exam-meta-label">Progress</span>
+          <span className="exam-meta-value">#Question {question.index} / {totalQuestions}</span>
+        </div>
+        
+        <div className="exam-meta-group">
+          <span className="exam-meta-label">Time Left</span>
+          <span className="exam-meta-value">
+            <Clock size={16} />
+            {timeLeft}s
+          </span>
+        </div>
 
-            <div className="exam-options-grid">
-              {question.options.map((option, index) => {
-                const isSelected = selectedOption === option;
-                const isCorrect = feedback?.correctAnswer === option;
-                const isWrong = feedback && isSelected && !feedback.correct;
+        <div className="exam-meta-group">
+           <span className="exam-meta-value">
+              <Target size={16} />
+              Adaptive Signal
+           </span>
+        </div>
 
-                let btnClass = isSelected ? 'is-selected' : '';
-                if (feedback) {
-                  if (isCorrect) btnClass = 'is-correct';
-                  else if (isWrong) btnClass = 'is-wrong';
-                }
+        <button onClick={handleExit} className="exit-btn">
+          <LogOut size={14} />
+          Exit
+        </button>
+      </div>
 
-                return (
-                  <button
-                    key={index}
-                    disabled={!!feedback || submitting || showWarning}
-                    onClick={() => handleSubmit(option)}
-                    className={`option-btn ${btnClass}`}
-                  >
-                    <span className="option-btn__label">{option}</span>
-                    <div className="option-indicator">
-                      {feedback && isCorrect && <CheckCircle2 size={14} />}
-                      {feedback && isWrong && <XCircle size={14} />}
-                      {!feedback && isSelected && <div className="option-dot" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+      <main className="question-panel">
+        <h1 className="question-title">{question.question}</h1>
 
-            {feedback && (
-              <div className="feedback-panel panel animate-page-enter">
-                <h3 className="feedback-panel__title">
-                  <Brain size={14} />
-                  Adaptive Insight
-                </h3>
-                <p className="feedback-panel__text">
-                  {feedback.explanation}
-                </p>
-              </div>
-            )}
+        <div className="options-container">
+          {question.options.map((option, index) => {
+            const isSelected = selectedOption === option;
+            const isCorrect = feedback?.correctAnswer === option;
+            const isWrong = feedback && isSelected && !feedback.correct;
 
-            <div className="exam-actions">
-              {submitting && (
-                <div className="exam-actions__status">
-                  <Spinner size="sm" />
-                  <span>Analyzing response...</span>
+            let stateClass = isSelected ? 'is-selected' : '';
+            if (feedback) {
+               // Optional: style correctly based on feedback
+            }
+
+            return (
+              <button
+                key={index}
+                disabled={!!feedback || submitting || showWarning}
+                onClick={() => handleSubmit(option)}
+                className={`option-item ${stateClass}`}
+              >
+                <span className="option-item__text">{option}</span>
+                <div className="option-radio">
+                  {isSelected && <div className="option-radio__dot" />}
                 </div>
-              )}
-              {feedback && (
-                <button
-                  onClick={handleNext}
-                  className="btn btn-secondary exam-actions__next"
-                >
-                  {feedback.sessionComplete ? 'View Proficiency Report' : 'Next Question'}
-                  <ChevronRight size={18} />
-                </button>
-              )}
-            </div>
-          </section>
-        </main>
+              </button>
+            );
+          })}
+        </div>
 
-        <aside className="exam-meta">
-          <div className="exam-meta__card panel">
-            <div className="exam-meta__header">
-              <p className="exam-meta__label">Session status</p>
-              <div className="exam-meta__pill">
-                <Target size={12} />
-                <span>Adaptive</span>
-              </div>
-            </div>
-
-            <div className={`exam-timer__spotlight${timerStateClass}`}>
-              <span className="exam-timer__label">
-                <Clock size={12} />
-                Time remaining
-              </span>
-              <div className="exam-timer__row">
-                <span className="exam-timer__value">{timeLeft}</span>
-                <span className="exam-timer__unit">sec</span>
-              </div>
-            </div>
-
-            <div className="exam-meta__summary">
-              <span className="exam-meta__summary-label">Current question</span>
-              <span className="exam-meta__summary-value">
-                {question.index} of {totalQuestions}
-              </span>
-            </div>
-            
-            <div className="divider" />
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-text-muted">
-              <ShieldAlert size={10} className={violationCount > 0 ? 'text-accent' : ''} />
-              Integrity Active
-            </div>
+        {feedback && (
+          <div className="feedback-panel panel animate-page-enter">
+            <h3 className="feedback-panel__title">
+              <Brain size={14} />
+              Adaptive Insight
+            </h3>
+            <p className="feedback-panel__text">
+              {feedback.explanation}
+            </p>
           </div>
-        </aside>
+        )}
+
+        {feedback && (
+           <div className="mt-auto pt-8 flex justify-end">
+              <button
+                onClick={handleNext}
+                className="btn btn-secondary !py-4 !px-8"
+              >
+                {feedback.sessionComplete ? 'View Proficiency Report' : 'Next Question'}
+                <ChevronRight size={18} />
+              </button>
+           </div>
+        )}
+      </main>
+
+      <div className="security-footer">
+        <Lock size={18} />
+        <span>Security Layer: {violationCount > 0 ? `${violationCount} Violation(s)` : 'Active'}</span>
       </div>
     </div>
   );
