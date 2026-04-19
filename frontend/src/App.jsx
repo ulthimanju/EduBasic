@@ -32,6 +32,7 @@ function AppShell() {
 
   const location = useLocation();
   const isLoginRoute = location.pathname === ROUTES.LOGIN;
+  const isExamRoute = location.pathname.startsWith('/exam/');
   
   const { themeMode, setThemeMode: updateThemeMode, effectiveTheme } = useThemeMode();
 
@@ -44,14 +45,14 @@ function AppShell() {
 
   return (
     <div className="app-shell">
-      {!isLoginRoute && (
+      {!isLoginRoute && !isExamRoute && (
         <Navbar
           themeMode={themeMode}
           effectiveTheme={effectiveTheme}
           onThemeModeChange={updateThemeMode}
         />
       )}
-      <main className={`app-main ${isLoginRoute ? 'app-main--auth' : ''}`}>
+      <main className={`app-main ${isLoginRoute ? 'app-main--auth' : isExamRoute ? 'app-main--exam' : ''}`}>
         <Routes>
           <Route element={<PublicOnlyRoute />}>
             <Route path={ROUTES.LOGIN} element={<LoginPage />} />

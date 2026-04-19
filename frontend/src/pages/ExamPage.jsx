@@ -5,6 +5,7 @@ import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
 import { useExamIntegrity } from '../hooks/useExamIntegrity';
+import { ROUTES } from '../constants/appConstants';
 
 const ExamPage = () => {
   const { sessionId } = useParams();
@@ -21,6 +22,7 @@ const ExamPage = () => {
   const [examStarted, setExamStarted] = useState(false);
   const [isTerminated, setIsTerminated] = useState(false);
   const [terminationReason, setTerminationReason] = useState('');
+  const [exiting, setExiting] = useState(false);
 
   // Refs
   const timerRef = useRef(null);
@@ -120,7 +122,7 @@ const ExamPage = () => {
   const handleNext = () => {
     if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
     if (feedback?.sessionComplete) {
-      navigate(`/result/${sessionId}`);
+      navigate(ROUTES.RESULT.replace(':sessionId', sessionId));
     } else {
       fetchQuestion();
     }
@@ -128,11 +130,18 @@ const ExamPage = () => {
 
   const handleExit = async () => {
     if (window.confirm('Are you sure you want to end the exam early? This will finalize your current score.')) {
+      setExiting(true);
       try {
         await examApi.terminateSession(sessionId, 'User manually exited the exam');
-        navigate(`/result/${sessionId}`);
+        // Navigate back, fallback to courses if no history
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate(ROUTES.COURSES);
+        }
       } catch (err) {
         console.error('Failed to exit exam:', err);
+        setExiting(false);
       }
     }
   };
@@ -182,7 +191,7 @@ const ExamPage = () => {
             </div>
           </div>
           <button 
-            onClick={() => navigate(`/result/${sessionId}`)} 
+            onClick={() => navigate(ROUTES.RESULT.replace(':sessionId', sessionId))} 
             className="btn btn-primary w-full py-4 text-base"
           >
             View Partial Result
@@ -239,9 +248,9 @@ const ExamPage = () => {
            </span>
         </div>
 
-        <button onClick={handleExit} className="exit-btn">
+        <button onClick={handleExit} className="exit-btn" disabled={exiting}>
           <LogOut size={14} />
-          Exit
+          {exiting ? 'Exiting...' : 'Exit'}
         </button>
       </div>
 
