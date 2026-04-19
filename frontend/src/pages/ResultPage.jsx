@@ -5,6 +5,9 @@ import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
 import { ROUTES } from '../constants/appConstants';
+import { RESULT_CONTENT } from '../content/pageContent';
+import { VISUAL_MAPPINGS } from '../config/pageConfig';
+import { getLevelColorClass } from '../utils/viewModels';
 
 const ResultPage = () => {
   const { sessionId } = useParams();
@@ -32,16 +35,6 @@ const ResultPage = () => {
 
   const isTerminated = result.status === 'TERMINATED';
 
-  const getLevelColorClass = (level) => {
-    if (isTerminated) return 'text-text-muted';
-    switch (level) {
-      case 'Expert': return 'text-purple-500';
-      case 'Advanced': return 'text-blue-500';
-      case 'Intermediate': return 'text-green-500';
-      default: return 'text-accent';
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto page-enter pb-20">
       {isTerminated && (
@@ -50,13 +43,13 @@ const ResultPage = () => {
             <ShieldAlert size={24} />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h3 className="text-lg font-bold text-text-primary mb-1">Assessment Terminated</h3>
+            <h3 className="text-lg font-bold text-text-primary mb-1">{RESULT_CONTENT.TERMINATED_NOTICE.TITLE}</h3>
             <p className="text-text-secondary text-sm leading-relaxed">
-              This session was ended early due to integrity violations. The proficiency level below is a <b>partial estimate</b> based on {result.violationCount} recorded focus/navigation events.
+              {RESULT_CONTENT.TERMINATED_NOTICE.DESCRIPTION_PREFIX} {result.violationCount} {RESULT_CONTENT.TERMINATED_NOTICE.DESCRIPTION_SUFFIX}
             </p>
           </div>
           <div className="px-4 py-2 bg-accent/10 rounded-lg text-accent text-xs font-mono font-bold whitespace-nowrap">
-            CODE: INTEGRITY_FAIL
+            {RESULT_CONTENT.TERMINATED_NOTICE.CODE}
           </div>
         </div>
       )}
@@ -67,12 +60,12 @@ const ResultPage = () => {
             {isTerminated ? <AlertTriangle size={32} /> : <Trophy size={32} />}
           </div>
           <h1 className="dashboard-hero__greeting text-3xl">
-            {isTerminated ? 'Incomplete Assessment' : 'Assessment Complete'}
+            {isTerminated ? RESULT_CONTENT.HERO.TERMINATED_TITLE : RESULT_CONTENT.HERO.COMPLETE_TITLE}
           </h1>
           <p className="dashboard-hero__subtitle text-base mt-2 max-w-lg mx-auto">
             {isTerminated 
-              ? `Session ended prematurely. Reason: ${result.terminationReason || 'Integrity violation'}.`
-              : "We've analyzed your performance. Here is your proficiency profile."}
+              ? `${RESULT_CONTENT.HERO.TERMINATED_SUBTITLE} ${result.terminationReason || 'Integrity violation'}.`
+              : RESULT_CONTENT.HERO.COMPLETE_SUBTITLE}
           </p>
         </div>
       </header>
@@ -82,8 +75,8 @@ const ResultPage = () => {
           <div className="dashboard-card__icon mb-4" aria-hidden="true">
             <Award size={24} className="text-text-secondary" />
           </div>
-          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-2">Estimated Level</p>
-          <h2 className={`text-4xl font-bold ${getLevelColorClass(result.level)}`}>
+          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-2">{RESULT_CONTENT.CARDS.LEVEL_LABEL}</p>
+          <h2 className={`text-4xl font-bold ${getLevelColorClass(result.level, isTerminated)}`}>
             {result.level}
           </h2>
         </article>
@@ -92,7 +85,7 @@ const ResultPage = () => {
           <div className="dashboard-card__icon mb-4" aria-hidden="true">
             <Target size={24} className="text-text-secondary" />
           </div>
-          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-2">Proficiency Score</p>
+          <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-2">{RESULT_CONTENT.CARDS.SCORE_LABEL}</p>
           <h2 className="text-4xl font-bold text-text-primary">
             {Math.round(result.normalizedScore)}%
           </h2>
@@ -104,29 +97,29 @@ const ResultPage = () => {
           <div className="dashboard-card__icon">
             <LineChart size={18} />
           </div>
-          <h3 className="text-lg font-semibold">Performance Insights</h3>
+          <h3 className="text-lg font-semibold">{RESULT_CONTENT.INSIGHTS.TITLE}</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Demonstrated Strength</h4>
+            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">{RESULT_CONTENT.INSIGHTS.STRENGTH_LABEL}</h4>
             <div className="flex flex-wrap gap-2">
               {result.topicsStrong && Object.keys(result.topicsStrong).length > 0 ? Object.keys(result.topicsStrong).map((topic, i) => (
                 <span key={i} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-lg text-sm font-medium">
                   {topic}
                 </span>
-              )) : <span className="text-text-muted text-sm italic">Not enough data recorded</span>}
+              )) : <span className="text-text-muted text-sm italic">{RESULT_CONTENT.INSIGHTS.STRENGTH_EMPTY}</span>}
             </div>
           </div>
           <div>
-            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Focus Areas</h4>
+            <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">{RESULT_CONTENT.INSIGHTS.FOCUS_LABEL}</h4>
             <div className="flex flex-wrap gap-2">
               {result.topicsWeak && Object.keys(result.topicsWeak).length > 0 ? Object.keys(result.topicsWeak).map((topic, i) => (
                 <span key={i} className="px-3 py-1 bg-accent/10 text-accent border border-accent/20 rounded-lg text-sm font-medium">
                   {topic}
                 </span>
               )) : <span className="text-text-muted text-sm italic">
-                {isTerminated ? 'Assessment interrupted' : 'You handled recorded topics well'}
+                {isTerminated ? RESULT_CONTENT.INSIGHTS.FOCUS_EMPTY_TERMINATED : RESULT_CONTENT.INSIGHTS.FOCUS_EMPTY_COMPLETE}
               </span>}
             </div>
           </div>
@@ -136,27 +129,27 @@ const ResultPage = () => {
       <div className="panel p-8 border-border-subtle bg-surface-glass">
         <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
           <ShieldAlert size={12} />
-          Assessment Integrity Notice
+          {RESULT_CONTENT.INTEGRITY.TITLE}
         </h4>
         <div className="grid gap-3 text-sm text-text-secondary leading-relaxed">
           <p>
             This assessment was conducted using <b>Secure Exam Lifecycle</b> protocols. 
             {isTerminated 
-              ? ` Multiple violations (${result.violationCount}) were detected, impacting the statistical confidence of this result.` 
-              : ` No significant integrity violations were detected during this session, providing a high level of confidence in the proficiency score.`}
+              ? ` ${RESULT_CONTENT.INTEGRITY.DESCRIPTION_TERMINATED}` 
+              : ` ${RESULT_CONTENT.INTEGRITY.DESCRIPTION_COMPLETE}`}
           </p>
           <div className="flex flex-wrap gap-4 mt-2">
              <div className="flex items-center gap-2 text-xs">
-                <div className={`w-2 h-2 rounded-full ${isTerminated ? 'bg-accent' : 'bg-green-500'}`} />
-                <span>Focus Tracking: {isTerminated ? 'FAILED' : 'PASSED'}</span>
+                <div className={`w-2 h-2 rounded-full ${isTerminated ? VISUAL_MAPPINGS.INTEGRITY_STATUS.FAILED.colorClass : VISUAL_MAPPINGS.INTEGRITY_STATUS.PASSED.colorClass}`} />
+                <span>{RESULT_CONTENT.INTEGRITY.TRACKING_LABELS.FOCUS}: {isTerminated ? VISUAL_MAPPINGS.INTEGRITY_STATUS.FAILED.label : VISUAL_MAPPINGS.INTEGRITY_STATUS.PASSED.label}</span>
              </div>
              <div className="flex items-center gap-2 text-xs">
-                <div className={`w-2 h-2 rounded-full ${isTerminated ? 'bg-accent' : 'bg-green-500'}`} />
-                <span>Navigation Guard: {isTerminated ? 'FAILED' : 'PASSED'}</span>
+                <div className={`w-2 h-2 rounded-full ${isTerminated ? VISUAL_MAPPINGS.INTEGRITY_STATUS.FAILED.colorClass : VISUAL_MAPPINGS.INTEGRITY_STATUS.PASSED.colorClass}`} />
+                <span>{RESULT_CONTENT.INTEGRITY.TRACKING_LABELS.NAVIGATION}: {isTerminated ? VISUAL_MAPPINGS.INTEGRITY_STATUS.FAILED.label : VISUAL_MAPPINGS.INTEGRITY_STATUS.PASSED.label}</span>
              </div>
              <div className="flex items-center gap-2 text-xs">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span>Session Signature: VERIFIED</span>
+                <div className={`w-2 h-2 rounded-full ${VISUAL_MAPPINGS.INTEGRITY_STATUS.VERIFIED.colorClass}`} />
+                <span>{RESULT_CONTENT.INTEGRITY.TRACKING_LABELS.SESSION}: {VISUAL_MAPPINGS.INTEGRITY_STATUS.VERIFIED.label}</span>
              </div>
           </div>
         </div>
@@ -168,14 +161,14 @@ const ResultPage = () => {
           className="btn btn-primary px-8 py-3 text-base w-full sm:w-auto flex items-center gap-2"
         >
           <RotateCcw size={18} />
-          {isTerminated ? 'Retry Assessment' : 'Try Another Course'}
+          {isTerminated ? RESULT_CONTENT.ACTIONS.RETRY : RESULT_CONTENT.ACTIONS.TRY_ANOTHER}
         </Link>
         <Link
           to={ROUTES.DASHBOARD}
           className="btn btn-secondary px-8 py-3 text-base w-full sm:w-auto flex items-center gap-2"
         >
           <LayoutDashboard size={18} />
-          Return to Dashboard
+          {RESULT_CONTENT.ACTIONS.DASHBOARD}
         </Link>
       </div>
     </div>

@@ -3,6 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { UserRound } from 'lucide-react';
 import useAuthStore from '../features/auth/store/authStore';
 import { ROUTES } from '../constants/appConstants';
+import { DASHBOARD_CONTENT } from '../content/pageContent';
+import { getUserFirstName } from '../utils/viewModels';
 
 /**
  * Dashboard — the main authenticated landing page.
@@ -19,9 +21,11 @@ export default function Dashboard() {
     <section className="dashboard page-enter">
       <section className="dashboard-hero panel">
         <div className="dashboard-hero__content">
-          <h1 className="dashboard-hero__greeting">Welcome back, {user.name?.split(' ')[0] ?? 'there'}</h1>
+          <h1 className="dashboard-hero__greeting">
+            {DASHBOARD_CONTENT.GREETING} {getUserFirstName(user.name, DASHBOARD_CONTENT.GREETING_FALLBACK)}
+          </h1>
           <p className="dashboard-hero__subtitle">
-            Signed in as <span className="dashboard-hero__email">{user.email}</span>
+            {DASHBOARD_CONTENT.SIGNED_IN_AS} <span className="dashboard-hero__email">{user.email}</span>
           </p>
         </div>
       </section>
@@ -31,13 +35,13 @@ export default function Dashboard() {
           <div className="dashboard-card__icon" aria-hidden="true">
             <UserRound size={18} strokeWidth={1.5} />
           </div>
-          <h2 className="dashboard-card__title">Your Profile</h2>
+          <h2 className="dashboard-card__title">{DASHBOARD_CONTENT.PROFILE_TITLE}</h2>
           <dl className="profile-list">
-            <dt>Name</dt>
+            <dt>{DASHBOARD_CONTENT.PROFILE_LABELS.NAME}</dt>
             <dd id="profile-name">{user.name}</dd>
-            <dt>Email</dt>
+            <dt>{DASHBOARD_CONTENT.PROFILE_LABELS.EMAIL}</dt>
             <dd id="profile-email">{user.email}</dd>
-            <dt>User ID</dt>
+            <dt>{DASHBOARD_CONTENT.PROFILE_LABELS.ID}</dt>
             <dd id="profile-id" className="profile-id">{user.id}</dd>
           </dl>
         </article>

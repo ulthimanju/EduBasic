@@ -4,6 +4,9 @@ import { ArrowRight, BookOpen, GraduationCap, Layers3, Sparkles } from 'lucide-r
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
+import { COURSE_SELECT_CONTENT } from '../content/pageContent';
+import { COURSE_CONFIG } from '../config/pageConfig';
+import { getCourseTopicsInfo } from '../utils/viewModels';
 
 const CourseSelectPage = () => {
   const [courses, setCourses] = useState([]);
@@ -54,6 +57,15 @@ const CourseSelectPage = () => {
   if (loading) return <Spinner />;
   if (loadError) return <ErrorMessage message={loadError} />;
 
+  const getIcon = (iconName) => {
+    switch (iconName) {
+      case 'Sparkles': return <Sparkles size={16} strokeWidth={1.75} />;
+      case 'BookOpen': return <BookOpen size={16} strokeWidth={1.75} />;
+      case 'Layers3': return <Layers3 size={16} strokeWidth={1.75} />;
+      default: return null;
+    }
+  };
+
   return (
     <section className="dashboard dashboard--wide course-select page-enter">
       <header className="course-select__hero panel">
@@ -62,51 +74,44 @@ const CourseSelectPage = () => {
             <div className="login-logo" aria-hidden="true">
               <GraduationCap size={20} />
             </div>
-            <span>Assessment Library</span>
+            <span>{COURSE_SELECT_CONTENT.HERO.EYEBROW}</span>
           </div>
 
           <div className="course-select__headline">
-            <h1 className="dashboard-hero__greeting">Pick a course and start with a clearer benchmark</h1>
+            <h1 className="dashboard-hero__greeting">{COURSE_SELECT_CONTENT.HERO.HEADLINE}</h1>
             <p className="dashboard-hero__subtitle">
-              Each assessment adapts as you answer, so the first choice should be the subject you want the
-              most accurate signal on right now.
+              {COURSE_SELECT_CONTENT.HERO.SUBTITLE}
             </p>
           </div>
 
           <div className="course-select__highlights" aria-label="Assessment highlights">
-            <div className="course-select__highlight">
-              <Sparkles size={16} strokeWidth={1.75} />
-              <span>Adaptive difficulty</span>
-            </div>
-            <div className="course-select__highlight">
-              <BookOpen size={16} strokeWidth={1.75} />
-              <span>Topic-based coverage</span>
-            </div>
-            <div className="course-select__highlight">
-              <Layers3 size={16} strokeWidth={1.75} />
-              <span>Fast placement signal</span>
-            </div>
+            {COURSE_SELECT_CONTENT.HIGHLIGHTS.map((highlight) => (
+              <div key={highlight.label} className="course-select__highlight">
+                {getIcon(highlight.icon)}
+                <span>{highlight.label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         <aside className="course-select__hero-panel" aria-label="Course overview">
-          <p className="course-select__panel-label">Available now</p>
+          <p className="course-select__panel-label">{COURSE_SELECT_CONTENT.ASIDE.LABEL}</p>
           <div className="course-select__stats">
             <div className="course-select__stat">
               <span className="course-select__stat-value">{summary.totalCourses}</span>
-              <span className="course-select__stat-label">courses</span>
+              <span className="course-select__stat-label">{COURSE_SELECT_CONTENT.ASIDE.STATS.COURSES}</span>
             </div>
             <div className="course-select__stat">
               <span className="course-select__stat-value">{summary.totalTopics}</span>
-              <span className="course-select__stat-label">topic tags</span>
+              <span className="course-select__stat-label">{COURSE_SELECT_CONTENT.ASIDE.STATS.TOPIC_TAGS}</span>
             </div>
             <div className="course-select__stat">
               <span className="course-select__stat-value">{summary.uniqueTopics}</span>
-              <span className="course-select__stat-label">unique areas</span>
+              <span className="course-select__stat-label">{COURSE_SELECT_CONTENT.ASIDE.STATS.UNIQUE_AREAS}</span>
             </div>
           </div>
           <p className="course-select__panel-note">
-            Choose the card that best matches your next exam goal. You can start a new assessment in one click.
+            {COURSE_SELECT_CONTENT.ASIDE.NOTE}
           </p>
         </aside>
       </header>
@@ -116,22 +121,21 @@ const CourseSelectPage = () => {
       {courses.length === 0 ? (
         <section className="empty-state panel">
           <BookOpen className="empty-state__icon" aria-hidden="true" />
-          <h2 className="empty-state__title">No courses are available yet</h2>
+          <h2 className="empty-state__title">{COURSE_SELECT_CONTENT.EMPTY_STATE.TITLE}</h2>
           <p className="empty-state__text">
-            Course assessments will appear here as soon as they are published by the exam service.
+            {COURSE_SELECT_CONTENT.EMPTY_STATE.TEXT}
           </p>
         </section>
       ) : (
         <section className="course-select__grid" aria-label="Available courses">
           {courses.map((course, index) => {
-            const visibleTopics = course.topics.slice(0, 4);
-            const hiddenTopicCount = Math.max(course.topics.length - visibleTopics.length, 0);
+            const { visibleTopics, hiddenCount } = getCourseTopicsInfo(course.topics, COURSE_CONFIG.TOPIC_PREVIEW_LIMIT);
             const isStarting = startingCourseId === course.id;
 
             return (
               <article key={course.id} className="course-card panel">
                 <div className="course-card__eyebrow">
-                  <span className="course-card__badge">Course {index + 1}</span>
+                  <span className="course-card__badge">{COURSE_SELECT_CONTENT.CARD.BADGE_PREFIX} {index + 1}</span>
                   <span className="course-card__meta">{course.topics.length} topics</span>
                 </div>
 
@@ -143,7 +147,7 @@ const CourseSelectPage = () => {
                   <div className="course-card__heading">
                     <h2 className="dashboard-card__title">{course.name}</h2>
                     <p className="course-card__description">
-                      Adaptive questions across the core concepts most likely to shape your proficiency level.
+                      {COURSE_SELECT_CONTENT.CARD.DESCRIPTION}
                     </p>
                   </div>
                 </div>
@@ -154,14 +158,14 @@ const CourseSelectPage = () => {
                       {topic}
                     </span>
                   ))}
-                  {hiddenTopicCount > 0 && (
-                    <span className="course-card__topic course-card__topic--muted">+{hiddenTopicCount} more</span>
+                  {hiddenCount > 0 && (
+                    <span className="course-card__topic course-card__topic--muted">+{hiddenCount} {COURSE_SELECT_CONTENT.CARD.TOPICS_MORE}</span>
                   )}
                 </div>
 
                 <div className="course-card__footer">
                   <p className="course-card__footnote">
-                    Best when you want a fast read on where to focus your next round of study.
+                    {COURSE_SELECT_CONTENT.CARD.FOOTNOTE}
                   </p>
 
                   <button
@@ -169,7 +173,7 @@ const CourseSelectPage = () => {
                     className="btn btn-primary course-card__action"
                     disabled={startingCourseId !== null}
                   >
-                    <span>{isStarting ? 'Starting...' : 'Start Assessment'}</span>
+                    <span>{isStarting ? COURSE_SELECT_CONTENT.CARD.ACTION_STARTING : COURSE_SELECT_CONTENT.CARD.ACTION}</span>
                     <ArrowRight size={16} strokeWidth={1.75} />
                   </button>
                 </div>

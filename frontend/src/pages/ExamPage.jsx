@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, CheckCircle2, XCircle, Brain, Target, ShieldAlert, Maximize2, AlertOctagon, LogOut, Hash, Lock } from 'lucide-react';
+import { Clock, ChevronRight, Brain, Target, ShieldAlert, Maximize2, AlertOctagon, LogOut, Lock } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
 import { useExamIntegrity } from '../hooks/useExamIntegrity';
 import { ROUTES } from '../constants/appConstants';
 import { usePrompt } from '../context/PromptContext';
+import { EXAM_CONFIG } from '../config/pageConfig';
+import { EXAM_CONTENT } from '../content/pageContent';
 
 const ExamPage = () => {
   const { sessionId } = useParams();
@@ -20,7 +22,7 @@ const ExamPage = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(EXAM_CONFIG.DEFAULT_TIME_LIMIT);
   const [examStarted, setExamStarted] = useState(false);
   const [isTerminated, setIsTerminated] = useState(false);
   const [terminationReason, setTerminationReason] = useState('');
@@ -37,7 +39,6 @@ const ExamPage = () => {
     showWarning, 
     warningReason, 
     dismissWarning, 
-    isFullscreen,
     enterFullscreen 
   } = useExamIntegrity(sessionId, (reason) => {
     setIsTerminated(true);
@@ -64,7 +65,7 @@ const ExamPage = () => {
     try {
       const response = await examApi.getQuestion(sessionId);
       setQuestion(response.data);
-      setTimeLeft(response.data.timeLimit || 60);
+      setTimeLeft(response.data.timeLimit || EXAM_CONFIG.DEFAULT_TIME_LIMIT);
       startTimeRef.current = Date.now();
       startTimer();
     } catch (err) {
@@ -113,7 +114,7 @@ const ExamPage = () => {
       if (!response.data.sessionComplete) {
         autoNextTimeoutRef.current = setTimeout(() => {
           if (!isTerminated) fetchQuestion();
-        }, 2000);
+        }, EXAM_CONFIG.AUTO_NEXT_DELAY_MS);
       }
     } catch (err) {
       setError('Failed to submit answer');
@@ -130,22 +131,36 @@ const ExamPage = () => {
     }
   };
 
-  const handleExit = async () => {
-    if (window.confirm('Are you sure you want to end the exam early? This will finalize your current score.')) {
-      setExiting(true);
-      try {
-        await examApi.terminateSession(sessionId, 'User manually exited the exam');
-        // Navigate back, fallback to courses if no history
-        if (window.history.length > 1) {
-          navigate(-1);
-        } else {
-          navigate(ROUTES.COURSES);
+  const handleExit = () => {
+    openPrompt({
+      type: 'confirm',
+      severity: 'warning',
+      title: EXAM_CONTENT.EXIT_PROMPT.TITLE,
+      description: EXAM_CONTENT.EXIT_PROMPT.DESCRIPTION,
+      confirmLabel: EXAM_CONTENT.EXIT_PROMPT.CONFIRM,
+      cancelLabel: EXAM_CONTENT.EXIT_PROMPT.CANCEL,
+      onConfirm: async () => {
+        setExiting(true);
+        try {
+          await examApi.terminateSession(sessionId, 'User manually exited the exam');
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate(ROUTES.COURSES);
+          }
+        } catch (err) {
+          console.error('Failed to exit exam:', err);
+          setExiting(false);
+          openPrompt({
+            type: 'message',
+            severity: 'danger',
+            title: EXAM_CONTENT.EXIT_ERROR.TITLE,
+            description: EXAM_CONTENT.EXIT_ERROR.DESCRIPTION,
+            confirmLabel: EXAM_CONTENT.EXIT_ERROR.CONFIRM
+          });
         }
-      } catch (err) {
-        console.error('Failed to exit exam:', err);
-        setExiting(false);
       }
-    }
+    });
   };
 
   const handleStartExam = () => {
@@ -161,15 +176,12 @@ const ExamPage = () => {
             <ShieldAlert size={32} />
           </div>
           <div className="grid gap-2">
-            <h1 className="text-2xl font-bold">Secure Exam Environment</h1>
-            <p className="text-text-secondary text-sm">
-              To ensure assessment integrity, this exam will run in <b>fullscreen mode</b>. 
-              Switching tabs, minimizing the window, or exiting fullscreen will result in a violation strike.
-            </p>
+            <h1 className="text-2xl font-bold">{EXAM_CONTENT.ENVIRONMENT.TITLE}</h1>
+            <p className="text-text-secondary text-sm" dangerouslySetInnerHTML={{ __html: EXAM_CONTENT.ENVIRONMENT.DESCRIPTION }} />
           </div>
           <button onClick={handleStartExam} className="btn btn-primary w-full py-4 text-base gap-3">
             <Maximize2 size={18} />
-            Enter Fullscreen & Start
+            {EXAM_CONTENT.ENVIRONMENT.START_BTN}
           </button>
         </div>
       </div>
@@ -184,9 +196,9 @@ const ExamPage = () => {
             <AlertOctagon size={32} />
           </div>
           <div className="grid gap-2">
-            <h1 className="text-2xl font-bold text-text-primary">Exam Terminated</h1>
+            <h1 className="text-2xl font-bold text-text-primary">{EXAM_CONTENT.TERMINATED.TITLE}</h1>
             <p className="text-text-secondary text-sm">
-              Your session has been ended due to multiple integrity violations:
+              {EXAM_CONTENT.TERMINATED.DESCRIPTION}
             </p>
             <div className="p-3 bg-interactive-hover rounded-lg text-xs font-mono text-accent mt-2">
               {terminationReason}
@@ -196,7 +208,7 @@ const ExamPage = () => {
             onClick={() => navigate(ROUTES.RESULT.replace(':sessionId', sessionId))} 
             className="btn btn-primary w-full py-4 text-base"
           >
-            View Partial Result
+            {EXAM_CONTENT.TERMINATED.ACTION}
           </button>
         </div>
       </div>
@@ -207,22 +219,20 @@ const ExamPage = () => {
   if (error) return <ErrorMessage message={error} />;
   if (!question) return null;
 
-  const totalQuestions = 20;
-
   return (
     <div className="animate-page-enter">
       {showWarning && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="panel max-w-sm w-full p-8 text-center animate-page-enter shadow-2xl border-accent">
             <ShieldAlert size={48} className="text-accent mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Integrity Warning</h2>
+            <h2 className="text-xl font-bold mb-2">{EXAM_CONTENT.WARNING.TITLE}</h2>
             <p className="text-text-secondary text-sm mb-6 leading-relaxed">
-              We detected a focus change or navigation event: <br/>
+              {EXAM_CONTENT.WARNING.DESCRIPTION_PREFIX} <br/>
               <span className="font-semibold text-text-primary">"{warningReason}"</span>. <br/>
-              Remaining strikes: <span className="text-accent font-bold">{2 - violationCount}</span>.
+              {EXAM_CONTENT.WARNING.DESCRIPTION_STRIKES} <span className="text-accent font-bold">{EXAM_CONFIG.MAX_STRIKES - violationCount}</span>.
             </p>
             <button onClick={dismissWarning} className="btn btn-primary w-full py-3">
-              I Understand, Resume Exam
+              {EXAM_CONTENT.WARNING.ACTION}
             </button>
           </div>
         </div>
@@ -231,12 +241,12 @@ const ExamPage = () => {
       {/* HEADER META ACCURATE TO IMAGE */}
       <div className="exam-header-meta">
         <div className="exam-meta-group">
-          <span className="exam-meta-label">Progress</span>
-          <span className="exam-meta-value">#Question {question.index} / {totalQuestions}</span>
+          <span className="exam-meta-label">{EXAM_CONTENT.HEADER.PROGRESS}</span>
+          <span className="exam-meta-value">#Question {question.index} / {question.totalQuestions || EXAM_CONFIG.DEFAULT_TOTAL_QUESTIONS}</span>
         </div>
         
         <div className="exam-meta-group">
-          <span className="exam-meta-label">Time Left</span>
+          <span className="exam-meta-label">{EXAM_CONTENT.HEADER.TIME_LEFT}</span>
           <span className="exam-meta-value">
             <Clock size={16} />
             {timeLeft}s
@@ -246,13 +256,13 @@ const ExamPage = () => {
         <div className="exam-meta-group">
            <span className="exam-meta-value">
               <Target size={16} />
-              Adaptive Signal
+              {EXAM_CONTENT.HEADER.ADAPTIVE_SIGNAL}
            </span>
         </div>
 
         <button onClick={handleExit} className="exit-btn" disabled={exiting}>
           <LogOut size={14} />
-          {exiting ? 'Exiting...' : 'Exit'}
+          {exiting ? EXAM_CONTENT.HEADER.EXITING : EXAM_CONTENT.HEADER.EXIT}
         </button>
       </div>
 
@@ -267,7 +277,8 @@ const ExamPage = () => {
 
             let stateClass = isSelected ? 'is-selected' : '';
             if (feedback) {
-               // Optional: style correctly based on feedback
+               if (isCorrect) stateClass += ' is-correct';
+               if (isWrong) stateClass += ' is-wrong';
             }
 
             return (
@@ -290,7 +301,7 @@ const ExamPage = () => {
           <div className="feedback-panel panel animate-page-enter">
             <h3 className="feedback-panel__title">
               <Brain size={14} />
-              Adaptive Insight
+              {EXAM_CONTENT.QUESTION.ADAPTIVE_INSIGHT}
             </h3>
             <p className="feedback-panel__text">
               {feedback.explanation}
@@ -304,7 +315,7 @@ const ExamPage = () => {
                 onClick={handleNext}
                 className="btn btn-secondary !py-4 !px-8"
               >
-                {feedback.sessionComplete ? 'View Proficiency Report' : 'Next Question'}
+                {feedback.sessionComplete ? EXAM_CONTENT.QUESTION.RESULT_BTN : EXAM_CONTENT.QUESTION.NEXT_BTN}
                 <ChevronRight size={18} />
               </button>
            </div>
@@ -313,23 +324,7 @@ const ExamPage = () => {
 
       <div className="security-footer">
         <Lock size={18} />
-        <span>Security Layer: {violationCount > 0 ? `${violationCount} Violation(s)` : 'Active'}</span>
-      </div>
-    </div>
-  );
-};
-
-export default ExamPage;
-'Next Question'}
-                <ChevronRight size={18} />
-              </button>
-           </div>
-        )}
-      </main>
-
-      <div className="security-footer">
-        <Lock size={18} />
-        <span>Security Layer: {violationCount > 0 ? `${violationCount} Violation(s)` : 'Active'}</span>
+        <span>{EXAM_CONTENT.SECURITY_FOOTER.PREFIX} {violationCount > 0 ? `${violationCount} ${EXAM_CONTENT.SECURITY_FOOTER.VIOLATIONS}` : EXAM_CONTENT.SECURITY_FOOTER.ACTIVE}</span>
       </div>
     </div>
   );
