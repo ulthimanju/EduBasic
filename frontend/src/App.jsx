@@ -68,6 +68,7 @@ function AppShell() {
           <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
         </Routes>
       </main>
+      <PromptDialog />
     </div>
   );
 }
@@ -75,7 +76,9 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <PromptProvider>
+        <AppShell />
+      </PromptProvider>
     </BrowserRouter>
   );
 }

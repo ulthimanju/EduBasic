@@ -6,10 +6,12 @@ import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
 import { useExamIntegrity } from '../hooks/useExamIntegrity';
 import { ROUTES } from '../constants/appConstants';
+import { usePrompt } from '../context/PromptContext';
 
 const ExamPage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { openPrompt } = usePrompt();
   
   // State
   const [question, setQuestion] = useState(null);
@@ -303,6 +305,22 @@ const ExamPage = () => {
                 className="btn btn-secondary !py-4 !px-8"
               >
                 {feedback.sessionComplete ? 'View Proficiency Report' : 'Next Question'}
+                <ChevronRight size={18} />
+              </button>
+           </div>
+        )}
+      </main>
+
+      <div className="security-footer">
+        <Lock size={18} />
+        <span>Security Layer: {violationCount > 0 ? `${violationCount} Violation(s)` : 'Active'}</span>
+      </div>
+    </div>
+  );
+};
+
+export default ExamPage;
+'Next Question'}
                 <ChevronRight size={18} />
               </button>
            </div>
