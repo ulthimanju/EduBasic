@@ -14,7 +14,7 @@ const ExamPage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { openPrompt } = usePrompt();
-  
+
   // State
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -170,47 +170,52 @@ const ExamPage = () => {
 
   if (!examStarted) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] page-enter">
-        <div className="panel max-w-md w-full p-10 text-center flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-accent-subtle text-accent flex items-center justify-center">
+      <div className="exam-state-screen page-enter">
+        <section className="exam-state-card">
+          <div className="exam-state-card__icon">
             <ShieldAlert size={32} />
           </div>
-          <div className="grid gap-2">
-            <h1 className="text-2xl font-bold">{EXAM_CONTENT.ENVIRONMENT.TITLE}</h1>
-            <p className="text-text-secondary text-sm" dangerouslySetInnerHTML={{ __html: EXAM_CONTENT.ENVIRONMENT.DESCRIPTION }} />
+          <span className="exam-state-card__eyebrow">Integrity Mode</span>
+          <div className="exam-state-card__content">
+            <h1 className="exam-state-card__title">{EXAM_CONTENT.ENVIRONMENT.TITLE}</h1>
+            <p
+              className="exam-state-card__description"
+              dangerouslySetInnerHTML={{ __html: EXAM_CONTENT.ENVIRONMENT.DESCRIPTION }}
+            />
           </div>
-          <button onClick={handleStartExam} className="btn btn-primary w-full py-4 text-base gap-3">
+          <button onClick={handleStartExam} className="btn btn-primary exam-state-card__action">
             <Maximize2 size={18} />
             {EXAM_CONTENT.ENVIRONMENT.START_BTN}
           </button>
-        </div>
+        </section>
       </div>
     );
   }
 
   if (isTerminated) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] page-enter">
-        <div className="panel max-w-md w-full p-10 text-center flex flex-col items-center gap-6 border-accent/30 bg-accent/5">
-          <div className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
+      <div className="exam-state-screen page-enter">
+        <section className="exam-state-card exam-state-card--terminated">
+          <div className="exam-state-card__icon exam-state-card__icon--danger">
             <AlertOctagon size={32} />
           </div>
-          <div className="grid gap-2">
-            <h1 className="text-2xl font-bold text-text-primary">{EXAM_CONTENT.TERMINATED.TITLE}</h1>
-            <p className="text-text-secondary text-sm">
+          <span className="exam-state-card__eyebrow">Session Locked</span>
+          <div className="exam-state-card__content">
+            <h1 className="exam-state-card__title">{EXAM_CONTENT.TERMINATED.TITLE}</h1>
+            <p className="exam-state-card__description">
               {EXAM_CONTENT.TERMINATED.DESCRIPTION}
             </p>
-            <div className="p-3 bg-interactive-hover rounded-lg text-xs font-mono text-accent mt-2">
+            <div className="exam-state-card__reason">
               {terminationReason}
             </div>
           </div>
-          <button 
-            onClick={() => navigate(ROUTES.RESULT.replace(':sessionId', sessionId))} 
-            className="btn btn-primary w-full py-4 text-base"
+          <button
+            onClick={() => navigate(ROUTES.RESULT.replace(':sessionId', sessionId))}
+            className="btn btn-primary exam-state-card__action"
           >
             {EXAM_CONTENT.TERMINATED.ACTION}
           </button>
-        </div>
+        </section>
       </div>
     );
   }
@@ -219,113 +224,155 @@ const ExamPage = () => {
   if (error) return <ErrorMessage message={error} />;
   if (!question) return null;
 
+  const totalQuestions = question.totalQuestions || EXAM_CONFIG.DEFAULT_TOTAL_QUESTIONS;
+  const safeIndex = question.index || 1;
+  const progressPercent = Math.max(0, Math.min(100, Math.round((safeIndex / totalQuestions) * 100)));
+  const remainingStrikes = Math.max(0, EXAM_CONFIG.MAX_STRIKES - violationCount);
+
   return (
-    <div className="animate-page-enter">
+    <div className="exam-layout animate-page-enter">
       {showWarning && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="panel max-w-sm w-full p-8 text-center animate-page-enter shadow-2xl border-accent">
-            <ShieldAlert size={48} className="text-accent mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">{EXAM_CONTENT.WARNING.TITLE}</h2>
-            <p className="text-text-secondary text-sm mb-6 leading-relaxed">
-              {EXAM_CONTENT.WARNING.DESCRIPTION_PREFIX} <br/>
-              <span className="font-semibold text-text-primary">"{warningReason}"</span>. <br/>
-              {EXAM_CONTENT.WARNING.DESCRIPTION_STRIKES} <span className="text-accent font-bold">{EXAM_CONFIG.MAX_STRIKES - violationCount}</span>.
+        <div className="exam-warning-overlay">
+          <div className="exam-warning-dialog animate-page-enter">
+            <ShieldAlert size={36} className="exam-warning-dialog__icon" />
+            <h2 className="exam-warning-dialog__title">{EXAM_CONTENT.WARNING.TITLE}</h2>
+            <p className="exam-warning-dialog__description">
+              {EXAM_CONTENT.WARNING.DESCRIPTION_PREFIX}{' '}
+              <span className="exam-warning-dialog__reason">"{warningReason}"</span>.{' '}
+              {EXAM_CONTENT.WARNING.DESCRIPTION_STRIKES}{' '}
+              <span className="exam-warning-dialog__strikes">{remainingStrikes}</span>.
             </p>
-            <button onClick={dismissWarning} className="btn btn-primary w-full py-3">
+            <button onClick={dismissWarning} className="btn btn-primary exam-warning-dialog__action">
               {EXAM_CONTENT.WARNING.ACTION}
             </button>
           </div>
         </div>
       )}
 
-      {/* HEADER META ACCURATE TO IMAGE */}
-      <div className="exam-header-meta">
-        <div className="exam-meta-group">
-          <span className="exam-meta-label">{EXAM_CONTENT.HEADER.PROGRESS}</span>
-          <span className="exam-meta-value">#Question {question.index} / {question.totalQuestions || EXAM_CONFIG.DEFAULT_TOTAL_QUESTIONS}</span>
-        </div>
-        
-        <div className="exam-meta-group">
-          <span className="exam-meta-label">{EXAM_CONTENT.HEADER.TIME_LEFT}</span>
-          <span className="exam-meta-value">
-            <Clock size={16} />
-            {timeLeft}s
-          </span>
-        </div>
-
-        <div className="exam-meta-group">
-           <span className="exam-meta-value">
-              <Target size={16} />
-              {EXAM_CONTENT.HEADER.ADAPTIVE_SIGNAL}
-           </span>
-        </div>
-
-        <button onClick={handleExit} className="exit-btn" disabled={exiting}>
-          <LogOut size={14} />
-          {exiting ? EXAM_CONTENT.HEADER.EXITING : EXAM_CONTENT.HEADER.EXIT}
-        </button>
-      </div>
-
-      <main className="question-panel">
-        <h1 className="question-title">{question.question}</h1>
-
-        <div className="options-container">
-          {question.options.map((option, index) => {
-            const isSelected = selectedOption === option;
-            const isCorrect = feedback?.correctAnswer === option;
-            const isWrong = feedback && isSelected && !feedback.correct;
-
-            let stateClass = isSelected ? 'is-selected' : '';
-            if (feedback) {
-               if (isCorrect) stateClass += ' is-correct';
-               if (isWrong) stateClass += ' is-wrong';
-            }
-
-            return (
-              <button
-                key={index}
-                disabled={!!feedback || submitting || showWarning}
-                onClick={() => handleSubmit(option)}
-                className={`option-item ${stateClass}`}
-              >
-                <span className="option-item__text">{option}</span>
-                <div className="option-radio">
-                  {isSelected && <div className="option-radio__dot" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {feedback && (
-          <div className="feedback-panel panel animate-page-enter">
-            <h3 className="feedback-panel__title">
-              <Brain size={14} />
-              {EXAM_CONTENT.QUESTION.ADAPTIVE_INSIGHT}
-            </h3>
-            <p className="feedback-panel__text">
-              {feedback.explanation}
-            </p>
+      <header className="exam-toolbar">
+        <div className="exam-toolbar__progress">
+          <div className="exam-toolbar__headline">
+            <span className="exam-meta-label">{EXAM_CONTENT.HEADER.PROGRESS}</span>
+            <span className="exam-meta-value">
+              Question {safeIndex} / {totalQuestions}
+            </span>
           </div>
-        )}
+          <div className="exam-progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+            <div className="exam-progress-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+        </div>
 
-        {feedback && (
-           <div className="mt-auto pt-8 flex justify-end">
+        <div className="exam-toolbar__status">
+          <div className="exam-status-chip">
+            <Clock size={16} />
+            <div>
+              <span className="exam-status-chip__label">{EXAM_CONTENT.HEADER.TIME_LEFT}</span>
+              <strong>{timeLeft}s</strong>
+            </div>
+          </div>
+
+          <div className="exam-status-chip">
+            <Target size={16} />
+            <div>
+              <span className="exam-status-chip__label">Mode</span>
+              <strong>{EXAM_CONTENT.HEADER.ADAPTIVE_SIGNAL}</strong>
+            </div>
+          </div>
+
+          <button onClick={handleExit} className="exit-btn" disabled={exiting}>
+            <LogOut size={14} />
+            {exiting ? EXAM_CONTENT.HEADER.EXITING : EXAM_CONTENT.HEADER.EXIT}
+          </button>
+        </div>
+      </header>
+
+      <div className="exam-grid">
+        <main className="question-panel">
+          <h1 className="question-title">{question.question}</h1>
+          <p className="question-subtitle">Choose the best answer. You can submit only once per question.</p>
+
+          <div className="options-container">
+            {question.options.map((option, index) => {
+              const isSelected = selectedOption === option;
+              const isCorrect = feedback?.correctAnswer === option;
+              const isWrong = feedback && isSelected && !feedback.correct;
+
+              let stateClass = isSelected ? 'is-selected' : '';
+              if (feedback) {
+                if (isCorrect) stateClass += ' is-correct';
+                if (isWrong) stateClass += ' is-wrong';
+              }
+
+              return (
+                <button
+                  key={index}
+                  disabled={!!feedback || submitting || showWarning}
+                  onClick={() => handleSubmit(option)}
+                  className={`option-item ${stateClass}`}
+                >
+                  <span className="option-item__label">{String.fromCharCode(65 + index)}</span>
+                  <span className="option-item__text">{option}</span>
+                  <span className="option-radio">
+                    {isSelected && <span className="option-radio__dot" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {feedback && (
+            <div className="feedback-panel animate-page-enter">
+              <h3 className="feedback-panel__title">
+                <Brain size={14} />
+                {EXAM_CONTENT.QUESTION.ADAPTIVE_INSIGHT}
+              </h3>
+              <p className="feedback-panel__text">
+                {feedback.explanation}
+              </p>
+            </div>
+          )}
+
+          {feedback && (
+            <div className="exam-action-row">
               <button
                 onClick={handleNext}
-                className="btn btn-secondary !py-4 !px-8"
+                className="btn btn-secondary exam-action-row__next"
               >
                 {feedback.sessionComplete ? EXAM_CONTENT.QUESTION.RESULT_BTN : EXAM_CONTENT.QUESTION.NEXT_BTN}
                 <ChevronRight size={18} />
               </button>
-           </div>
-        )}
-      </main>
+            </div>
+          )}
+        </main>
 
-      <div className="security-footer">
-        <Lock size={18} />
-        <span>{EXAM_CONTENT.SECURITY_FOOTER.PREFIX} {violationCount > 0 ? `${violationCount} ${EXAM_CONTENT.SECURITY_FOOTER.VIOLATIONS}` : EXAM_CONTENT.SECURITY_FOOTER.ACTIVE}</span>
+        <aside className="exam-side-panel">
+          <div className="exam-side-card">
+            <h2 className="exam-side-card__title">Session Control</h2>
+            <p className="exam-side-card__text">
+              Focus loss is tracked in real time. Keep this tab in fullscreen until completion.
+            </p>
+            <div className="exam-side-card__metric">
+              <Lock size={16} />
+              <span>
+                {EXAM_CONTENT.SECURITY_FOOTER.PREFIX}{' '}
+                {violationCount > 0 ? `${violationCount} ${EXAM_CONTENT.SECURITY_FOOTER.VIOLATIONS}` : EXAM_CONTENT.SECURITY_FOOTER.ACTIVE}
+              </span>
+            </div>
+            <div className="exam-side-card__metric">
+              <ShieldAlert size={16} />
+              <span>{remainingStrikes} strike(s) remaining</span>
+            </div>
+          </div>
+        </aside>
       </div>
+
+      <footer className="security-footer">
+        <Lock size={18} />
+        <span>
+          {EXAM_CONTENT.SECURITY_FOOTER.PREFIX}{' '}
+          {violationCount > 0 ? `${violationCount} ${EXAM_CONTENT.SECURITY_FOOTER.VIOLATIONS}` : EXAM_CONTENT.SECURITY_FOOTER.ACTIVE}
+        </span>
+      </footer>
     </div>
   );
 };

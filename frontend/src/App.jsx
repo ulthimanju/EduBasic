@@ -12,6 +12,8 @@ import useAuthStore   from './features/auth/store/authStore';
 import useCurrentUser from './features/auth/hooks/useCurrentUser';
 import useThemeMode   from './hooks/useThemeMode';
 import { ROUTES }     from './constants/appConstants';
+import { PromptProvider } from './context/PromptContext';
+import PromptDialog     from './components/ui/PromptDialog/PromptDialog';
 
 /**
  * Root application component.
