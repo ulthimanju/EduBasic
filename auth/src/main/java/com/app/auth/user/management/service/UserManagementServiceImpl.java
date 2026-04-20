@@ -78,11 +78,8 @@ public class UserManagementServiceImpl implements UserManagementService {
         UserNode saved = userRepository.save(userNode);
 
         // Revoke all sessions to force re-login and role claim update
-        sessionRepository.findAllByUserId(userId).forEach(session -> {
-            session.setRevoked(true);
-            sessionRepository.save(session);
-            cacheService.cacheJwtValidity(session.getSessionId(), false);
-        });
+        sessionRepository.revokeAllSessionsForUser(userId)
+                .forEach(session -> cacheService.cacheJwtValidity(session.getSessionId(), false));
 
         UserResponseDTO dto = userMapper.toResponseDTO(saved);
         cacheService.evictUserCache(userId); // Force reload from DB on next request
