@@ -9,6 +9,8 @@ import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Neo4j graph node representing an application user.
@@ -36,6 +38,10 @@ public class UserNode {
     private String googleId;
     private String email;
     private String name;
+
+    @Builder.Default
+    private Set<AppRole> roles = new HashSet<>();
+
     private LocalDateTime createdAt;
     private LocalDateTime lastLogin;
 }

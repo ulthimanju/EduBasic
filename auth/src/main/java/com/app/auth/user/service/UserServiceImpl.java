@@ -1,5 +1,7 @@
 package com.app.auth.user.service;
 
+import com.app.auth.common.config.AdminProperties;
+import com.app.auth.user.node.AppRole;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -23,6 +27,7 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final AdminProperties adminProperties;
 
     /**
      * {@inheritDoc}
@@ -58,16 +63,24 @@ public class UserServiceImpl implements UserService {
 
     private UserNode createNewUser(String googleId, String email, String name) {
         LocalDateTime now = LocalDateTime.now();
+        Set<AppRole> roles = new HashSet<>();
+        roles.add(AppRole.STUDENT);
+
+        if (isAdmin(email)) {
+            roles.add(AppRole.ADMIN);
+        }
+
         UserNode newUser = UserNode.builder()
                 .id(UUID.randomUUID().toString())
                 .googleId(googleId)
                 .email(email)
                 .name(name)
+                .roles(roles)
                 .createdAt(now)
                 .lastLogin(now)
                 .build();
         UserNode saved = userRepository.save(newUser);
-        log.info("New user created: id={}, email={}", saved.getId(), saved.getEmail());
+        log.info("New user created: id={}, email={}, roles={}", saved.getId(), saved.getEmail(), saved.getRoles());
         return saved;
     }
 
@@ -75,8 +88,23 @@ public class UserServiceImpl implements UserService {
         existing.setEmail(email);
         existing.setName(name);
         existing.setLastLogin(LocalDateTime.now());
+
+        // Sync admin role based on latest allowlist
+        if (isAdmin(email)) {
+            existing.getRoles().add(AppRole.ADMIN);
+        } else {
+            existing.getRoles().remove(AppRole.ADMIN);
+        }
+
+        // Ensure STUDENT is always present
+        existing.getRoles().add(AppRole.STUDENT);
+
         UserNode saved = userRepository.save(existing);
-        log.debug("Returning user updated: id={}, email={}", saved.getId(), saved.getEmail());
+        log.debug("Returning user updated: id={}, email={}, roles={}", saved.getId(), saved.getEmail(), saved.getRoles());
         return saved;
+    }
+
+    private boolean isAdmin(String email) {
+        return adminProperties.getAllowedEmailSet().contains(email.toLowerCase());
     }
 }

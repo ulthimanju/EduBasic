@@ -19,6 +19,6 @@ public class UserMapper {
      * @return DTO safe to return in API responses
      */
     public UserResponseDTO toResponseDTO(UserNode node) {
-        return new UserResponseDTO(node.getId(), node.getEmail(), node.getName());
+        return new UserResponseDTO(node.getId(), node.getEmail(), node.getName(), node.getRoles());
     }
 }
