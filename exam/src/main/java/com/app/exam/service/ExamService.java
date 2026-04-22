@@ -79,10 +79,10 @@ public class ExamService {
             );
 
             if (!generated.isEmpty()) {
-                // Attach course_id and source=GEMINI, then save
+                // Attach course and source=GEMINI, then save
                 generated.forEach(q -> {
                     q.setId(UUID.randomUUID());
-                    q.setCourseId(session.getCourse().getId());
+                    q.setCourse(session.getCourse());
                     q.setSource("GEMINI");
                 });
                 questionRepository.saveAll(generated);
