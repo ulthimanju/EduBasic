@@ -15,4 +15,5 @@ public class QuestionResponse {
     private Integer index;
     private String difficulty;
     private Integer timeLimit; // in seconds
+    private String warningMessage;
 }

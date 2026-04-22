@@ -17,5 +17,6 @@ public class ExamResultResponse {
     private Map<String, Integer> difficultyBreakdown;
     private String status;
     private String terminationReason;
+    private String warningMessage;
     private Integer violationCount;
 }

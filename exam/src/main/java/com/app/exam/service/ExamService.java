@@ -18,6 +18,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class ExamService {
+    private final GeminiService geminiService;
     private final ExamSessionRepository sessionRepository;
     private final CourseRepository courseRepository;
     private final QuestionRepository questionRepository;
@@ -46,19 +47,66 @@ public class ExamService {
         return sessionRepository.save(session);
     }
 
+    @Transactional
     public QuestionResponse getCurrentQuestion(UUID sessionId) {
         ExamSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
 
         if (session.getStatus() != ExamSession.Status.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exam session is not active");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exam session is not active. Current status: " + session.getStatus());
         }
 
-        List<Question> questions = questionRepository.findRandomByCourseIdAndDifficulty(
-                session.getCourse().getId(), session.getCurrentDifficulty(), 1);
+        // Update activity timestamp
+        session.setLastActivityAt(LocalDateTime.now());
+        sessionRepository.save(session);
+
+        String difficulty = session.getCurrentDifficulty();
+        
+        // 1. Try to find an UNUSED question in the DB first (could be GEMINI or FALLBACK)
+        List<Question> questions = questionRepository.findRandomByCourseIdAndDifficultyAndNotUsedInSession(
+                session.getCourse().getId(), difficulty, session.getId(), 1);
+
+        // 2. If none, trigger REAL-TIME generation from Gemini
+        if (questions.isEmpty()) {
+            log.info("No unused questions in DB for {} - {}. Triggering Gemini AI generation.", 
+                    session.getCourse().getName(), difficulty);
+            
+            List<Question> generated = geminiService.generateQuestions(
+                    session.getCourse().getName(), 
+                    List.of(), // Could add topics from session history here
+                    difficulty, 
+                    3 // Generate a small batch
+            );
+
+            if (!generated.isEmpty()) {
+                // Attach course_id and source=GEMINI, then save
+                generated.forEach(q -> {
+                    q.setId(UUID.randomUUID());
+                    q.setCourseId(session.getCourse().getId());
+                    q.setSource("GEMINI");
+                });
+                questionRepository.saveAll(generated);
+                
+                // Pick the first one from the new batch
+                questions = List.of(generated.get(0));
+            }
+        }
+
+        // 3. Fallback Ladder (If AI failed or DB is empty)
+        if (questions.isEmpty() && !"MEDIUM".equalsIgnoreCase(difficulty)) {
+            log.info("AI/DB empty for {}. Falling back to MEDIUM.", difficulty);
+            questions = questionRepository.findRandomByCourseIdAndDifficultyAndNotUsedInSession(
+                    session.getCourse().getId(), "MEDIUM", session.getId(), 1);
+        }
 
         if (questions.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No questions available");
+            log.warn("Emergency fallback: Picking any available unused question for course {}.", session.getCourse().getId());
+            questions = questionRepository.findRandomByCourseIdAndNotUsedInSession(
+                    session.getCourse().getId(), session.getId(), 1);
+        }
+
+        if (questions.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No questions available for this course. Please contact support.");
         }
 
         Question question = questions.get(0);
@@ -69,8 +117,9 @@ public class ExamService {
                 .question(question.getQuestion())
                 .options(question.getOptions())
                 .index(session.getCurrentIndex() + 1)
-                .difficulty(session.getCurrentDifficulty())
+                .difficulty(question.getDifficulty())
                 .timeLimit(60)
+                .warningMessage(session.getWarningMessage())
                 .build();
     }
 
@@ -106,6 +155,7 @@ public class ExamService {
         userAnswerRepository.save(answer);
 
         // Update session
+        session.setLastActivityAt(LocalDateTime.now());
         session.setCurrentIndex(session.getCurrentIndex() + 1);
         
         boolean sessionComplete = session.getCurrentIndex() >= MAX_QUESTIONS;
@@ -126,6 +176,7 @@ public class ExamService {
                 .correctAnswer(question.getCorrectAnswer())
                 .explanation(question.getExplanation())
                 .sessionComplete(sessionComplete)
+                .warningMessage(session.getWarningMessage())
                 .build();
     }
 
@@ -139,6 +190,8 @@ public class ExamService {
         }
 
         session.setViolationCount(session.getViolationCount() + 1);
+        session.setLastActivityAt(LocalDateTime.now());
+        
         log.warn("Integrity violation reported for session {}: {}. Count: {}", 
                 sessionId, request.getReason(), session.getViolationCount());
 
@@ -146,6 +199,7 @@ public class ExamService {
             return terminateSession(session, "Multiple integrity violations: " + request.getReason());
         }
 
+        session.setWarningMessage("Warning: Integrity violation detected. Multiple violations will result in exam termination. Reason: " + request.getReason());
         return sessionRepository.save(session);
     }
 
@@ -165,6 +219,7 @@ public class ExamService {
         session.setStatus(ExamSession.Status.TERMINATED);
         session.setTerminationReason(reason);
         session.setCompletedAt(LocalDateTime.now());
+        session.setLastActivityAt(LocalDateTime.now());
         
         calculateAndSaveResult(session);
         
@@ -208,8 +263,12 @@ public class ExamService {
         ExamSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
         
+        if (session.getStatus() == ExamSession.Status.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exam is still in progress. Complete the exam to see results.");
+        }
+
         ExamResult result = resultRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found for this session. It might have been abandoned or errored."));
 
         return ExamResultResponse.builder()
                 .sessionId(sessionId)
@@ -221,6 +280,7 @@ public class ExamService {
                 .difficultyBreakdown(result.getDifficultyBreakdown())
                 .status(session.getStatus().name())
                 .terminationReason(session.getTerminationReason())
+                .warningMessage(session.getWarningMessage())
                 .violationCount(session.getViolationCount())
                 .build();
     }

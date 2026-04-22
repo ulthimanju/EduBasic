@@ -56,6 +56,13 @@ public class ExamSession {
     @Column(name = "termination_reason")
     private String terminationReason;
 
+    @Column(name = "last_activity_at")
+    @Builder.Default
+    private LocalDateTime lastActivityAt = LocalDateTime.now();
+
+    @Column(name = "warning_message")
+    private String warningMessage;
+
     public enum Status {
         ACTIVE, COMPLETED, ABANDONED, TERMINATED
     }

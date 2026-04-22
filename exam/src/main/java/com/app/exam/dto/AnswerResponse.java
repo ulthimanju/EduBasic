@@ -10,4 +10,5 @@ public class AnswerResponse {
     private String correctAnswer;
     private String explanation;
     private boolean sessionComplete;
+    private String warningMessage;
 }
