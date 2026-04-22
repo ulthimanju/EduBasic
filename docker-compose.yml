@@ -1,8 +1,17 @@
+# CHANGED: Using modern format (no version key required for Compose V2+)
+# CHANGED: Added shared configuration via YAML extension blocks to reduce duplication
+x-common-config: &common-config
+  restart: unless-stopped
+  networks:
+    - edubasic-net
+  security_opt:
+    - no-new-privileges:true # CHANGED: Added security hardening to prevent privilege escalation
+
 services:
   neo4j:
     image: neo4j:5.26-community
     container_name: edubasic-neo4j
-    restart: unless-stopped
+    <<: *common-config
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -11,11 +20,16 @@ services:
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
+    healthcheck: # CHANGED: Added healthcheck for database readiness
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD} 'RETURN 1' > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7.4-alpine
     container_name: edubasic-redis
-    restart: unless-stopped
+    <<: *common-config
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
     ports:
       - "6379:6379"
@@ -31,7 +45,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: edubasic-postgres
-    restart: unless-stopped
+    <<: *common-config
     ports:
       - "5432:5432"
     environment:
@@ -40,13 +54,18 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-exam_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck: # CHANGED: Added healthcheck using pg_isready
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-exam_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth:
     build:
       context: ./auth
       dockerfile: Dockerfile
     container_name: edubasic-auth
-    restart: unless-stopped
+    <<: *common-config
     ports:
       - "8080:8080"
     environment:
@@ -59,15 +78,23 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       COOKIE_SECURE: ${COOKIE_SECURE}
     depends_on:
-      - neo4j
-      - redis
+      neo4j:
+        condition: service_healthy # CHANGED: Using long-form depends_on with health condition
+      redis:
+        condition: service_healthy # CHANGED: Using long-form depends_on with health condition
+    healthcheck: # CHANGED: Added healthcheck via Spring Actuator endpoint
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   exam:
     build:
       context: ./exam
       dockerfile: Dockerfile
     container_name: edubasic-exam
-    restart: unless-stopped
+    <<: *common-config
     ports:
       - "8081:8080"
     environment:
@@ -80,8 +107,16 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-exam_db}
       POSTGRES_HOST: postgres
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy # CHANGED: Ensure database is ready before application starts
+      redis:
+        condition: service_healthy # CHANGED: Ensure cache is ready before application starts
+    healthcheck: # CHANGED: Added healthcheck via Spring Actuator endpoint
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   frontend:
     build:
@@ -91,12 +126,23 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
         VITE_EXAM_API_BASE_URL: ${VITE_EXAM_API_BASE_URL:-http://localhost:8081}
     container_name: edubasic-frontend
-    restart: unless-stopped
+    <<: *common-config
     ports:
       - "5173:80"
     depends_on:
-      - auth
-      - exam
+      auth:
+        condition: service_healthy # CHANGED: Ensure auth API is healthy
+      exam:
+        condition: service_healthy # CHANGED: Ensure exam API is healthy
+    healthcheck: # CHANGED: Added healthcheck for Nginx web server
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks: # CHANGED: Defined custom bridge network for better service isolation
+  edubasic-net:
+    driver: bridge
 
 volumes:
   neo4j_data:
