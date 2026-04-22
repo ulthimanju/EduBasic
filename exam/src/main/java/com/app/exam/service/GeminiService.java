@@ -1,5 +1,6 @@
 package com.app.exam.service;
 
+import com.app.exam.LogMessages;
 import com.app.exam.domain.Question;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,7 +71,7 @@ public class GeminiService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             
-            log.info("Generating {} questions for {} using Gemini at {}", count, courseName, fullUrl);
+            log.info(LogMessages.GENERATING_QUESTIONS_GEMINI, count, courseName, fullUrl);
             
             Map<String, Object> response = restTemplate.postForObject(fullUrl, entity, Map.class);
             
@@ -91,7 +92,7 @@ public class GeminiService {
             
             return List.of(); 
         } catch (Exception e) {
-            log.error("Error calling Gemini API: {}", e.getMessage());
+            log.error(LogMessages.ERROR_CALLING_GEMINI_API, e.getMessage());
             return List.of();
         }
     }

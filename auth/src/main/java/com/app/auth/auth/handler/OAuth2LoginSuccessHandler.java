@@ -1,5 +1,6 @@
 package com.app.auth.auth.handler;
 
+import com.app.auth.LogMessages;
 import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.service.JwtService;
 import com.app.auth.cache.service.CacheService;
@@ -67,7 +68,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String email    = oAuth2User.getAttribute("email");
         String name     = oAuth2User.getAttribute("name");
 
-        log.info("OAuth2 login success: email={}", email);
+        log.info(LogMessages.OAUTH2_LOGIN_SUCCESS, email);
 
         // 2. Upsert user — creates on first login, updates lastLogin on subsequent logins
         UserNode userNode = userService.upsertUser(googleId, email, name);
@@ -92,7 +93,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
         // 9. Redirect to dashboard
-        log.info("Auth cookie set, redirecting to dashboard: userId={}", userNode.getId());
+        log.info(LogMessages.AUTH_COOKIE_SET_REDIRECTING, userNode.getId());
         response.sendRedirect(frontendUrl + "/dashboard");
     }
 }

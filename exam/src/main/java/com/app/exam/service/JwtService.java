@@ -1,5 +1,6 @@
 package com.app.exam.service;
 
+import com.app.exam.LogMessages;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -23,7 +24,7 @@ public class JwtService {
             parseClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
-            log.debug("JWT validation failed: {}", e.getMessage());
+            log.debug(LogMessages.JWT_VALIDATION_FAILED, e.getMessage());
             return false;
         }
     }

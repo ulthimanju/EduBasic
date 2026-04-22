@@ -1,5 +1,6 @@
 package com.app.auth.auth.service;
 
+import com.app.auth.LogMessages;
 import com.app.auth.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,7 @@ public class OAuthUserService extends DefaultOAuth2UserService {
         String email    = oAuth2User.getAttribute("email");
         String name     = oAuth2User.getAttribute("name");
 
-        log.debug("OAuth2 user loaded from Google: email={}", email);
+        log.debug(LogMessages.OAUTH2_USER_LOADED_GOOGLE, email);
 
         // 3. Create or update user in Neo4j
         userService.upsertUser(googleId, email, name);

@@ -1,5 +1,6 @@
 package com.app.auth.cache.service;
 
+import com.app.auth.LogMessages;
 import com.app.auth.common.constants.CacheConstants;
 import com.app.auth.user.dto.UserResponseDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,7 +40,7 @@ public class RedisCacheServiceImpl implements CacheService {
             stringRedisTemplate.opsForValue().set(key, value,
                     Duration.ofSeconds(CacheConstants.JWT_TTL_SECONDS));
         } catch (Exception e) {
-            log.warn("Redis write failed for key={}: {}", key, e.getMessage());
+            log.warn(LogMessages.REDIS_WRITE_FAILED, key, e.getMessage());
         }
     }
 
@@ -53,7 +54,7 @@ public class RedisCacheServiceImpl implements CacheService {
             }
             return Optional.of(CacheConstants.JWT_VALID.equals(value));
         } catch (Exception e) {
-            log.warn("Redis read failed for key={}: {}", key, e.getMessage());
+            log.warn(LogMessages.REDIS_READ_FAILED, key, e.getMessage());
             return Optional.empty();
         }
     }
@@ -64,7 +65,7 @@ public class RedisCacheServiceImpl implements CacheService {
         try {
             stringRedisTemplate.delete(key);
         } catch (Exception e) {
-            log.warn("Redis delete failed for key={}: {}", key, e.getMessage());
+            log.warn(LogMessages.REDIS_DELETE_FAILED, key, e.getMessage());
         }
     }
 
@@ -78,9 +79,9 @@ public class RedisCacheServiceImpl implements CacheService {
             stringRedisTemplate.opsForValue().set(key, json,
                     Duration.ofSeconds(CacheConstants.USER_TTL_SECONDS));
         } catch (JsonProcessingException e) {
-            log.warn("Serialization failed for userId={}: {}", userId, e.getMessage());
+            log.warn(LogMessages.SERIALIZATION_FAILED, userId, e.getMessage());
         } catch (Exception e) {
-            log.warn("Redis write failed for key={}: {}", key, e.getMessage());
+            log.warn(LogMessages.REDIS_WRITE_FAILED, key, e.getMessage());
         }
     }
 
@@ -94,10 +95,10 @@ public class RedisCacheServiceImpl implements CacheService {
             }
             return Optional.of(objectMapper.readValue(json, UserResponseDTO.class));
         } catch (JsonProcessingException e) {
-            log.warn("Deserialization failed for userId={}: {}", userId, e.getMessage());
+            log.warn(LogMessages.DESERIALIZATION_FAILED, userId, e.getMessage());
             return Optional.empty();
         } catch (Exception e) {
-            log.warn("Redis read failed for key={}: {}", key, e.getMessage());
+            log.warn(LogMessages.REDIS_READ_FAILED, key, e.getMessage());
             return Optional.empty();
         }
     }
@@ -108,7 +109,7 @@ public class RedisCacheServiceImpl implements CacheService {
         try {
             stringRedisTemplate.delete(key);
         } catch (Exception e) {
-            log.warn("Redis delete failed for key={}: {}", key, e.getMessage());
+            log.warn(LogMessages.REDIS_DELETE_FAILED, key, e.getMessage());
         }
     }
 }

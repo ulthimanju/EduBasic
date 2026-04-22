@@ -1,5 +1,6 @@
 package com.app.auth.auth.filter;
 
+import com.app.auth.LogMessages;
 import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.service.JwtService;
 import com.app.auth.cache.service.CacheService;
@@ -87,7 +88,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             jwtId = jwtService.extractJwtId(jwt);
         } catch (Exception e) {
-            log.debug("Malformed JWT — cannot extract jti: {}", e.getMessage());
+            log.debug(LogMessages.MALFORMED_JWT_CANNOT_EXTRACT_JTI, e.getMessage());
             sendUnauthorized(response);
             return;
         }
@@ -96,7 +97,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         Optional<Boolean> cached = cacheService.getJwtValidity(jwtId);
         if (cached.isPresent()) {
             if (Boolean.FALSE.equals(cached.get())) {
-                log.debug("JWT cached as invalid: jwtId={}", jwtId);
+                log.debug(LogMessages.JWT_CACHED_INVALID, jwtId);
                 sendUnauthorized(response);
                 return;
             }
@@ -104,7 +105,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } else {
             // Step 5 — Local JWT validation (signature + expiry)
             if (!jwtService.validateToken(jwt)) {
-                log.debug("JWT local validation failed: jwtId={}", jwtId);
+                log.debug(LogMessages.JWT_LOCAL_VALIDATION_FAILED, jwtId);
                 cacheService.cacheJwtValidity(jwtId, false);
                 sendUnauthorized(response);
                 return;
@@ -116,7 +117,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     .orElse(false);
 
             if (!sessionValid) {
-                log.debug("JWT session not found or revoked: jwtId={}", jwtId);
+                log.debug(LogMessages.JWT_SESSION_NOT_FOUND_REVOKED, jwtId);
                 cacheService.cacheJwtValidity(jwtId, false);
                 sendUnauthorized(response);
                 return;
@@ -135,7 +136,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (userNode.isEmpty()) {
                 // Backing user record is gone — token is no longer valid.
                 // Mark the JWT as invalid and remove any stale user cache.
-                log.warn("JWT references a user that no longer exists: userId={}, jwtId={}", userId, jwtId);
+                log.warn(LogMessages.JWT_USER_NOT_EXISTS, userId, jwtId);
                 cacheService.evictUserCache(userId);
                 cacheService.cacheJwtValidity(jwtId, false);
                 sendUnauthorized(response);

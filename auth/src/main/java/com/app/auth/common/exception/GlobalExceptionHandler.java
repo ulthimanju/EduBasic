@@ -1,5 +1,6 @@
 package com.app.auth.common.exception;
 
+import com.app.auth.LogMessages;
 import com.app.auth.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,21 +21,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleUserNotFound(UserNotFoundException ex) {
-        log.warn("User not found: {}", ex.getMessage());
+        log.warn(LogMessages.USER_NOT_FOUND, ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
     @ExceptionHandler(TokenValidationException.class)
     public ResponseEntity<ApiResponse<Void>> handleTokenValidation(TokenValidationException ex) {
-        log.warn("Token validation error: {}", ex.getMessage());
+        log.warn(LogMessages.TOKEN_VALIDATION_ERROR, ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("Validation error: {}", ex.getMessage());
+        log.warn(LogMessages.VALIDATION_ERROR, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ex.getMessage()));
     }
@@ -46,14 +47,14 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
-        log.warn("Access denied: {}", ex.getMessage());
+        log.warn(LogMessages.ACCESS_DENIED, ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("Access denied"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        log.error(LogMessages.UNHANDLED_EXCEPTION, ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("An unexpected error occurred"));
     }

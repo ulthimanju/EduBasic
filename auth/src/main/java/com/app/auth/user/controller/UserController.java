@@ -1,5 +1,6 @@
 package com.app.auth.user.controller;
 
+import com.app.auth.LogMessages;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.exception.UserNotFoundException;
 import com.app.auth.common.response.ApiResponse;
@@ -43,7 +44,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUser(
             @AuthenticationPrincipal String userId) {
 
-        log.debug("GET /api/auth/me userId={}", userId);
+        log.debug(LogMessages.GET_ME_USER_ID, userId);
 
         // Cache-first lookup
         UserResponseDTO user = cacheService.getCachedUserProfile(userId)

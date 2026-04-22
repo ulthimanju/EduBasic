@@ -1,6 +1,8 @@
 package com.app.auth.user.service;
 
 import com.app.auth.common.config.AdminProperties;
+import com.app.auth.LogMessages;
+import com.app.auth.common.config.AdminProperties;
 import com.app.auth.user.node.AppRole;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;
@@ -80,7 +82,7 @@ public class UserServiceImpl implements UserService {
                 .lastLogin(now)
                 .build();
         UserNode saved = userRepository.save(newUser);
-        log.info("New user created: id={}, email={}, roles={}", saved.getId(), saved.getEmail(), saved.getRoles());
+        log.info(LogMessages.NEW_USER_CREATED, saved.getId(), saved.getEmail(), saved.getRoles());
         return saved;
     }
 
@@ -100,7 +102,7 @@ public class UserServiceImpl implements UserService {
         existing.getRoles().add(AppRole.STUDENT);
 
         UserNode saved = userRepository.save(existing);
-        log.debug("Returning user updated: id={}, email={}, roles={}", saved.getId(), saved.getEmail(), saved.getRoles());
+        log.debug(LogMessages.RETURNING_USER_UPDATED, saved.getId(), saved.getEmail(), saved.getRoles());
         return saved;
     }
 

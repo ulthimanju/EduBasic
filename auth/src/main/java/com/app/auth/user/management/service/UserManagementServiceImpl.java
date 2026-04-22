@@ -1,5 +1,6 @@
 package com.app.auth.user.management.service;
 
+import com.app.auth.LogMessages;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.exception.UserNotFoundException;
 import com.app.auth.session.repository.SessionRepository;
@@ -85,7 +86,7 @@ public class UserManagementServiceImpl implements UserManagementService {
         cacheService.evictUserCache(userId); // Force reload from DB on next request
         cacheService.cacheUserProfile(userId, dto);
 
-        log.info("Updated roles for user {}: {}", userId, roles);
+        log.info(LogMessages.UPDATED_ROLES_FOR_USER, userId, roles);
         return dto;
     }
 

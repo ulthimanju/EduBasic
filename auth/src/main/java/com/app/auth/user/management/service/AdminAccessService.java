@@ -1,5 +1,6 @@
 package com.app.auth.user.management.service;
 
+import com.app.auth.LogMessages;
 import com.app.auth.common.config.AdminProperties;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;
@@ -44,21 +45,21 @@ public class AdminAccessService {
     public boolean isAdmin(Authentication auth) {
         // 1. Reject unauthenticated callers
         if (auth == null || !auth.isAuthenticated()) {
-            log.debug("Admin check failed — no authentication");
+            log.debug(LogMessages.ADMIN_CHECK_FAILED_NO_AUTH);
             return false;
         }
 
         // 2. Deny-by-default when allowlist is empty
         Set<String> allowedEmails = adminProperties.getAllowedEmailSet();
         if (allowedEmails.isEmpty()) {
-            log.warn("Admin allowlist is empty — all management access denied");
+            log.warn(LogMessages.ADMIN_ALLOWLIST_EMPTY_ACCESS_DENIED);
             return false;
         }
 
         // 3. Principal is the internal userId string (set by JwtAuthFilter)
         Object principal = auth.getPrincipal();
         if (!(principal instanceof String userId)) {
-            log.debug("Admin check failed — unexpected principal type: {}", principal);
+            log.debug(LogMessages.ADMIN_CHECK_FAILED_UNEXPECTED_PRINCIPAL, principal);
             return false;
         }
 
@@ -68,11 +69,11 @@ public class AdminAccessService {
                 .filter(email -> email != null && !email.isBlank())
                 .map(email -> {
                     boolean granted = allowedEmails.contains(email.toLowerCase());
-                    log.debug("Admin check: userId={}, email={}, granted={}", userId, email, granted);
+                    log.debug(LogMessages.ADMIN_CHECK_USER_EMAIL_GRANTED, userId, email, granted);
                     return granted;
                 })
                 .orElseGet(() -> {
-                    log.debug("Admin check failed — user not found: userId={}", userId);
+                    log.debug(LogMessages.ADMIN_CHECK_FAILED_USER_NOT_FOUND, userId);
                     return false;
                 });
     }

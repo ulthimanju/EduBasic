@@ -1,5 +1,6 @@
 package com.app.auth.common.init;
 
+import com.app.auth.LogMessages;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.Driver;
@@ -40,15 +41,15 @@ public class SchemaInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        log.info("Running Neo4j schema initialization...");
+        log.info(LogMessages.RUNNING_SCHEMA_INITIALIZATION);
         try (Session session = neo4jDriver.session()) {
             for (String statement : SCHEMA_STATEMENTS) {
                 session.run(statement);
-                log.debug("Applied: {}", statement);
+                log.debug(LogMessages.APPLIED_STATEMENT, statement);
             }
-            log.info("Neo4j schema initialization complete.");
+            log.info(LogMessages.SCHEMA_INITIALIZATION_COMPLETE);
         } catch (Exception e) {
-            log.error("Neo4j schema initialization failed: {}", e.getMessage(), e);
+            log.error(LogMessages.SCHEMA_INITIALIZATION_FAILED, e.getMessage(), e);
             throw new RuntimeException("Neo4j schema initialization failed", e);
         }
     }

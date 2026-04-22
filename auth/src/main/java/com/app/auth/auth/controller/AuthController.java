@@ -1,5 +1,6 @@
 package com.app.auth.auth.controller;
 
+import com.app.auth.LogMessages;
 import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.service.JwtService;
 import com.app.auth.cache.service.CacheService;
@@ -63,7 +64,7 @@ public class AuthController {
                 String jwtId  = jwtService.extractJwtId(jwt);
                 String userId = jwtService.extractUserId(jwt);
 
-                log.info("Logout: userId={}, jwtId={}", userId, jwtId);
+                log.info(LogMessages.LOGOUT_USER_SESSION, userId, jwtId);
 
                 // Revoke session in Neo4j
                 sessionService.revokeSession(jwtId);
@@ -75,7 +76,7 @@ public class AuthController {
             } catch (Exception e) {
                 // Malformed token or downstream failure: swallow and continue.
                 // Cookie has already been cleared above.
-                log.debug("Logout best-effort: could not parse or revoke token — {}", e.getMessage());
+                log.debug(LogMessages.LOGOUT_BEST_EFFORT_FAILED, e.getMessage());
             }
         });
 

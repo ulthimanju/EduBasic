@@ -1,5 +1,6 @@
 package com.app.auth.session.service;
 
+import com.app.auth.LogMessages;
 import com.app.auth.session.node.SessionNode;
 import com.app.auth.session.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ public class SessionServiceImpl implements SessionService {
         SessionNode session = sessionRepository.createSessionForUser(
             sessionNodeId, userId, jwtId, issuedAt, expiresAtLdt);
 
-        log.info("Session created: userId={}, jwtId={}", userId, jwtId);
+        log.info(LogMessages.SESSION_CREATED, userId, jwtId);
         return session;
     }
 
@@ -57,7 +58,7 @@ public class SessionServiceImpl implements SessionService {
     @Transactional
     public void revokeSession(String jwtId) {
         sessionRepository.revokeBySessionId(jwtId)
-                .ifPresent(s -> log.info("Session revoked: jwtId={}", jwtId));
+                .ifPresent(s -> log.info(LogMessages.SESSION_REVOKED, jwtId));
     }
 
     /**
@@ -68,6 +69,6 @@ public class SessionServiceImpl implements SessionService {
     @Transactional
     public void revokeAllForUser(String userId) {
         int count = sessionRepository.revokeAllSessionsForUser(userId).size();
-        log.info("Revoked {} session(s) for userId={}", count, userId);
+        log.info(LogMessages.REVOKED_SESSIONS_FOR_USER, count, userId);
     }
 }

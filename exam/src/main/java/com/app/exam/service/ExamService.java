@@ -1,5 +1,6 @@
 package com.app.exam.service;
 
+import com.app.exam.LogMessages;
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
 import com.app.exam.repository.*;
@@ -68,7 +69,7 @@ public class ExamService {
 
         // 2. If none, trigger REAL-TIME generation from Gemini
         if (questions.isEmpty()) {
-            log.info("No unused questions in DB for {} - {}. Triggering Gemini AI generation.", 
+            log.info(LogMessages.NO_UNUSED_QUESTIONS_IN_DB, 
                     session.getCourse().getName(), difficulty);
             
             List<Question> generated = geminiService.generateQuestions(
@@ -94,13 +95,13 @@ public class ExamService {
 
         // 3. Fallback Ladder (If AI failed or DB is empty)
         if (questions.isEmpty() && !"MEDIUM".equalsIgnoreCase(difficulty)) {
-            log.info("AI/DB empty for {}. Falling back to MEDIUM.", difficulty);
+            log.info(LogMessages.AI_DB_EMPTY_FALLBACK_MEDIUM, difficulty);
             questions = questionRepository.findRandomByCourseIdAndDifficultyAndNotUsedInSession(
                     session.getCourse().getId(), "MEDIUM", session.getId(), 1);
         }
 
         if (questions.isEmpty()) {
-            log.warn("Emergency fallback: Picking any available unused question for course {}.", session.getCourse().getId());
+            log.warn(LogMessages.EMERGENCY_FALLBACK_PICKING_QUESTION, session.getCourse().getId());
             questions = questionRepository.findRandomByCourseIdAndNotUsedInSession(
                     session.getCourse().getId(), session.getId(), 1);
         }
@@ -192,7 +193,7 @@ public class ExamService {
         session.setViolationCount(session.getViolationCount() + 1);
         session.setLastActivityAt(LocalDateTime.now());
         
-        log.warn("Integrity violation reported for session {}: {}. Count: {}", 
+        log.warn(LogMessages.INTEGRITY_VIOLATION_REPORTED, 
                 sessionId, request.getReason(), session.getViolationCount());
 
         if (session.getViolationCount() >= 2) {
@@ -215,7 +216,7 @@ public class ExamService {
             return session;
         }
 
-        log.info("Terminating session {} due to: {}", session.getId(), reason);
+        log.info(LogMessages.TERMINATING_SESSION_REASON, session.getId(), reason);
         session.setStatus(ExamSession.Status.TERMINATED);
         session.setTerminationReason(reason);
         session.setCompletedAt(LocalDateTime.now());

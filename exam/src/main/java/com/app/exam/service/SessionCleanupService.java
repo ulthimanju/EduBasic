@@ -1,5 +1,6 @@
 package com.app.exam.service;
 
+import com.app.exam.LogMessages;
 import com.app.exam.domain.ExamSession;
 import com.app.exam.repository.ExamSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ public class SessionCleanupService {
                 ExamSession.Status.ACTIVE, threshold);
 
         if (!staleSessions.isEmpty()) {
-            log.info("Found {} stale sessions to mark as ABANDONED", staleSessions.size());
+            log.info(LogMessages.FOUND_STALE_SESSIONS_ABANDONED, staleSessions.size());
             for (ExamSession session : staleSessions) {
                 session.setStatus(ExamSession.Status.ABANDONED);
                 session.setTerminationReason("Session timed out after " + TIMEOUT_MINUTES + " minutes of inactivity.");
