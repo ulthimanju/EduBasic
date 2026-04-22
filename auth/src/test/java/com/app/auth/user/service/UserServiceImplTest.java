@@ -1,5 +1,6 @@
 package com.app.auth.user.service;
 
+import com.app.auth.common.config.AdminProperties;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.when;
 class UserServiceImplTest {
 
     @Mock private UserRepository userRepository;
+    @Mock private AdminProperties adminProperties;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -45,6 +48,7 @@ class UserServiceImplTest {
     @Test
     @DisplayName("upsertUser — new user: creates node with all fields populated")
     void upsertUser_newUser_createsWithAllFields() {
+        when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
         when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.empty());
         when(userRepository.save(any(UserNode.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -72,13 +76,14 @@ class UserServiceImplTest {
                 .lastLogin(LocalDateTime.now().minusDays(1))
                 .build();
 
+        when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
         when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.of(existing));
         when(userRepository.save(any(UserNode.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ArgumentCaptor<UserNode> captor = ArgumentCaptor.forClass(UserNode.class);
 
         LocalDateTime before = LocalDateTime.now().minusSeconds(1);
-        UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL_NEW, NAME_NEW);
+        userService.upsertUser(GOOGLE_ID, EMAIL_NEW, NAME_NEW);
         LocalDateTime after = LocalDateTime.now().plusSeconds(1);
 
         verify(userRepository).save(captor.capture());

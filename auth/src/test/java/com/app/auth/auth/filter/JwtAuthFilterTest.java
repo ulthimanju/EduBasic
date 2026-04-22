@@ -7,6 +7,7 @@ import com.app.auth.common.config.SecurityConfig;
 import com.app.auth.session.repository.SessionRepository;
 import com.app.auth.user.dto.UserResponseDTO;
 import com.app.auth.user.mapper.UserMapper;
+import com.app.auth.user.node.AppRole;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.service.UserService;
 import jakarta.servlet.FilterChain;
@@ -25,6 +26,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -198,7 +200,7 @@ class JwtAuthFilterTest {
 
         UserNode userNode = UserNode.builder()
                 .id(USER_ID).email("user@example.com").name("Test User").build();
-        UserResponseDTO dto = new UserResponseDTO(USER_ID, "user@example.com", "Test User");
+        UserResponseDTO dto = new UserResponseDTO(USER_ID, "user@example.com", "Test User", Set.of(AppRole.STUDENT));
 
         when(cookieFactory.extractJwtFromRequest(request)).thenReturn(Optional.of(VALID_JWT));
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);

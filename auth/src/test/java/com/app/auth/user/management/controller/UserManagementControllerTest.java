@@ -8,6 +8,7 @@ import com.app.auth.user.dto.UserResponseDTO;
 import com.app.auth.user.management.service.AdminAccessService;
 import com.app.auth.user.management.service.UserManagementService;
 import com.app.auth.user.mapper.UserMapper;
+import com.app.auth.user.node.AppRole;
 import com.app.auth.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -112,7 +114,7 @@ class UserManagementControllerTest {
     @MockitoBean private com.app.auth.auth.handler.OAuth2LoginSuccessHandler successHandler;
 
     private static final UserResponseDTO SAMPLE_USER =
-            new UserResponseDTO("uid-1", "admin@example.com", "Admin User");
+            new UserResponseDTO("uid-1", "admin@example.com", "Admin User", Set.of(AppRole.ADMIN));
 
     // ── Unauthenticated (401) ─────────────────────────────────────────────────
 
@@ -176,7 +178,7 @@ class UserManagementControllerTest {
     void updateUser_adminUser_returns200() throws Exception {
         when(adminAccessService.isAdmin(any())).thenReturn(true);
         when(userManagementService.updateUserName("uid-1", "New Name"))
-                .thenReturn(new UserResponseDTO("uid-1", "admin@example.com", "New Name"));
+                .thenReturn(new UserResponseDTO("uid-1", "admin@example.com", "New Name", Set.of(AppRole.ADMIN)));
 
         mockMvc.perform(patch("/api/user-management/users/uid-1")
                         .contentType(MediaType.APPLICATION_JSON)
