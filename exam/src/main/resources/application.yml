@@ -28,7 +28,8 @@ gemini:
   api-url: https://generativelanguage.googleapis.com/v1beta/models/
 
 jwt:
-  secret: ${JWT_SECRET}
+  # secret: ${JWT_SECRET} # Removed, using RS256
+  jwks-uri: ${AUTH_SERVICE_URL:http://auth:8080}/api/auth/.well-known/jwks.json
 
 server:
   port: 8080

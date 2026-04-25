@@ -1,17 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/runtimeConfig';
+import useAuthStore from '../features/auth/store/authStore';
 
-/**
- * Shared Axios instance for all API calls.
- *
- * Key settings:
- * - baseURL pulled from Vite env var (VITE_API_BASE_URL)
- * - withCredentials: true  — required for browser to send HttpOnly auth cookie
- *   on cross-origin requests to the Spring Boot backend
- *
- * Interceptors:
- * - Response: on 401 redirect to /login (passive — no store import to avoid circular deps)
- */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -20,14 +10,71 @@ const apiClient = axios.create({
   },
 });
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// ── Request interceptor ────────────────────────────────────────────────────────
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = useAuthStore.getState().accessToken;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // ── Response interceptor ───────────────────────────────────────────────────────
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Emit a custom DOM event so auth store can react without circular import
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+  async (error) => {
+    const originalRequest = error.config;
+
+    // 401 and not already retrying
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true });
+        const newToken = data.accessToken;
+        
+        useAuthStore.getState().setAccessToken(newToken);
+        processQueue(null, newToken);
+        
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        useAuthStore.getState().clear();
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   },
 );

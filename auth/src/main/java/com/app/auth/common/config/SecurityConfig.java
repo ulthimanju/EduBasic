@@ -23,16 +23,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * Spring Security configuration.
- *
- * <p>Key decisions:
- * <ul>
- *   <li>Session policy: STATELESS — no server-side HTTP session, tokens only</li>
- *   <li>Form login and HTTP Basic explicitly disabled</li>
- *   <li>CSRF disabled — stateless JWT in HttpOnly cookie, SameSite=Strict covers CSRF</li>
- *   <li>OAuth2 login wired with custom user service and success handler</li>
- *   <li>JwtAuthFilter runs before UsernamePasswordAuthenticationFilter</li>
- *   <li>{@code @EnableMethodSecurity} activates {@code @PreAuthorize} on management routes</li>
- * </ul>
  */
 @Configuration
 @EnableWebSecurity
@@ -45,19 +35,14 @@ public class SecurityConfig {
     private final OAuthUserService          oAuthUserService;
     private final OAuth2LoginSuccessHandler successHandler;
 
-    /**
-     * The canonical permit-all matcher shared between this config and {@link JwtAuthFilter}.
-     *
-     * <p>Both places must agree: any route listed here is never blocked by the JWT filter
-     * and is also reachable without authentication in the filter chain. Adding a route in
-     * only one place will cause an inconsistency.</p>
-     */
     public static RequestMatcher getPublicRoutes() {
         return new OrRequestMatcher(
                 antMatcher("/oauth2/**"),
                 antMatcher("/login/**"),
                 antMatcher("/actuator/health"),
                 antMatcher("/actuator/info"),
+                antMatcher("/api/auth/.well-known/jwks.json"),
+                antMatcher(HttpMethod.POST, "/api/auth/refresh"),
                 antMatcher(HttpMethod.POST, "/api/auth/logout")
         );
     }
@@ -65,42 +50,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ── Session ──────────────────────────────────────────────────────
             .sessionManagement(sm ->
                 sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-            // ── Disable unused auth mechanisms ───────────────────────────────
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
-
-            // ── CSRF: off (stateless + SameSite cookie) ───────────────────────
-            .csrf(AbstractHttpConfigurer::disable)
-
-            // ── CORS: delegate to CorsConfig bean ─────────────────────────────
+            .csrf(AbstractHttpConfigurer::disable) // SameSite=Strict on RT cookie provides CSRF protection
             .cors(cors -> {})
-
-            // ── Authorization rules ───────────────────────────────────────────
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(getPublicRoutes()).permitAll()
                 .anyRequest().authenticated()
             )
-
-            // ── API auth failures should return 401, not redirect to Google ──
             .exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                     antMatcher("/api/**")
                 )
             )
-
-            // ── OAuth2 login flow ─────────────────────────────────────────────
             .oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(ui -> ui
                     .userService(oAuthUserService))
                 .successHandler(successHandler)
             )
-
-            // ── Add JWT filter before the default auth filter ─────────────────
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

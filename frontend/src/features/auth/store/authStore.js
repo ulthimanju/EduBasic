@@ -1,36 +1,32 @@
 import { create } from 'zustand';
 
-const getResolvedAuthState = (user) => (
+const getResolvedAuthState = (user, accessToken) => (
   user
-    ? { user, isAuthenticated: true, authStatus: 'authenticated', authError: null }
-    : { user: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }
+    ? { user, accessToken, isAuthenticated: true, authStatus: 'authenticated', authError: null }
+    : { user: null, accessToken: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }
 );
 
 /**
  * Zustand store for authentication state.
- *
- * Shape:
- *   user            — { id, email, name } | null
- *   isAuthenticated — derived boolean
- *   authStatus      — 'idle' | 'loading' | 'authenticated' | 'anonymous' | 'error'
- *   authError       — Error | null
  */
 const useAuthStore = create((set) => ({
   user: null,
+  accessToken: null,
   isAuthenticated: false,
   authStatus: 'idle',
   authError: null,
 
   startBootstrap: () => set({ authStatus: 'loading', authError: null }),
-  resolveAuthenticated: (user) => set(getResolvedAuthState(user)),
-  resolveAnonymous: () => set({ user: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }),
+  
+  setAuth: (user, accessToken) => set(getResolvedAuthState(user, accessToken)),
+  
+  resolveAnonymous: () => set({ user: null, accessToken: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }),
   resolveError: (error) => set({ authStatus: 'error', authError: error }),
 
-  /** Called after successful getCurrentUser() — populates user and marks authenticated. */
-  setUser: (user) => set(getResolvedAuthState(user)),
+  setUser: (user) => set((state) => getResolvedAuthState(user, state.accessToken)),
+  setAccessToken: (token) => set((state) => getResolvedAuthState(state.user, token)),
 
-  /** Called on logout or 401 — wipes all auth state. */
-  clear: () => set({ user: null, isAuthenticated: false, authStatus: 'idle', authError: null }),
+  clear: () => set({ user: null, accessToken: null, isAuthenticated: false, authStatus: 'idle', authError: null }),
 }));
 
 export default useAuthStore;

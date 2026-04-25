@@ -26,22 +26,12 @@ import java.util.UUID;
 /**
  * Called by Spring Security after a successful Google OAuth callback.
  *
- * <p>Algorithm (§9.4 of design doc):
- * <ol>
- *   <li>Extract OAuth2User from Authentication</li>
- *   <li>Read googleId, email, name from attributes</li>
- *   <li>Upsert user in Neo4j via UserService</li>
- *   <li>Generate jwtId = UUID</li>
- *   <li>Generate JWT string via JwtService</li>
- *   <li>Create Session node + HAS_SESSION edge in Neo4j</li>
- *   <li>Cache JWT as "valid" in Redis</li>
- *   <li>Set HttpOnly auth cookie on response</li>
- *   <li>Redirect to frontend /dashboard</li>
- * </ol>
- *
- * <p><strong>IMPORTANT:</strong> If any Neo4j write fails (steps 3 or 6),
- * the exception propagates and the cookie is NOT set. The user sees an error
- * rather than receiving a token for a session that was never persisted.</p>
+ * <p>Modified for Hybrid Auth:
+ * 1. Upsert User
+ * 2. Generate Refresh Token (RT)
+ * 3. Persist Session in Neo4j (linked to RT jti)
+ * 4. Set RT in HttpOnly cookie
+ * 5. Redirect to Dashboard (frontend will then call /refresh to get AT)
  */
 @Component
 @RequiredArgsConstructor
@@ -61,7 +51,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     public void onAuthenticationSuccess(HttpServletRequest  request,
                                         HttpServletResponse response,
                                         Authentication      authentication) throws IOException {
-        // 1. Extract Google user principal
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
         String googleId = oAuth2User.getAttribute("sub");
@@ -70,30 +59,22 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         log.info(LogMessages.OAUTH2_LOGIN_SUCCESS, email);
 
-        // 2. Upsert user — creates on first login, updates lastLogin on subsequent logins
         UserNode userNode = userService.upsertUser(googleId, email, name);
 
-        // 3. Generate a unique token ID (jti claim = Neo4j sessionId)
-        String jwtId = UUID.randomUUID().toString();
+        // Generate RT ID
+        String rtId = UUID.randomUUID().toString();
+        String refreshToken = jwtService.generateRefreshToken(userNode.getId(), rtId);
+        Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();
 
-        // 4. Sign the application JWT
-        String jwtString = jwtService.generateToken(userNode.getId(), email, jwtId);
+        // Persist session tied to RT
+        sessionService.createSession(userNode.getId(), rtId, rtExpiresAt);
+        cacheService.cacheJwtValidity(rtId, true);
 
-        // 5. Compute expiry Instant for Neo4j session node
-        Instant expiresAt = jwtService.getExpiryInstant();
-
-        // 6. Persist session in Neo4j (may throw — cookie NOT set if this fails)
-        sessionService.createSession(userNode.getId(), jwtId, expiresAt);
-
-        // 7. Pre-warm Redis cache with valid status
-        cacheService.cacheJwtValidity(jwtId, true);
-
-        // 8. Set HttpOnly auth cookie on response
-        ResponseCookie cookie = cookieFactory.buildAuthCookie(jwtString);
+        // Set Refresh Token Cookie
+        ResponseCookie cookie = cookieFactory.buildRefreshTokenCookie(refreshToken);
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        // 9. Redirect to dashboard
-        log.info(LogMessages.AUTH_COOKIE_SET_REDIRECTING, userNode.getId());
+        log.info("OAuth2 login successful for user {}, redirecting to dashboard", userNode.getId());
         response.sendRedirect(frontendUrl + "/dashboard");
     }
 }

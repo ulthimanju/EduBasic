@@ -4,74 +4,104 @@ import com.app.auth.LogMessages;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Date;
 
 /**
  * Stateless JWT utility — all six methods are atomic and side-effect-free.
  *
- * <p>Uses JJWT 0.12 API. Algorithm: HS256 (HMAC-SHA256).
- * Secret is derived from the {@code app.jwt.secret} environment variable.</p>
- *
- * <p>Atomic method rule: every method parses the token independently.
- * No shared parser state. No field caching of parsed claims.</p>
+ * <p>Uses JJWT 0.12 API. Algorithm: RS256 (Asymmetric RSA).
+ * Keys are loaded from env or generated on startup.</p>
  */
 @Service
 @Slf4j
 public class JwtService {
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
+    private final PrivateKey privateKey;
+    private final PublicKey  publicKey;
 
     @Value("${app.jwt.expiration-seconds}")
     private long expirationSeconds;
 
+    @Value("${app.jwt.refresh-expiration-seconds:86400}")
+    private long refreshExpirationSeconds;
+
+    public JwtService(@Value("${app.jwt.private-key:}") String privateKeyStr,
+                      @Value("${app.jwt.public-key:}")  String publicKeyStr) throws Exception {
+        if (privateKeyStr.isEmpty() || publicKeyStr.isEmpty()) {
+            log.info("Generating new RSA key pair for JWT signing (RS256)...");
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            this.privateKey = keyPair.getPrivate();
+            this.publicKey  = keyPair.getPublic();
+        } else {
+            log.info("Loading RSA keys from environment variables...");
+            this.privateKey = loadPrivateKey(privateKeyStr);
+            this.publicKey  = loadPublicKey(publicKeyStr);
+        }
+    }
+
+    public PublicKey getPublicKey() {
+        return publicKey;
+    }
+
     // ── Generation ────────────────────────────────────────────────────────────
 
     /**
-     * Generate a signed JWT.
-     *
-     * @param userId  internal user UUID (becomes JWT subject)
-     * @param email   user email (stored as claim)
-     * @param jwtId   unique token ID = UUID (becomes "jti" claim)
-     * @return compact serialized JWT string
+     * Generate a signed Access Token (JWT).
      */
-    public String generateToken(String userId, String email, String jwtId) {
+    public String generateToken(String userId, String email, String jwtId, java.util.Collection<String> roles) {
         Date now    = new Date();
         Date expiry = new Date(now.getTime() + expirationSeconds * 1000L);
 
         return Jwts.builder()
                 .subject(userId)
                 .claim("email", email)
+                .claim("roles", roles)
                 .id(jwtId)
                 .issuedAt(now)
                 .expiration(expiry)
-                .signWith(getSigningKey())
+                .signWith(privateKey, Jwts.SIG.RS256)
+                .compact();
+    }
+
+    /**
+     * Generate a signed Refresh Token.
+     */
+    public String generateRefreshToken(String userId, String jwtId) {
+        Date now    = new Date();
+        Date expiry = new Date(now.getTime() + refreshExpirationSeconds * 1000L);
+
+        return Jwts.builder()
+                .subject(userId)
+                .id(jwtId)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
     }
 
     /**
      * Returns the expiry as an {@link Instant} for a freshly-issued token.
-     * Used by the caller to set the Session.expiresAt in Neo4j.
      */
     public Instant getExpiryInstant() {
         return Instant.now().plusSeconds(expirationSeconds);
     }
 
+    public Instant getRefreshExpiryInstant() {
+        return Instant.now().plusSeconds(refreshExpirationSeconds);
+    }
+
     // ── Validation ───────────────────────────────────────────────────────────
 
-    /**
-     * Validate token signature and expiry.
-     *
-     * @return {@code true} if valid; {@code false} on any failure (never throws).
-     */
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
@@ -82,11 +112,6 @@ public class JwtService {
         }
     }
 
-    /**
-     * Check whether the token has passed its expiry date.
-     *
-     * @return {@code true} if expired; {@code false} if still valid or on parse error.
-     */
     public boolean isTokenExpired(String token) {
         try {
             return parseClaims(token).getExpiration().before(new Date());
@@ -97,38 +122,44 @@ public class JwtService {
 
     // ── Claim extraction ────────────────────────────────────────────────────
 
-    /**
-     * Extract the user's internal UUID (JWT subject claim).
-     */
     public String extractUserId(String token) {
         return parseClaims(token).getSubject();
     }
 
-    /**
-     * Extract the JWT unique ID ("jti" claim) — used as Redis cache key and Neo4j sessionId.
-     */
     public String extractJwtId(String token) {
         return parseClaims(token).getId();
     }
 
-    /**
-     * Extract the user's email address from the "email" claim.
-     */
     public String extractEmail(String token) {
         return parseClaims(token).get("email", String.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> extractRoles(String token) {
+        return parseClaims(token).get("roles", java.util.List.class);
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private Claims parseClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(publicKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    private PrivateKey loadPrivateKey(String key) throws Exception {
+        byte[] encoded = java.util.Base64.getDecoder().decode(key);
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        return kf.generatePrivate(keySpec);
+    }
+
+    private PublicKey loadPublicKey(String key) throws Exception {
+        byte[] encoded = java.util.Base64.getDecoder().decode(key);
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        return kf.generatePublic(keySpec);
     }
 }
