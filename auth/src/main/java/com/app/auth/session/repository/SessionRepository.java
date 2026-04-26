@@ -57,8 +57,11 @@ public interface SessionRepository extends Neo4jRepository<SessionNode, String> 
      * Crucial for preventing race conditions during refresh rotation.
      */
     @Query("MATCH (s:Session {sessionId: $sessionId}) " +
+           "SET s._lock = true " + // CHANGED: Acquire exclusive lock immediately to serialize concurrent refreshes
+           "WITH s " +
            "WHERE s.revoked = false AND s.expiresAt > $now " +
            "SET s.revoked = true " +
+           "REMOVE s._lock " +
            "RETURN s")
     Optional<SessionNode> findAndRevokeAtomic(@Param("sessionId") String sessionId,
                                              @Param("now") LocalDateTime now);
