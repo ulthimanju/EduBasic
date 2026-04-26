@@ -13,7 +13,7 @@ const ExamPage = () => {
   const navigate = useNavigate();
   const { openPrompt } = usePrompt();
   
-  const { fetchExam, currentExam, syncAttempt, submitAttempt, isLoading } = useExamStore();
+  const { fetchExam, fetchAttempt, currentExam, syncAttempt, submitAttempt, isLoading } = useExamStore();
   
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
@@ -30,10 +30,19 @@ const ExamPage = () => {
   });
 
   useEffect(() => {
-    // In a real app, fetchAttempt(attemptId) would give examId
-    // For now, let's assume currentExam is already set or handle loading
-    // fetchExam is called by some bootstrap or here if we have examId
-  }, [attemptId]);
+    const bootstrap = async () => {
+      try {
+        const attempt = await fetchAttempt(attemptId);
+        await fetchExam(attempt.examId);
+      } catch (err) {
+        console.error('Failed to bootstrap exam session', err);
+        navigate(ROUTES.DASHBOARD);
+      }
+    };
+    if (attemptId) {
+      bootstrap();
+    }
+  }, [attemptId, fetchAttempt, fetchExam, navigate]);
 
   useEffect(() => {
     if (currentExam && currentExam.timeLimitMins) {

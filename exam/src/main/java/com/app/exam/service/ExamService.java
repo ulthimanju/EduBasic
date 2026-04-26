@@ -53,6 +53,12 @@ public class ExamService {
     }
 
     @Transactional(readOnly = true)
+    public List<ExamSummaryResponse> listExamsByStatus(ExamStatus status) {
+        return examRepository.findAllByStatus(status).stream()
+                .map(this::mapToSummary).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public ExamResponse getExam(UUID id) {
         Exam exam = examRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));

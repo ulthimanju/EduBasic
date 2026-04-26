@@ -131,6 +131,18 @@ public class AttemptService {
         attemptRepository.findById(attemptId).ifPresent(this::submitAttemptInternal);
     }
 
+    @Transactional(readOnly = true)
+    public AttemptResponse getAttempt(UUID studentId, UUID attemptId) {
+        StudentAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new RuntimeException("Attempt not found"));
+
+        if (!attempt.getStudentId().equals(studentId)) {
+            throw new RuntimeException("Unauthorized attempt access");
+        }
+
+        return mapToResponse(attempt);
+    }
+
     private void initializeRedisSession(StudentAttempt attempt, Exam exam) {
         String redisKey = REDIS_PREFIX + attempt.getId();
         Map<String, Object> sessionData = Map.of(

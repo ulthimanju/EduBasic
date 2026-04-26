@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface ExamRepository extends JpaRepository<Exam, UUID> {
     List<Exam> findAllByCreatedBy(UUID createdBy);
     List<Exam> findAllByCreatedByAndStatus(UUID createdBy, ExamStatus status);
+    List<Exam> findAllByStatus(ExamStatus status);
 }

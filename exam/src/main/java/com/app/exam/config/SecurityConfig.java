@@ -4,6 +4,7 @@ import com.app.exam.filter.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -32,11 +33,10 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/question-bank/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/exams/**").hasAnyAuthority("INSTRUCTOR", "ADMIN", "STUDENT")
                 .requestMatchers("/api/v1/exams/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
                 .requestMatchers("/api/v1/evaluations/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
-                .requestMatchers("/api/v1/attempts/*/sync").hasAuthority("STUDENT")
-                .requestMatchers("/api/v1/attempts/*/submit").hasAuthority("STUDENT")
-                .requestMatchers("/api/v1/attempts/*/violations").hasAuthority("STUDENT")
+                .requestMatchers("/api/v1/attempts/**").hasAuthority("STUDENT")
                 .requestMatchers("/api/v1/results/**").hasAuthority("STUDENT")
                 .requestMatchers("/api/v1/proctoring/attempts/*/log").hasAuthority("STUDENT")
                 .requestMatchers("/ws/**").permitAll()

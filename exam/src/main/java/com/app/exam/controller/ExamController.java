@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +28,15 @@ public class ExamController {
 
     @GetMapping
     public ResponseEntity<List<ExamSummaryResponse>> listExams(@RequestParam(required = false) ExamStatus status) {
-        UUID userId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID userId = (UUID) auth.getPrincipal();
+        boolean isStudent = auth.getAuthorities().contains(new SimpleGrantedAuthority("STUDENT"));
+
+        if (isStudent) {
+            // Students can only see PUBLISHED exams
+            return ResponseEntity.ok(examService.listExamsByStatus(ExamStatus.PUBLISHED));
+        }
+
         return ResponseEntity.ok(examService.listExams(userId, status));
     }
 

@@ -41,6 +41,12 @@ public class AttemptController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<AttemptResponse> getAttempt(@PathVariable UUID id) {
+        UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(attemptService.getAttempt(studentId, id));
+    }
+
     @GetMapping("/{id}/certificate")
     public ResponseEntity<Certificate> getCertificate(@PathVariable UUID id) {
         return ResponseEntity.ok(certificateService.getCertificate(id));

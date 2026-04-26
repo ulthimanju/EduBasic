@@ -95,6 +95,7 @@ export const examApi = {
 
   // Student Attempts
   startAttempt: (examId) => examClient.post('/api/v1/attempts', { examId }),
+  getAttempt: (id) => examClient.get(`/api/v1/attempts/${id}`),
   syncAttempt: (attemptId, data) => examClient.put(`/api/v1/attempts/${attemptId}/sync`, data),
   submitAttempt: (attemptId) => examClient.post(`/api/v1/attempts/${attemptId}/submit`),
   getResult: (attemptId) => examClient.get(`/api/v1/results/${attemptId}`),

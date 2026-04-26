@@ -98,6 +98,18 @@ const useExamStore = create((set, get) => ({
     }
   },
 
+  fetchAttempt: async (id) => {
+    set({ isLoading: true });
+    try {
+      const response = await examApi.getAttempt(id);
+      set({ currentAttempt: response.data, isLoading: false });
+      return response.data;
+    } catch (err) {
+      set({ error: err.message, isLoading: false });
+      throw err;
+    }
+  },
+
   syncAttempt: async (attemptId, data) => {
     try {
       const response = await examApi.syncAttempt(attemptId, data);
