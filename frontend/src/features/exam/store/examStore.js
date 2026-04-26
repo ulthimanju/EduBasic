@@ -114,8 +114,10 @@ const useExamStore = create((set, get) => ({
     try {
       const response = await examApi.syncAttempt(attemptId, data);
       set({ currentAttempt: response.data });
+      return response.data;
     } catch (err) {
       console.error('Failed to sync attempt', err);
+      throw err;
     }
   },
 

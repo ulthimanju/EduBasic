@@ -73,10 +73,11 @@ const ExamPage = () => {
 
   const handleSync = async () => {
     try {
-      await syncAttempt(attemptId, { version, answers: serializeAnswers() });
-      setVersion(prev => prev + 1);
+      const updatedAttempt = await syncAttempt(attemptId, { version, answers: serializeAnswers() });
+      setVersion(updatedAttempt.version);
     } catch (err) {
       console.error('Autosave failed', err);
+      // We don't increment version if it fails, so it can retry with the same version
     }
   };
 
