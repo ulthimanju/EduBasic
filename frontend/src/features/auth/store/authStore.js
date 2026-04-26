@@ -20,6 +20,7 @@ const useAuthStore = create((set) => ({
   
   setAuth: (user, accessToken) => set(getResolvedAuthState(user, accessToken)),
   
+  resolveAuthenticated: (user) => set(getResolvedAuthState(user, null)),
   resolveAnonymous: () => set({ user: null, accessToken: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }),
   resolveError: (error) => set({ authStatus: 'error', authError: error }),
 
