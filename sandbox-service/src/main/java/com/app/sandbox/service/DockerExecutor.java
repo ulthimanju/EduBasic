@@ -39,6 +39,17 @@ public class DockerExecutor {
                 .responseTimeout(Duration.ofSeconds(45))
                 .build();
         this.dockerClient = DockerClientImpl.getInstance(config, httpClient);
+        
+        // Ensure the sandbox image is pulled
+        try {
+            log.info("Pulling openjdk:21-slim image...");
+            dockerClient.pullImageCmd("openjdk:21-slim")
+                    .start()
+                    .awaitCompletion(5, TimeUnit.MINUTES);
+            log.info("Successfully pulled openjdk:21-slim");
+        } catch (Exception e) {
+            log.warn("Failed to pull openjdk:21-slim. If it's not present locally, grading will fail.", e);
+        }
     }
     public List<Map<String, Object>> execute(String language, String sourceCode, JsonNode testCases, int timeLimitMs) {
         if (!"JAVA".equalsIgnoreCase(language)) {
