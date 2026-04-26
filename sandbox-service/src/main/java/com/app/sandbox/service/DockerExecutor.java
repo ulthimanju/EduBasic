@@ -4,62 +4,167 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class DockerExecutor {
 
     public List<Map<String, Object>> execute(String language, String sourceCode, JsonNode testCases, int timeLimitMs) {
-        log.info("Executing {} code with {}ms time limit", language, timeLimitMs);
-        
-        List<Map<String, Object>> results = new ArrayList<>();
+        if (!"JAVA".equalsIgnoreCase(language)) {
+            log.warn("Language {} not supported for actual execution yet, falling back to mock", language);
+            return mockExecute(sourceCode, testCases);
+        }
 
-        // Extract "print" or "return" value from source code for deterministic mock grading
-        // In a real sandbox, this would be the actual output of the executed process.
-        String simulatedOutput = extractSimulatedOutput(sourceCode);
+        log.info("Executing Java code with {}ms time limit", timeLimitMs);
+        Path tempDir = null;
+        try {
+            tempDir = Files.createTempDirectory("sandbox-exec-");
+            String className = extractClassName(sourceCode);
+            Path sourceFile = tempDir.resolve(className + ".java");
+            Files.writeString(sourceFile, sourceCode);
 
-        for (JsonNode tc : testCases) {
-            String expectedOutput = tc.get("expectedOutput").asText().trim();
+            // 1. Compile
+            ProcessBuilder compileBuilder = new ProcessBuilder("javac", sourceFile.toString());
+            Process compileProcess = compileBuilder.start();
+            boolean compiled = compileProcess.waitFor(10, TimeUnit.SECONDS);
             
-            // For mock purposes, we'll assume the code is "correct" if it matches expected or contains the logic
-            // To make it deterministic and non-random:
-            boolean passed = simulatedOutput.equals(expectedOutput) || sourceCode.contains(expectedOutput);
-            
-            // If the source code doesn't explicitly match, but is a "logical" solution (very basic mock logic)
-            if (!passed && sourceCode.toLowerCase().contains("print") && sourceCode.contains(expectedOutput)) {
-                passed = true;
+            if (!compiled || compileProcess.exitValue() != 0) {
+                String error = new String(compileProcess.getErrorStream().readAllBytes());
+                return createErrorResults(testCases, "Compilation Error: " + error);
             }
 
+            // 2. Execute Test Cases
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (JsonNode tc : testCases) {
+                results.add(runTestCase(tempDir, className, tc, timeLimitMs));
+            }
+            return results;
+
+        } catch (Exception e) {
+            log.error("Execution failed", e);
+            return createErrorResults(testCases, "Internal Error: " + e.getMessage());
+        } finally {
+            if (tempDir != null) {
+                try {
+                    deleteDirectory(tempDir.toFile());
+                } catch (Exception e) {
+                    log.warn("Failed to delete temp dir: {}", tempDir);
+                }
+            }
+        }
+    }
+
+    private Map<String, Object> runTestCase(Path dir, String className, JsonNode tc, int timeLimitMs) {
+        String input = tc.has("input") ? tc.get("input").asText() : "";
+        String expected = tc.get("expectedOutput").asText().trim();
+        String testCaseId = tc.get("id").asText();
+        boolean isHidden = tc.has("isHidden") && tc.get("isHidden").asBoolean();
+
+        ProcessBuilder runBuilder = new ProcessBuilder("java", "-cp", dir.toString(), className);
+        long start = System.currentTimeMillis();
+        
+        try {
+            Process process = runBuilder.start();
+            
+            // Provide input
+            if (!input.isEmpty()) {
+                try (OutputStream os = process.getOutputStream()) {
+                    os.write(input.getBytes());
+                    os.flush();
+                }
+            }
+
+            boolean finished = process.waitFor(timeLimitMs, TimeUnit.MILLISECONDS);
+            long executionTime = System.currentTimeMillis() - start;
+
+            if (!finished) {
+                process.destroyForcibly();
+                return Map.of(
+                    "testCaseId", testCaseId,
+                    "status", "TIME_LIMIT_EXCEEDED",
+                    "actualOutput", "Time Limit Exceeded",
+                    "executionTimeMs", (int)executionTime,
+                    "isHidden", isHidden
+                );
+            }
+
+            if (process.exitValue() != 0) {
+                String error = new String(process.getErrorStream().readAllBytes());
+                return Map.of(
+                    "testCaseId", testCaseId,
+                    "status", "RUNTIME_ERROR",
+                    "actualOutput", error,
+                    "executionTimeMs", (int)executionTime,
+                    "isHidden", isHidden
+                );
+            }
+
+            String output = new String(process.getInputStream().readAllBytes()).trim();
+            boolean passed = output.equals(expected);
+
+            return Map.of(
+                "testCaseId", testCaseId,
+                "status", passed ? "PASSED" : "FAILED",
+                "actualOutput", output,
+                "executionTimeMs", (int)executionTime,
+                "isHidden", isHidden
+            );
+
+        } catch (Exception e) {
+            return Map.of(
+                "testCaseId", testCaseId,
+                "status", "ERROR",
+                "actualOutput", e.getMessage(),
+                "executionTimeMs", 0,
+                "isHidden", isHidden
+            );
+        }
+    }
+
+    private String extractClassName(String sourceCode) {
+        Pattern pattern = Pattern.compile("public\\s+class\\s+(\\w+)");
+        Matcher matcher = pattern.matcher(sourceCode);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return "Main"; // Fallback
+    }
+
+    private List<Map<String, Object>> createErrorResults(JsonNode testCases, String errorMessage) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (JsonNode tc : testCases) {
             results.add(Map.of(
                 "testCaseId", tc.get("id").asText(),
-                "status", passed ? "PASSED" : "FAILED",
-                "actualOutput", passed ? expectedOutput : "Execution failed or incorrect output",
-                "executionTimeMs", 10 + (int)(Math.random() * 50), // Deterministic range for mock
+                "status", "ERROR",
+                "actualOutput", errorMessage,
+                "executionTimeMs", 0,
                 "isHidden", tc.has("isHidden") && tc.get("isHidden").asBoolean()
             ));
         }
-
         return results;
     }
 
-    private String extractSimulatedOutput(String sourceCode) {
-        // Very basic extraction for mock purposes to satisfy deterministic testing
-        if (sourceCode == null) return "";
-        sourceCode = sourceCode.trim();
-        
-        // Example: if student just wrote "return 5" or "print(5)"
-        if (sourceCode.contains("return ")) {
-            String part = sourceCode.substring(sourceCode.indexOf("return ") + 7).trim();
-            return part.split("[;\\s]")[0];
+    private List<Map<String, Object>> mockExecute(String sourceCode, JsonNode testCases) {
+        // ... (previous mock logic if needed for non-java)
+        return createErrorResults(testCases, "Only Java is supported for execution currently.");
+    }
+
+    private void deleteDirectory(File file) {
+        File[] contents = file.listFiles();
+        if (contents != null) {
+            for (File f : contents) {
+                deleteDirectory(f);
+            }
         }
-        if (sourceCode.contains("print(")) {
-            String part = sourceCode.substring(sourceCode.indexOf("print(") + 6).trim();
-            return part.split("[\\)]")[0].replace("\"", "").replace("'", "");
-        }
-        
-        return sourceCode;
+        file.delete();
     }
 }
