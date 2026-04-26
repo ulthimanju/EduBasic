@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage      from './features/auth/components/LoginPage';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import PublicOnlyRoute from './features/auth/components/PublicOnlyRoute';
-import Dashboard      from './pages/Dashboard';
-import CourseSelectPage from './pages/CourseSelectPage';
-import ExamPage         from './pages/ExamPage';
-import ResultPage       from './pages/ResultPage';
-import QuestionBank     from './features/exam/components/QuestionBank/QuestionBank';
-import ExamBuilder      from './features/exam/components/ExamBuilder/ExamBuilder';
+import Spinner        from './components/ui/Spinner/Spinner';
+
+// Lazy loaded components
+const Dashboard       = lazy(() => import('./pages/Dashboard'));
+const CourseSelectPage = lazy(() => import('./pages/CourseSelectPage'));
+const ExamPage        = lazy(() => import('./pages/ExamPage'));
+const ResultPage      = lazy(() => import('./pages/ResultPage'));
+const QuestionBank    = lazy(() => import('./features/exam/components/QuestionBank/QuestionBank'));
+const ExamBuilder     = lazy(() => import('./features/exam/components/ExamBuilder/ExamBuilder'));
+
 import Navbar         from './components/layout/Navbar';
 import useAuthStore   from './features/auth/store/authStore';
 import useCurrentUser from './features/auth/hooks/useCurrentUser';
@@ -57,22 +61,24 @@ function AppShell() {
         />
       )}
       <main className={`app-main ${isLoginRoute ? 'app-main--auth' : isExamRoute ? 'app-main--exam' : ''}`}>
-        <Routes>
-          <Route element={<PublicOnlyRoute />}>
-            <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-          </Route>
+        <Suspense fallback={<div className="spinner-center"><Spinner size="lg" /></div>}>
+          <Routes>
+            <Route element={<PublicOnlyRoute />}>
+              <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+            </Route>
 
-          <Route element={<ProtectedRoute />}>
-            <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
-            <Route path={ROUTES.COURSES} element={<CourseSelectPage />} />
-            <Route path={ROUTES.EXAM} element={<ExamPage />} />
-            <Route path={ROUTES.RESULT} element={<ResultPage />} />
-            <Route path={ROUTES.QUESTION_BANK} element={<QuestionBank />} />
-            <Route path={ROUTES.EXAM_BUILDER} element={<ExamBuilder />} />
-          </Route>
+            <Route element={<ProtectedRoute />}>
+              <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+              <Route path={ROUTES.COURSES} element={<CourseSelectPage />} />
+              <Route path={ROUTES.EXAM} element={<ExamPage />} />
+              <Route path={ROUTES.RESULT} element={<ResultPage />} />
+              <Route path={ROUTES.QUESTION_BANK} element={<QuestionBank />} />
+              <Route path={ROUTES.EXAM_BUILDER} element={<ExamBuilder />} />
+            </Route>
 
-          <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          </Routes>
+        </Suspense>
       </main>
       <PromptDialog />
     </div>

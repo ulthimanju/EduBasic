@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { memo } from 'react';
 
-const QuestionRenderer = ({ question, answer, onChange, disabled }) => {
+const QuestionRenderer = memo(({ question, answer, onChange, disabled }) => {
   const { type, payload } = question;
 
   const handleMcqChange = (optionId) => {
@@ -124,6 +124,6 @@ const QuestionRenderer = ({ question, answer, onChange, disabled }) => {
     default:
       return <div>Unsupported question type: {type}</div>;
   }
-};
+});
 
 export default QuestionRenderer;
