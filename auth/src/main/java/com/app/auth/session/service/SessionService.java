@@ -39,4 +39,12 @@ public interface SessionService {
      * @return true if session exists and is active
      */
     boolean isSessionValid(String jwtId);
+
+    /**
+     * Atomically check if a session is valid and revoke it.
+     *
+     * @param jwtId JWT jti claim
+     * @return Optional of the session if it was successfully revoked, empty if not found/invalid/already revoked
+     */
+    java.util.Optional<SessionNode> findAndRevokeAtomic(String jwtId);
 }

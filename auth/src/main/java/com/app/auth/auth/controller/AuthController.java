@@ -59,6 +59,15 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        // 2. Authoritative Atomic Revocation (Prevents Race Conditions)
+        // This ensures only one concurrent request can successfully rotate the token.
+        if (sessionService.findAndRevokeAtomic(rtId).isEmpty()) {
+            log.warn("Concurrent refresh race condition or reuse detected for jti={}", rtId);
+            tokenValidator.invalidateToken(refreshToken, rtId);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        // 3. User presence check
         Optional<UserNode> userOpt = userService.findById(userId);
         if (userOpt.isEmpty()) {
             tokenValidator.invalidateToken(refreshToken, rtId);
@@ -66,11 +75,10 @@ public class AuthController {
         }
         UserNode user = userOpt.get();
 
-        // 2. Revoke old RT (Rotation)
-        sessionService.revokeSession(rtId);
+        // Ensure token is blacklisted in Redis immediately
         tokenValidator.invalidateToken(refreshToken, rtId);
 
-        // 3. Generate new RT
+        // 4. Generate new RT
         String newRtId = UUID.randomUUID().toString();
         String newRefreshToken = jwtService.generateRefreshToken(userId, newRtId);
         Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();

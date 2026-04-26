@@ -79,4 +79,11 @@ public class SessionServiceImpl implements SessionService {
                 .map(s -> !s.isRevoked() && s.getExpiresAt().isAfter(now))
                 .orElse(false);
     }
+
+    @Override
+    @Transactional
+    public Optional<SessionNode> findAndRevokeAtomic(String jwtId) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        return sessionRepository.findAndRevokeAtomic(jwtId, now);
+    }
 }

@@ -53,6 +53,17 @@ public interface SessionRepository extends Neo4jRepository<SessionNode, String> 
     Optional<SessionNode> revokeBySessionId(@Param("sessionId") String sessionId);
 
     /**
+     * Atomically check if a session is valid (not revoked, not expired) AND revoke it.
+     * Crucial for preventing race conditions during refresh rotation.
+     */
+    @Query("MATCH (s:Session {sessionId: $sessionId}) " +
+           "WHERE s.revoked = false AND s.expiresAt > $now " +
+           "SET s.revoked = true " +
+           "RETURN s")
+    Optional<SessionNode> findAndRevokeAtomic(@Param("sessionId") String sessionId,
+                                             @Param("now") LocalDateTime now);
+
+    /**
      * Mark ALL sessions for a user as revoked (used on global sign-out).
      */
     @Query("MATCH (u:User {id: $userId})-[:HAS_SESSION]->(s:Session) " +
