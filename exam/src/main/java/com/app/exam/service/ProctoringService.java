@@ -3,6 +3,7 @@ package com.app.exam.service;
 import com.app.exam.domain.AttemptStatus;
 import com.app.exam.domain.ProctoringLog;
 import com.app.exam.domain.StudentAttempt;
+import com.app.exam.domain.ViolationType;
 import com.app.exam.repository.ProctoringLogRepository;
 import com.app.exam.repository.StudentAttemptRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,8 +36,8 @@ public class ProctoringService {
 
         ProctoringLog proctoringLog = new ProctoringLog();
         proctoringLog.setAttempt(attempt);
-        proctoringLog.setEventType(eventType);
-        proctoringLog.setEventData(eventData);
+        proctoringLog.setViolationType(ViolationType.valueOf(eventType));
+        proctoringLog.setMetadata(eventData);
         proctoringLog.setCapturedAt(OffsetDateTime.now());
 
         logRepository.save(proctoringLog);

@@ -27,7 +27,6 @@ public class EvaluationService {
     private final EvaluationResultRepository resultRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final CodingSandboxService codingSandboxService;
 
     @Transactional
     public void evaluateAttempt(UUID attemptId) {
@@ -128,9 +127,8 @@ public class EvaluationService {
     }
 
     private void updateAttemptFinalStatus(UUID attemptId) {
-        // Recalculate total score and check if all questions are graded
-        List<StudentAnswer> answers = answerRepository.findAll(); // Should filter by attemptId
-        // ... implementation to finalize if no more PENDING_SANDBOX or PENDING_AUTO ...
+        // TODO: Recalculate total score and check if all questions are graded
+        // implementation to finalize if no more PENDING_SANDBOX or PENDING_AUTO
     }
 
     private BigDecimal autoEvaluate(Question question, StudentAnswer answer, BigDecimal maxMarks, BigDecimal negMark) {
