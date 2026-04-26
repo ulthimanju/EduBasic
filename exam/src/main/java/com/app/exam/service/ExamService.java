@@ -206,11 +206,29 @@ public class ExamService {
         ExamQuestionMappingResponse response = new ExamQuestionMappingResponse();
         response.setId(mapping.getId());
         response.setQuestionId(mapping.getQuestion().getId());
+        response.setQuestion(mapToQuestionResponse(mapping.getQuestion()));
         response.setOrderIndex(mapping.getOrderIndex());
         response.setMarks(mapping.getMarks());
         response.setNegMark(mapping.getNegMark());
         response.setMandatory(mapping.isMandatory());
-        // Optionally map question detail here if needed
+        return response;
+    }
+
+    private QuestionResponse mapToQuestionResponse(Question question) {
+        QuestionResponse response = new QuestionResponse();
+        response.setId(question.getId());
+        response.setCreatedBy(question.getCreatedBy());
+        response.setType(question.getType());
+        response.setTitle(question.getTitle());
+        response.setDescription(question.getDescription());
+        response.setPayload(question.getPayload());
+        response.setDifficulty(question.getDifficulty());
+        response.setTags(question.getTags());
+        response.setDefaultMarks(question.getDefaultMarks());
+        response.setDefaultNegMark(question.getDefaultNegMark());
+        response.setPublic(question.isPublic());
+        response.setCreatedAt(question.getCreatedAt());
+        response.setUpdatedAt(question.getUpdatedAt());
         return response;
     }
 
