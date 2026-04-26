@@ -55,8 +55,8 @@ public class AuthController {
         String rtId   = jwtService.extractJwtId(refreshToken);
         String userId = jwtService.extractUserId(refreshToken);
 
-        // 1. Verify session in Redis/Neo4j
-        if (!tokenValidator.isTokenValid(refreshToken, rtId)) {
+        // 1. Verify session in Redis/Neo4j (Authoritative for Refresh Tokens)
+        if (!tokenValidator.isRefreshTokenValid(refreshToken, rtId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 

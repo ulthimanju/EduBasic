@@ -69,7 +69,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         // Check cache and Neo4j
-        if (!tokenValidator.isTokenValid(jwt, jwtId)) {
+        if (!tokenValidator.isAccessTokenValid(jwt, jwtId)) {
             chain.doFilter(request, response);
             return;
         }

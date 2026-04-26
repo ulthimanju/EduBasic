@@ -141,7 +141,7 @@ class JwtAuthFilterTest {
 
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
         when(jwtService.validateToken(VALID_JWT)).thenReturn(true);
-        when(tokenValidator.isTokenValid(VALID_JWT, JWT_ID)).thenReturn(false);
+        when(tokenValidator.isAccessTokenValid(VALID_JWT, JWT_ID)).thenReturn(false);
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -162,7 +162,7 @@ class JwtAuthFilterTest {
 
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
         when(jwtService.validateToken(VALID_JWT)).thenReturn(true);
-        when(tokenValidator.isTokenValid(VALID_JWT, JWT_ID)).thenReturn(true);
+        when(tokenValidator.isAccessTokenValid(VALID_JWT, JWT_ID)).thenReturn(true);
         when(jwtService.extractUserId(VALID_JWT)).thenReturn(USER_ID);
         when(jwtService.extractRoles(VALID_JWT)).thenReturn(List.of("ROLE_STUDENT"));
 
