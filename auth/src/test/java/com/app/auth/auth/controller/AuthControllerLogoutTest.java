@@ -52,6 +52,7 @@ class AuthControllerLogoutTest {
     @MockitoBean private SessionService  sessionService;
     @MockitoBean private CacheService    cacheService;
     @MockitoBean private CookieFactory   cookieFactory;
+    @MockitoBean private com.app.auth.auth.service.TokenValidator tokenValidator;
 
     // JwtAuthFilter is a @Component — its dependencies must be mocked to avoid context failure
     @MockitoBean private SessionRepository sessionRepository;
@@ -111,6 +112,6 @@ class AuthControllerLogoutTest {
                         org.hamcrest.Matchers.containsString("refresh_token=")));
 
         verify(sessionService).revokeSession(JWT_ID);
-        verify(cacheService).cacheJwtValidity(JWT_ID, false);
+        verify(tokenValidator).invalidateToken(VALID_JWT, JWT_ID);
     }
 }

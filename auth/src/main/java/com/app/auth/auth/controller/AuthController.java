@@ -3,6 +3,7 @@ package com.app.auth.auth.controller;
 import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.dto.TokenResponseDTO;
 import com.app.auth.auth.service.JwtService;
+import com.app.auth.auth.service.TokenValidator;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.session.service.SessionService;
 import com.app.auth.user.node.UserNode;
@@ -34,6 +35,7 @@ public class AuthController {
     private final SessionService sessionService;
     private final CacheService   cacheService;
     private final CookieFactory  cookieFactory;
+    private final TokenValidator tokenValidator;
 
     @Value("${app.jwt.expiration-seconds}")
     private long accessTokenExpiration;
@@ -53,43 +55,37 @@ public class AuthController {
         String rtId   = jwtService.extractJwtId(refreshToken);
         String userId = jwtService.extractUserId(refreshToken);
 
-        // Verify session in Redis/Neo4j
-        Optional<Boolean> cached = cacheService.getJwtValidity(rtId);
-        if (cached.isPresent() && Boolean.FALSE.equals(cached.get())) {
+        // 1. Verify session in Redis/Neo4j
+        if (!tokenValidator.isTokenValid(refreshToken, rtId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // If not in cache or cached as valid, we might want to re-verify against DB if needed,
-        // but for refresh rotation, we will definitely rotate now.
-        
         Optional<UserNode> userOpt = userService.findById(userId);
         if (userOpt.isEmpty()) {
-            cacheService.cacheJwtValidity(rtId, false);
+            tokenValidator.invalidateToken(refreshToken, rtId);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         UserNode user = userOpt.get();
 
-        // 1. Revoke old RT
+        // 2. Revoke old RT (Rotation)
         sessionService.revokeSession(rtId);
-        cacheService.cacheJwtValidity(rtId, false);
+        tokenValidator.invalidateToken(refreshToken, rtId);
 
-        // 2. Generate new RT (Rotation)
+        // 3. Generate new RT
         String newRtId = UUID.randomUUID().toString();
         String newRefreshToken = jwtService.generateRefreshToken(userId, newRtId);
         Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();
         sessionService.createSession(userId, newRtId, rtExpiresAt);
         cacheService.cacheJwtValidity(newRtId, true);
 
-        // 3. Generate new AT
+        // 4. Generate new AT
         String atId = UUID.randomUUID().toString();
         java.util.List<String> roles = user.getRoles().stream().map(Enum::name).toList();
         String accessToken = jwtService.generateToken(userId, user.getEmail(), atId, roles);
-        // We don't strictly need to persist AT sessions if we rely on RT for authority, 
-        // but our filter checks AT sessions too. So let's persist it.
         sessionService.createSession(userId, atId, jwtService.getExpiryInstant());
         cacheService.cacheJwtValidity(atId, true);
 
-        // 4. Set new RT Cookie
+        // 5. Set new RT Cookie
         response.addHeader(HttpHeaders.SET_COOKIE, cookieFactory.buildRefreshTokenCookie(newRefreshToken).toString());
 
         return ResponseEntity.ok(TokenResponseDTO.builder()
@@ -102,10 +98,11 @@ public class AuthController {
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         Optional<String> rtOpt = cookieFactory.extractRefreshToken(request);
         if (rtOpt.isPresent()) {
+            String rt = rtOpt.get();
             try {
-                String rtId = jwtService.extractJwtId(rtOpt.get());
+                String rtId = jwtService.extractJwtId(rt);
                 sessionService.revokeSession(rtId);
-                cacheService.cacheJwtValidity(rtId, false);
+                tokenValidator.invalidateToken(rt, rtId);
             } catch (Exception e) {
                 log.warn("Failed to revoke refresh token session during logout: {}", e.getMessage());
             }
@@ -118,7 +115,7 @@ public class AuthController {
             try {
                 String atId = jwtService.extractJwtId(at);
                 sessionService.revokeSession(atId);
-                cacheService.cacheJwtValidity(atId, false);
+                tokenValidator.invalidateToken(at, atId);
             } catch (Exception ignored) {}
         }
 

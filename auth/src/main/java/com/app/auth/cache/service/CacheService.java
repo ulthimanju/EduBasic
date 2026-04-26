@@ -23,6 +23,15 @@ public interface CacheService {
     void cacheJwtValidity(String sessionId, boolean valid);
 
     /**
+     * Cache the validity state of a JWT by its jti (session ID) with a custom TTL.
+     *
+     * @param sessionId  JWT jti claim
+     * @param valid      {@code true} → store "valid"; {@code false} → store "invalid"
+     * @param ttlSeconds custom TTL in seconds
+     */
+    void cacheJwtValidity(String sessionId, boolean valid, long ttlSeconds);
+
+    /**
      * Retrieve the cached validity of a JWT.
      *
      * @return Optional with {@code true} (valid) / {@code false} (invalid),

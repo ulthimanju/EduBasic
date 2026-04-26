@@ -34,11 +34,15 @@ public class RedisCacheServiceImpl implements CacheService {
 
     @Override
     public void cacheJwtValidity(String sessionId, boolean valid) {
+        cacheJwtValidity(sessionId, valid, CacheConstants.JWT_TTL_SECONDS);
+    }
+
+    @Override
+    public void cacheJwtValidity(String sessionId, boolean valid, long ttlSeconds) {
         String key   = CacheConstants.AUTH_JWT_PREFIX + sessionId;
         String value = valid ? CacheConstants.JWT_VALID : CacheConstants.JWT_INVALID;
         try {
-            stringRedisTemplate.opsForValue().set(key, value,
-                    Duration.ofSeconds(CacheConstants.JWT_TTL_SECONDS));
+            stringRedisTemplate.opsForValue().set(key, value, Duration.ofSeconds(ttlSeconds));
         } catch (Exception e) {
             log.warn(LogMessages.REDIS_WRITE_FAILED, key, e.getMessage());
         }

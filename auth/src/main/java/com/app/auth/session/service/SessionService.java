@@ -31,4 +31,12 @@ public interface SessionService {
      * Used on global sign-out or account compromise.
      */
     void revokeAllForUser(String userId);
+
+    /**
+     * Check if a session is valid in the database (not revoked and not expired).
+     *
+     * @param jwtId JWT jti claim
+     * @return true if session exists and is active
+     */
+    boolean isSessionValid(String jwtId);
 }

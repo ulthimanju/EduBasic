@@ -2,6 +2,7 @@ package com.app.auth.auth.filter;
 
 import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.service.JwtService;
+import com.app.auth.auth.service.TokenValidator;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.config.SecurityConfig;
 import com.app.auth.session.repository.SessionRepository;
@@ -54,6 +55,7 @@ class JwtAuthFilterTest {
     @Mock private UserService       userService;
     @Mock private UserMapper        userMapper;
     @Mock private CookieFactory     cookieFactory;
+    @Mock private TokenValidator    tokenValidator;
     @Mock private FilterChain       filterChain;
 
     @InjectMocks
@@ -139,7 +141,8 @@ class JwtAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
-        when(cacheService.getJwtValidity(JWT_ID)).thenReturn(Optional.of(false));
+        when(jwtService.validateToken(VALID_JWT)).thenReturn(true);
+        when(tokenValidator.isTokenValid(VALID_JWT, JWT_ID)).thenReturn(false);
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -159,8 +162,8 @@ class JwtAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
-        when(cacheService.getJwtValidity(JWT_ID)).thenReturn(Optional.of(true)); // cached valid
         when(jwtService.validateToken(VALID_JWT)).thenReturn(true);
+        when(tokenValidator.isTokenValid(VALID_JWT, JWT_ID)).thenReturn(true);
         when(jwtService.extractUserId(VALID_JWT)).thenReturn(USER_ID);
         when(jwtService.extractRoles(VALID_JWT)).thenReturn(List.of("ROLE_STUDENT"));
 

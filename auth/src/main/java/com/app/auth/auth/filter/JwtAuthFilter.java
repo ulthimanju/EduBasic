@@ -1,6 +1,7 @@
 package com.app.auth.auth.filter;
 
 import com.app.auth.auth.service.JwtService;
+import com.app.auth.auth.service.TokenValidator;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.config.SecurityConfig;
 import com.app.auth.session.repository.SessionRepository;
@@ -33,6 +34,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService        jwtService;
     private final CacheService      cacheService;
     private final SessionRepository sessionRepository;
+    private final TokenValidator    tokenValidator;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest  request,
@@ -60,31 +62,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Redis cache hit check
-        Optional<Boolean> cached = cacheService.getJwtValidity(jwtId);
-        if (cached.isPresent() && Boolean.FALSE.equals(cached.get())) {
-            chain.doFilter(request, response);
-            return;
-        }
-
         if (!jwtService.validateToken(jwt)) {
-            cacheService.cacheJwtValidity(jwtId, false);
+            tokenValidator.invalidateToken(jwt, jwtId);
             chain.doFilter(request, response);
             return;
         }
 
-        // Neo4j session revocation check (only if not cached as valid)
-        if (cached.isEmpty()) {
-            boolean sessionValid = sessionRepository.findBySessionId(jwtId)
-                    .map(s -> !s.isRevoked())
-                    .orElse(false);
-
-            if (!sessionValid) {
-                cacheService.cacheJwtValidity(jwtId, false);
-                chain.doFilter(request, response);
-                return;
-            }
-            cacheService.cacheJwtValidity(jwtId, true);
+        // Check cache and Neo4j
+        if (!tokenValidator.isTokenValid(jwt, jwtId)) {
+            chain.doFilter(request, response);
+            return;
         }
 
         // Populate SecurityContext with roles

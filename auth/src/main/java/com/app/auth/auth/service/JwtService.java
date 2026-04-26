@@ -120,6 +120,10 @@ public class JwtService {
         }
     }
 
+    public Instant extractExpiration(String token) {
+        return parseClaims(token).getExpiration().toInstant();
+    }
+
     // ── Claim extraction ────────────────────────────────────────────────────
 
     public String extractUserId(String token) {

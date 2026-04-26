@@ -71,4 +71,12 @@ public class SessionServiceImpl implements SessionService {
         int count = sessionRepository.revokeAllSessionsForUser(userId).size();
         log.info(LogMessages.REVOKED_SESSIONS_FOR_USER, count, userId);
     }
+
+    @Override
+    public boolean isSessionValid(String jwtId) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        return sessionRepository.findBySessionId(jwtId)
+                .map(s -> !s.isRevoked() && s.getExpiresAt().isAfter(now))
+                .orElse(false);
+    }
 }
