@@ -16,19 +16,20 @@ RUN --mount=type=cache,target=/root/.m2 \
 # ─── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# Install tini for proper signal handling in containers
-RUN apk add --no-cache tini
+# Install tini for proper signal handling and su-exec for dropping privileges
+RUN apk add --no-cache tini su-exec
 WORKDIR /app
 
-# Non-root user for security
+# Non-root user for security (entrypoint will drop to this)
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
 
 COPY --from=builder /build/target/app.jar app.jar
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Container-friendly JVM defaults (override at runtime as needed)
 ENV JAVA_OPTS="-XX:+UseParallelGC -XX:MaxRAMPercentage=75.0"
 
 EXPOSE 8080
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["/sbin/tini", "--", "./entrypoint.sh"]
+
