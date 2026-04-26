@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import api from '../services/examApi';
 import { usePrompt } from '../context/PromptContext';
 import { useNavigate } from 'react-router-dom';
@@ -52,7 +52,16 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
       reportViolation('TAB_SWITCH'); // Treating blur as tab switch for simplicity
     };
 
+    const lastReportTime = useRef({});
+
     const reportViolation = async (type, metadata = {}) => {
+      // Throttle: don't report the same violation type more than once every 5 seconds
+      const now = Date.now();
+      if (lastReportTime.current[type] && (now - lastReportTime.current[type] < 5000)) {
+        return;
+      }
+      lastReportTime.current[type] = now;
+
       try {
         const response = await api.recordViolation(attemptId, {
           violationType: type,

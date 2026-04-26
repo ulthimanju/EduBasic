@@ -30,6 +30,9 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+    listener:
+      concurrency: 3
+      ack-mode: batch
   flyway:
     enabled: true
     baseline-on-migrate: true

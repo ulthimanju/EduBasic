@@ -13,8 +13,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -49,19 +52,19 @@ public class ExamService {
     }
 
     @Transactional(readOnly = true)
-    public List<ExamSummaryResponse> listExams(UUID createdBy, ExamStatus status) {
+    public Page<ExamSummaryResponse> listExams(UUID createdBy, ExamStatus status, Pageable pageable) {
         if (status != null) {
-            return examRepository.findAllByCreatedByAndStatus(createdBy, status).stream()
-                    .map(this::mapToSummary).collect(Collectors.toList());
+            return examRepository.findAllByCreatedByAndStatus(createdBy, status, pageable)
+                    .map(this::mapToSummary);
         }
-        return examRepository.findAllByCreatedBy(createdBy).stream()
-                .map(this::mapToSummary).collect(Collectors.toList());
+        return examRepository.findAllByCreatedBy(createdBy, pageable)
+                .map(this::mapToSummary);
     }
 
     @Transactional(readOnly = true)
-    public List<ExamSummaryResponse> listExamsByStatus(ExamStatus status) {
-        return examRepository.findAllByStatus(status).stream()
-                .map(this::mapToSummary).collect(Collectors.toList());
+    public Page<ExamSummaryResponse> listExamsByStatus(ExamStatus status, Pageable pageable) {
+        return examRepository.findAllByStatus(status, pageable)
+                .map(this::mapToSummary);
     }
 
     @Transactional(readOnly = true)

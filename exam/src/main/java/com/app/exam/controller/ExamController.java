@@ -29,17 +29,19 @@ public class ExamController {
 
     @GetMapping
     @Timed(value = "exam.list", description = "Time taken to list exams")
-    public ResponseEntity<List<ExamSummaryResponse>> listExams(@RequestParam(required = false) ExamStatus status) {
+    public ResponseEntity<Page<ExamSummaryResponse>> listExams(
+            @RequestParam(required = false) ExamStatus status,
+            Pageable pageable) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = (UUID) auth.getPrincipal();
         boolean isStudent = auth.getAuthorities().contains(new SimpleGrantedAuthority("STUDENT"));
 
         if (isStudent) {
             // Students can only see PUBLISHED exams
-            return ResponseEntity.ok(examService.listExamsByStatus(ExamStatus.PUBLISHED));
+            return ResponseEntity.ok(examService.listExamsByStatus(ExamStatus.PUBLISHED, pageable));
         }
 
-        return ResponseEntity.ok(examService.listExams(userId, status));
+        return ResponseEntity.ok(examService.listExams(userId, status, pageable));
     }
 
     @GetMapping("/{id}")
