@@ -3,6 +3,7 @@ package com.app.sandbox.service;
 import com.app.sandbox.domain.CodeSubmission;
 import com.app.sandbox.repository.CodeSubmissionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,6 +24,7 @@ public class SandboxService {
     private final CodeSubmissionRepository submissionRepository;
     private final DockerExecutor dockerExecutor;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "coding-submitted", groupId = "sandbox-group")
     @Transactional
@@ -37,11 +39,14 @@ public class SandboxService {
         submission.setStatus("RUNNING");
         submission = submissionRepository.save(submission);
 
+        JsonNode testCasesNode = objectMapper.valueToTree(event.get("testCases"));
+        int timeLimitMs = ((Number) event.getOrDefault("timeLimitMs", 2000)).intValue();
+
         List<Map<String, Object>> results = dockerExecutor.execute(
             submission.getLanguage(),
             submission.getSourceCode(),
-            (JsonNode) event.get("testCases"),
-            (Integer) event.get("timeLimitMs")
+            testCasesNode,
+            timeLimitMs
         );
 
         long passedCount = results.stream().filter(r -> "PASSED".equals(r.get("status"))).count();
