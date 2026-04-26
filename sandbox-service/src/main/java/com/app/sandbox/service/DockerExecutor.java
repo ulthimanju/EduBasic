@@ -5,9 +5,11 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.StreamType;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.core.command.ExecStartResultCallback;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -185,7 +187,16 @@ public class DockerExecutor {
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
         
-        ExecStartResultCallback callback = new ExecStartResultCallback(stdout, stderr);
+        ResultCallback.Adapter<Frame> callback = new ResultCallback.Adapter<>() {
+            @Override
+            public void onNext(Frame item) {
+                if (item.getStreamType() == StreamType.STDOUT) {
+                    try { stdout.write(item.getPayload()); } catch (Exception e) {}
+                } else if (item.getStreamType() == StreamType.STDERR) {
+                    try { stderr.write(item.getPayload()); } catch (Exception e) {}
+                }
+            }
+        };
         dockerClient.execStartCmd(execCreate.getId()).exec(callback);
         
         boolean finished = callback.awaitCompletion(timeoutMs, TimeUnit.MILLISECONDS);
@@ -196,7 +207,7 @@ public class DockerExecutor {
         result.stderr = stderr.toString(StandardCharsets.UTF_8);
         
         if (finished) {
-            result.exitCode = dockerClient.inspectExecCmd(execCreate.getId()).exec().getExitCode();
+            result.exitCode = dockerClient.inspectExecCmd(execCreate.getId()).exec().getExitCodeLong().intValue();
         }
         return result;
     }
