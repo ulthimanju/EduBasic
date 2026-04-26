@@ -63,20 +63,19 @@ class AuthControllerLogoutTest {
     private static final String USER_ID   = "test-user-id";
 
     private ResponseCookie buildClearCookie() {
-        return ResponseCookie.from("auth_token", "").maxAge(0).path("/").build();
+        return ResponseCookie.from("refresh_token", "").maxAge(0).path("/").build();
     }
 
     @Test
     @DisplayName("logout — no cookie present → 200 + cookie cleared")
     void logout_noCookie_returns200AndClearsCookie() throws Exception {
-        when(cookieFactory.clearAuthCookie()).thenReturn(buildClearCookie());
-        when(cookieFactory.extractJwtFromRequest(any())).thenReturn(Optional.empty());
+        when(cookieFactory.clearRefreshTokenCookie()).thenReturn(buildClearCookie());
+        when(cookieFactory.extractRefreshToken(any())).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/api/auth/logout"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
-                        org.hamcrest.Matchers.containsString("auth_token=")));
+                        org.hamcrest.Matchers.containsString("refresh_token=")));
 
         // No Neo4j/Redis work should happen
         verifyNoInteractions(sessionService, jwtService, cacheService);
@@ -85,38 +84,34 @@ class AuthControllerLogoutTest {
     @Test
     @DisplayName("logout — malformed cookie → 200 + cookie cleared (no exception)")
     void logout_malformedCookie_returns200AndClearsCookie() throws Exception {
-        when(cookieFactory.clearAuthCookie()).thenReturn(buildClearCookie());
-        when(cookieFactory.extractJwtFromRequest(any())).thenReturn(Optional.of("bad.token"));
+        when(cookieFactory.clearRefreshTokenCookie()).thenReturn(buildClearCookie());
+        when(cookieFactory.extractRefreshToken(any())).thenReturn(Optional.of("bad.token"));
         when(jwtService.extractJwtId("bad.token")).thenThrow(new RuntimeException("Malformed JWT"));
 
         mockMvc.perform(post("/api/auth/logout")
-                        .cookie(new Cookie("auth_token", "bad.token")))
+                        .cookie(new Cookie("refresh_token", "bad.token")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
-                        org.hamcrest.Matchers.containsString("auth_token=")));
+                        org.hamcrest.Matchers.containsString("refresh_token=")));
 
         // Session service must not be called
-        verifyNoInteractions(sessionService);
+        verify(sessionService, never()).revokeSession(anyString());
     }
 
     @Test
     @DisplayName("logout — valid cookie → 200 + session revoked + caches evicted + cookie cleared")
     void logout_validCookie_revokesSessionAndClearsCookie() throws Exception {
-        when(cookieFactory.clearAuthCookie()).thenReturn(buildClearCookie());
-        when(cookieFactory.extractJwtFromRequest(any())).thenReturn(Optional.of(VALID_JWT));
+        when(cookieFactory.clearRefreshTokenCookie()).thenReturn(buildClearCookie());
+        when(cookieFactory.extractRefreshToken(any())).thenReturn(Optional.of(VALID_JWT));
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
-        when(jwtService.extractUserId(VALID_JWT)).thenReturn(USER_ID);
 
         mockMvc.perform(post("/api/auth/logout")
-                        .cookie(new Cookie("auth_token", VALID_JWT)))
+                        .cookie(new Cookie("refresh_token", VALID_JWT)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
-                        org.hamcrest.Matchers.containsString("auth_token=")));
+                        org.hamcrest.Matchers.containsString("refresh_token=")));
 
         verify(sessionService).revokeSession(JWT_ID);
-        verify(cacheService).evictJwtCache(JWT_ID);
-        verify(cacheService).evictUserCache(USER_ID);
+        verify(cacheService).cacheJwtValidity(JWT_ID, false);
     }
 }

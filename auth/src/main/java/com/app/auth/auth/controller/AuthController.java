@@ -102,9 +102,13 @@ public class AuthController {
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         Optional<String> rtOpt = cookieFactory.extractRefreshToken(request);
         if (rtOpt.isPresent()) {
-            String rtId = jwtService.extractJwtId(rtOpt.get());
-            sessionService.revokeSession(rtId);
-            cacheService.cacheJwtValidity(rtId, false);
+            try {
+                String rtId = jwtService.extractJwtId(rtOpt.get());
+                sessionService.revokeSession(rtId);
+                cacheService.cacheJwtValidity(rtId, false);
+            } catch (Exception e) {
+                log.warn("Failed to revoke refresh token session during logout: {}", e.getMessage());
+            }
         }
         
         // Also revoke the current Access Token if provided in header

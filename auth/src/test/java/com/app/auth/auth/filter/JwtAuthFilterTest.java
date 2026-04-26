@@ -25,6 +25,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -74,15 +75,11 @@ class JwtAuthFilterTest {
         SecurityContextHolder.clearContext();
     }
 
-    private ResponseCookie buildClearCookie() {
-        return ResponseCookie.from("auth_token", "").maxAge(0).path("/").build();
-    }
-
     // ── Public route tests ────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Public route (POST /api/auth/logout) with a cookie skips filter entirely")
-    void publicRoute_logoutWithCookie_passesThrough() throws Exception {
+    @DisplayName("Public route (POST /api/auth/logout) skips filter entirely")
+    void publicRoute_logout_passesThrough() throws Exception {
         // servletPath must be set so AntPathRequestMatcher can derive the path
         MockHttpServletRequest  request  = buildRequest("POST", "/api/auth/logout", VALID_JWT);
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -94,12 +91,12 @@ class JwtAuthFilterTest {
 
         // Chain must proceed without any token inspection
         verify(filterChain).doFilter(request, response);
-        verify(cookieFactory, never()).extractJwtFromRequest(any());
+        verifyNoInteractions(jwtService);
         assertThat(response.getStatus()).isEqualTo(200);
     }
 
     @Test
-    @DisplayName("Public route (GET /oauth2/**) skips filter regardless of cookie")
+    @DisplayName("Public route (GET /oauth2/**) skips filter regardless of token")
     void publicRoute_oauthRoute_passesThrough() throws Exception {
         MockHttpServletRequest  request  = buildRequest("GET", "/oauth2/authorization/google", VALID_JWT);
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -109,7 +106,7 @@ class JwtAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
-        verify(cookieFactory, never()).extractJwtFromRequest(any());
+        verifyNoInteractions(jwtService);
     }
 
     @Test
@@ -123,92 +120,56 @@ class JwtAuthFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
-        verify(cookieFactory, never()).extractJwtFromRequest(any());
+        verifyNoInteractions(jwtService);
     }
 
     // ── Protected route — malformed token ────────────────────────────────────
 
     @Test
-    @DisplayName("Protected route with malformed JWT returns 401 and clears cookie")
-    void protectedRoute_malformedJwt_returns401AndClearsCookie() throws Exception {
+    @DisplayName("Protected route with malformed JWT proceeds through chain (Spring Security will handle 401)")
+    void protectedRoute_malformedJwt_proceedsThroughChain() throws Exception {
         MockHttpServletRequest  request  = buildRequest("GET", "/api/user-management/users", VALID_JWT);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(cookieFactory.extractJwtFromRequest(request)).thenReturn(Optional.of(VALID_JWT));
         when(jwtService.extractJwtId(VALID_JWT)).thenThrow(new RuntimeException("Malformed token"));
-        when(cookieFactory.clearAuthCookie()).thenReturn(buildClearCookie());
 
         filter.doFilterInternal(request, response, filterChain);
 
-        assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).isNotNull();
-        verify(filterChain, never()).doFilter(any(), any());
+        verify(filterChain).doFilter(request, response);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test
-    @DisplayName("Protected route with JWT cached as invalid returns 401 and clears cookie")
-    void protectedRoute_cachedInvalidJwt_returns401AndClearsCookie() throws Exception {
+    @DisplayName("Protected route with JWT cached as invalid proceeds through chain")
+    void protectedRoute_cachedInvalidJwt_proceedsThroughChain() throws Exception {
         MockHttpServletRequest  request  = buildRequest("GET", "/api/user-management/users", VALID_JWT);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(cookieFactory.extractJwtFromRequest(request)).thenReturn(Optional.of(VALID_JWT));
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
         when(cacheService.getJwtValidity(JWT_ID)).thenReturn(Optional.of(false));
-        when(cookieFactory.clearAuthCookie()).thenReturn(buildClearCookie());
 
         filter.doFilterInternal(request, response, filterChain);
 
-        assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).isNotNull();
-        verify(filterChain, never()).doFilter(any(), any());
+        verify(filterChain).doFilter(request, response);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     // ── Protected route — valid JWT, missing user ─────────────────────────────
+    // Note: JwtAuthFilter doesn't check user presence anymore, it just validates JWT and sets context.
+    // If we want to check user presence, it would be in a different filter or service.
+    // Current JwtAuthFilter only uses jwtService.extractUserId and jwtService.extractRoles.
 
     @Test
-    @DisplayName("Protected route with valid JWT but deleted user returns 401, marks JWT invalid, clears cookie")
-    void protectedRoute_validJwtMissingUser_returns401MarksInvalidClearsCookie() throws Exception {
-        MockHttpServletRequest  request  = buildRequest("GET", "/api/user-management/users", VALID_JWT);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        when(cookieFactory.extractJwtFromRequest(request)).thenReturn(Optional.of(VALID_JWT));
-        when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
-        when(cacheService.getJwtValidity(JWT_ID)).thenReturn(Optional.of(true)); // cached valid
-        when(jwtService.extractUserId(VALID_JWT)).thenReturn(USER_ID);
-        when(cacheService.getCachedUserProfile(USER_ID)).thenReturn(Optional.empty());
-        when(userService.findById(USER_ID)).thenReturn(Optional.empty()); // user gone!
-        when(cookieFactory.clearAuthCookie()).thenReturn(buildClearCookie());
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).isNotNull();
-        verify(cacheService).evictUserCache(USER_ID);
-        verify(cacheService).cacheJwtValidity(JWT_ID, false);
-        verify(filterChain, never()).doFilter(any(), any());
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
-
-    // ── Protected route — fully valid path ───────────────────────────────────
-
-    @Test
-    @DisplayName("Protected route with valid JWT and present user populates SecurityContext")
+    @DisplayName("Protected route with valid JWT populates SecurityContext")
     void protectedRoute_validJwt_setsSecurityContext() throws Exception {
         MockHttpServletRequest  request  = buildRequest("GET", "/api/user/me", VALID_JWT);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        UserNode userNode = UserNode.builder()
-                .id(USER_ID).email("user@example.com").name("Test User").build();
-        UserResponseDTO dto = new UserResponseDTO(USER_ID, "user@example.com", "Test User", Set.of(AppRole.STUDENT));
-
-        when(cookieFactory.extractJwtFromRequest(request)).thenReturn(Optional.of(VALID_JWT));
         when(jwtService.extractJwtId(VALID_JWT)).thenReturn(JWT_ID);
         when(cacheService.getJwtValidity(JWT_ID)).thenReturn(Optional.of(true)); // cached valid
+        when(jwtService.validateToken(VALID_JWT)).thenReturn(true);
         when(jwtService.extractUserId(VALID_JWT)).thenReturn(USER_ID);
-        when(cacheService.getCachedUserProfile(USER_ID)).thenReturn(Optional.empty());
-        when(userService.findById(USER_ID)).thenReturn(Optional.of(userNode));
-        when(userMapper.toResponseDTO(userNode)).thenReturn(dto);
+        when(jwtService.extractRoles(VALID_JWT)).thenReturn(List.of("ROLE_STUDENT"));
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -216,22 +177,19 @@ class JwtAuthFilterTest {
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
         assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
                 .isEqualTo(USER_ID);
-        assertThat(response.getStatus()).isEqualTo(200);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
      * Builds a {@link MockHttpServletRequest} with both {@code requestURI} and
-     * {@code servletPath} set. Both are required for {@link org.springframework.security
-     * .web.util.matcher.AntPathRequestMatcher} to resolve the path correctly.
+     * {@code servletPath} set.
      */
-    private MockHttpServletRequest buildRequest(String method, String path, String cookieValue) {
+    private MockHttpServletRequest buildRequest(String method, String path, String token) {
         MockHttpServletRequest request = new MockHttpServletRequest(method, path);
-        // AntPathRequestMatcher uses servletPath (falls back to requestURI when blank)
         request.setServletPath(path);
-        if (cookieValue != null) {
-            request.setCookies(new Cookie("auth_token", cookieValue));
+        if (token != null) {
+            request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         }
         return request;
     }
