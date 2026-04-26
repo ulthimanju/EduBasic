@@ -17,20 +17,12 @@ public class EvaluationConsumer {
     @KafkaListener(topics = "exam-submitted", groupId = "evaluation-group")
     public void consumeSubmission(SubmitAttemptEvent event) {
         log.info("Received exam submission for evaluation: {}", event.getAttemptId());
-        try {
-            evaluationService.evaluateAttempt(event.getAttemptId());
-        } catch (Exception e) {
-            log.error("Error during evaluation of attempt {}: {}", event.getAttemptId(), e.getMessage());
-        }
+        evaluationService.evaluateAttempt(event.getAttemptId());
     }
 
     @KafkaListener(topics = "evaluation-completed", groupId = "certificate-group")
     public void consumeCompletion(SubmitAttemptEvent event) {
         log.info("Received evaluation completion for certificate generation: {}", event.getAttemptId());
-        try {
-            certificateService.generateCertificate(event.getAttemptId());
-        } catch (Exception e) {
-            log.error("Error during certificate generation for attempt {}: {}", event.getAttemptId(), e.getMessage());
-        }
+        certificateService.generateCertificate(event.getAttemptId());
     }
 }
