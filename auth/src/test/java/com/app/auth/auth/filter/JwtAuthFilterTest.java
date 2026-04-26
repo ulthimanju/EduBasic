@@ -51,7 +51,6 @@ class JwtAuthFilterTest {
 
     @Mock private JwtService        jwtService;
     @Mock private CacheService      cacheService;
-    @Mock private SessionRepository sessionRepository;
     @Mock private UserService       userService;
     @Mock private UserMapper        userMapper;
     @Mock private CookieFactory     cookieFactory;

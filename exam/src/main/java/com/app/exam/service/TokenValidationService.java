@@ -12,7 +12,7 @@ public class TokenValidationService {
 
     private final StringRedisTemplate stringRedisTemplate;
     private static final String AUTH_JWT_PREFIX = "auth:jwt:";
-    private static final String JWT_INVALID     = "INVALID";
+    private static final String JWT_INVALID     = "invalid";
 
     public boolean isRevoked(String jwtId) {
         try {
