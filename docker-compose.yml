@@ -60,6 +60,31 @@ services:
       timeout: 5s
       retries: 5
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.8.0
+    container_name: edubasic-zookeeper
+    <<: *common-config
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: edubasic-kafka
+    <<: *common-config
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      zookeeper:
+        condition: service_started
+
   auth:
     build:
       context: ./auth
@@ -107,11 +132,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-exam_db}
       POSTGRES_HOST: postgres
+      KAFKA_SERVERS: kafka:9092
     depends_on:
       postgres:
         condition: service_healthy # CHANGED: Ensure database is ready before application starts
       redis:
         condition: service_healthy # CHANGED: Ensure cache is ready before application starts
+      kafka:
+        condition: service_started
     healthcheck: # CHANGED: Added healthcheck via Spring Actuator endpoint
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
       interval: 30s

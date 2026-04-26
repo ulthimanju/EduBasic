@@ -54,7 +54,6 @@ examClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Always refresh against the AUTH service
         const { data } = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true });
         const newToken = data.accessToken;
         
@@ -77,13 +76,31 @@ examClient.interceptors.response.use(
 );
 
 export const examApi = {
-  getCourses: () => examClient.get('/api/courses'),
-  startExam: (courseId) => examClient.post('/api/exam/start', { courseId }),
-  getQuestion: (sessionId) => examClient.get(`/api/exam/${sessionId}/question`),
-  submitAnswer: (sessionId, answer) => examClient.post(`/api/exam/${sessionId}/answer`, answer),
-  getResult: (sessionId) => examClient.get(`/api/exam/${sessionId}/result`),
-  reportViolation: (sessionId, reason) => examClient.post(`/api/exam/${sessionId}/violation`, { reason }),
-  terminateSession: (sessionId, reason) => examClient.post(`/api/exam/${sessionId}/terminate`, { reason }),
+  // Question Bank
+  createQuestion: (data) => examClient.post('/api/v1/question-bank', data),
+  getQuestions: (params) => examClient.get('/api/v1/question-bank', { params }),
+  getQuestion: (id) => examClient.get(`/api/v1/question-bank/${id}`),
+  updateQuestion: (id, data) => examClient.put(`/api/v1/question-bank/${id}`, data),
+  deleteQuestion: (id) => examClient.delete(`/api/v1/question-bank/${id}`),
+  getTags: () => examClient.get('/api/v1/question-bank/tags'),
+  bulkImportQuestions: (data) => examClient.post('/api/v1/question-bank/bulk', data),
+
+  // Exam Builder
+  createExam: (data) => examClient.post('/api/v1/exams', data),
+  getExams: (params) => examClient.get('/api/v1/exams', { params }),
+  getExam: (id) => examClient.get(`/api/v1/exams/${id}`),
+  publishExam: (id) => examClient.post(`/api/v1/exams/${id}/publish`),
+  addSection: (examId, data) => examClient.post(`/api/v1/exams/${examId}/sections`, data),
+  addQuestionToExam: (examId, data) => examClient.post(`/api/v1/exams/${examId}/questions`, data),
+
+  // Student Attempts
+  startAttempt: (examId) => examClient.post('/api/v1/attempts', { examId }),
+  syncAttempt: (attemptId, data) => examClient.put(`/api/v1/attempts/${attemptId}/sync`, data),
+  submitAttempt: (attemptId) => examClient.post(`/api/v1/attempts/${attemptId}/submit`),
+  getResult: (attemptId) => examClient.get(`/api/v1/results/${attemptId}`),
+
+  // Proctoring
+  logProctoringEvent: (attemptId, data) => examClient.post(`/api/v1/proctoring/attempts/${attemptId}/log`, data),
 };
 
 export default examApi;

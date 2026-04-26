@@ -18,6 +18,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -35,6 +36,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/evaluations/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
                 .requestMatchers("/api/v1/attempts/**").hasAuthority("STUDENT")
                 .requestMatchers("/api/v1/results/**").hasAuthority("STUDENT")
+                .requestMatchers("/api/v1/proctoring/attempts/*/log").hasAuthority("STUDENT")
                 .requestMatchers("/ws/**").permitAll()
                 .anyRequest().authenticated()
             )

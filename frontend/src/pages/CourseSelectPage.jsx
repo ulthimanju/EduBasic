@@ -1,70 +1,56 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen, GraduationCap, Layers3, Sparkles } from 'lucide-react';
+import { ArrowRight, BookOpen, GraduationCap, Layers3, Sparkles, Clock, FileText } from 'lucide-react';
 import examApi from '../services/examApi';
 import Spinner from '../components/ui/Spinner/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage/ErrorMessage';
-import { COURSE_SELECT_CONTENT } from '../content/pageContent';
-import { COURSE_CONFIG } from '../config/pageConfig';
-import { getCourseTopicsInfo } from '../utils/viewModels';
+import { ROUTES } from '../constants/appConstants';
 
 const CourseSelectPage = () => {
-  const [courses, setCourses] = useState([]);
+  const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [actionError, setActionError] = useState(null);
-  const [startingCourseId, setStartingCourseId] = useState(null);
+  const [startingExamId, setStartingExamId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchExams = async () => {
       try {
-        const response = await examApi.getCourses();
-        setCourses(response.data);
+        const response = await examApi.getExams({ status: 'PUBLISHED' });
+        setExams(response.data);
       } catch (err) {
-        setLoadError('Failed to load courses');
+        setLoadError('Failed to load available exams');
       } finally {
         setLoading(false);
       }
     };
-    fetchCourses();
+    fetchExams();
   }, []);
 
   const summary = useMemo(() => {
-    const totalTopics = courses.reduce((count, course) => count + course.topics.length, 0);
-    const uniqueTopics = new Set(courses.flatMap((course) => course.topics)).size;
-
     return {
-      totalCourses: courses.length,
-      totalTopics,
-      uniqueTopics,
+      totalExams: exams.length,
+      sectioned: exams.filter(e => e.hasSections).length,
+      flat: exams.filter(e => !e.hasSections).length,
     };
-  }, [courses]);
+  }, [exams]);
 
-  const handleStartExam = async (courseId) => {
+  const handleStartExam = async (examId) => {
     setActionError(null);
-    setStartingCourseId(courseId);
+    setStartingExamId(examId);
 
     try {
-      const response = await examApi.startExam(courseId);
-      navigate(`/exam/${response.data.id}`);
+      const response = await examApi.startAttempt(examId);
+      navigate(ROUTES.EXAM.replace(':attemptId', response.data.id));
     } catch (err) {
-      setActionError('Failed to start exam. Please try again.');
-      setStartingCourseId(null);
+      setActionError('Failed to start exam attempt. Please try again.');
+      setStartingExamId(null);
     }
   };
 
   if (loading) return <Spinner />;
   if (loadError) return <ErrorMessage message={loadError} />;
-
-  const getIcon = (iconName) => {
-    switch (iconName) {
-      case 'Sparkles': return <Sparkles size={16} strokeWidth={1.75} />;
-      case 'BookOpen': return <BookOpen size={16} strokeWidth={1.75} />;
-      case 'Layers3': return <Layers3 size={16} strokeWidth={1.75} />;
-      default: return null;
-    }
-  };
 
   return (
     <section className="dashboard dashboard--wide course-select page-enter">
@@ -74,106 +60,92 @@ const CourseSelectPage = () => {
             <div className="login-logo" aria-hidden="true">
               <GraduationCap size={20} />
             </div>
-            <span>{COURSE_SELECT_CONTENT.HERO.EYEBROW}</span>
+            <span>Academic Portal</span>
           </div>
 
           <div className="course-select__headline">
-            <h1 className="dashboard-hero__greeting">{COURSE_SELECT_CONTENT.HERO.HEADLINE}</h1>
+            <h1 className="dashboard-hero__greeting">Available Assessments</h1>
             <p className="dashboard-hero__subtitle">
-              {COURSE_SELECT_CONTENT.HERO.SUBTITLE}
+              Choose an exam to begin. Your progress is saved automatically during the session.
             </p>
           </div>
 
-          <div className="course-select__highlights" aria-label="Assessment highlights">
-            {COURSE_SELECT_CONTENT.HIGHLIGHTS.map((highlight) => (
-              <div key={highlight.label} className="course-select__highlight">
-                {getIcon(highlight.icon)}
-                <span>{highlight.label}</span>
-              </div>
-            ))}
+          <div className="course-select__highlights">
+            <div className="course-select__highlight">
+              <Sparkles size={16} />
+              <span>Real-time proctoring</span>
+            </div>
+            <div className="course-select__highlight">
+              <Clock size={16} />
+              <span>Timed sessions</span>
+            </div>
           </div>
         </div>
 
-        <aside className="course-select__hero-panel" aria-label="Course overview">
-          <p className="course-select__panel-label">{COURSE_SELECT_CONTENT.ASIDE.LABEL}</p>
+        <aside className="course-select__hero-panel">
+          <p className="course-select__panel-label">Session Overview</p>
           <div className="course-select__stats">
             <div className="course-select__stat">
-              <span className="course-select__stat-value">{summary.totalCourses}</span>
-              <span className="course-select__stat-label">{COURSE_SELECT_CONTENT.ASIDE.STATS.COURSES}</span>
+              <span className="course-select__stat-value">{summary.totalExams}</span>
+              <span className="course-select__stat-label">Exams</span>
             </div>
             <div className="course-select__stat">
-              <span className="course-select__stat-value">{summary.totalTopics}</span>
-              <span className="course-select__stat-label">{COURSE_SELECT_CONTENT.ASIDE.STATS.TOPIC_TAGS}</span>
-            </div>
-            <div className="course-select__stat">
-              <span className="course-select__stat-value">{summary.uniqueTopics}</span>
-              <span className="course-select__stat-label">{COURSE_SELECT_CONTENT.ASIDE.STATS.UNIQUE_AREAS}</span>
+              <span className="course-select__stat-value">{summary.sectioned}</span>
+              <span className="course-select__stat-label">Sectioned</span>
             </div>
           </div>
-          <p className="course-select__panel-note">
-            {COURSE_SELECT_CONTENT.ASIDE.NOTE}
-          </p>
         </aside>
       </header>
 
       {actionError && <ErrorMessage message={actionError} />}
 
-      {courses.length === 0 ? (
+      {exams.length === 0 ? (
         <section className="empty-state panel">
-          <BookOpen className="empty-state__icon" aria-hidden="true" />
-          <h2 className="empty-state__title">{COURSE_SELECT_CONTENT.EMPTY_STATE.TITLE}</h2>
+          <FileText className="empty-state__icon" />
+          <h2 className="empty-state__title">No active exams</h2>
           <p className="empty-state__text">
-            {COURSE_SELECT_CONTENT.EMPTY_STATE.TEXT}
+            There are currently no published exams available for you to take.
           </p>
         </section>
       ) : (
-        <section className="course-select__grid" aria-label="Available courses">
-          {courses.map((course, index) => {
-            const { visibleTopics, hiddenCount } = getCourseTopicsInfo(course.topics, COURSE_CONFIG.TOPIC_PREVIEW_LIMIT);
-            const isStarting = startingCourseId === course.id;
+        <section className="course-select__grid">
+          {exams.map((exam, index) => {
+            const isStarting = startingExamId === exam.id;
 
             return (
-              <article key={course.id} className="course-card panel">
+              <article key={exam.id} className="course-card panel">
                 <div className="course-card__eyebrow">
-                  <span className="course-card__badge">{COURSE_SELECT_CONTENT.CARD.BADGE_PREFIX} {index + 1}</span>
-                  <span className="course-card__meta">{course.topics.length} topics</span>
+                  <span className="course-card__badge">EXAM {index + 1}</span>
+                  <span className="course-card__meta">{exam.hasSections ? 'Sectioned' : 'Flat'}</span>
                 </div>
 
                 <div className="course-card__header">
-                  <div className="dashboard-card__icon" aria-hidden="true">
+                  <div className="dashboard-card__icon">
                     <BookOpen size={18} strokeWidth={1.5} />
                   </div>
 
                   <div className="course-card__heading">
-                    <h2 className="dashboard-card__title">{course.name}</h2>
+                    <h2 className="dashboard-card__title">{exam.title}</h2>
                     <p className="course-card__description">
-                      {COURSE_SELECT_CONTENT.CARD.DESCRIPTION}
+                      {exam.description || 'No description provided.'}
                     </p>
                   </div>
                 </div>
 
-                <div className="course-card__topics" aria-label={`${course.name} topics`}>
-                  {visibleTopics.map((topic) => (
-                    <span key={topic} className="course-card__topic">
-                      {topic}
-                    </span>
-                  ))}
-                  {hiddenCount > 0 && (
-                    <span className="course-card__topic course-card__topic--muted">+{hiddenCount} {COURSE_SELECT_CONTENT.CARD.TOPICS_MORE}</span>
-                  )}
-                </div>
-
                 <div className="course-card__footer">
-                  <p className="course-card__footnote">
-                    {COURSE_SELECT_CONTENT.CARD.FOOTNOTE}
-                  </p>
+                  <div style={{ display: 'flex', gap: 'var(--space-4)', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                      <Clock size={14} />
+                      <span>{exam.timeLimitMins || 'No limit'} mins</span>
+                    </div>
+                  </div>
 
                   <button
-                    onClick={() => handleStartExam(course.id)}
+                    onClick={() => handleStartExam(exam.id)}
                     className="btn btn-primary course-card__action"
-                    disabled={startingCourseId !== null}
+                    disabled={startingExamId !== null}
                   >
-                    <span>{isStarting ? COURSE_SELECT_CONTENT.CARD.ACTION_STARTING : COURSE_SELECT_CONTENT.CARD.ACTION}</span>
+                    <span>{isStarting ? 'Starting...' : 'Begin Assessment'}</span>
                     <ArrowRight size={16} strokeWidth={1.75} />
                   </button>
                 </div>

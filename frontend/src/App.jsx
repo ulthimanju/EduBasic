@@ -7,6 +7,8 @@ import Dashboard      from './pages/Dashboard';
 import CourseSelectPage from './pages/CourseSelectPage';
 import ExamPage         from './pages/ExamPage';
 import ResultPage       from './pages/ResultPage';
+import QuestionBank     from './features/exam/components/QuestionBank/QuestionBank';
+import ExamBuilder      from './features/exam/components/ExamBuilder/ExamBuilder';
 import Navbar         from './components/layout/Navbar';
 import useAuthStore   from './features/auth/store/authStore';
 import useCurrentUser from './features/auth/hooks/useCurrentUser';
@@ -65,6 +67,8 @@ function AppShell() {
             <Route path={ROUTES.COURSES} element={<CourseSelectPage />} />
             <Route path={ROUTES.EXAM} element={<ExamPage />} />
             <Route path={ROUTES.RESULT} element={<ResultPage />} />
+            <Route path={ROUTES.QUESTION_BANK} element={<QuestionBank />} />
+            <Route path={ROUTES.EXAM_BUILDER} element={<ExamBuilder />} />
           </Route>
 
           <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />

@@ -7,8 +7,12 @@ export const ROUTES = {
   LOGIN:         '/login',
   DASHBOARD:     '/dashboard',
   COURSES:       '/courses',
-  EXAM:          '/exam/:sessionId',
-  RESULT:        '/result/:sessionId',
+  EXAM:          '/exam/:attemptId',
+  RESULT:        '/result/:attemptId',
+  QUESTION_BANK: '/instructor/question-bank',
+  EXAM_BUILDER:  '/instructor/exams',
+  EXAM_DETAIL:   '/instructor/exams/:examId',
+  GRADING:       '/instructor/grading/:attemptId',
   HOME:          '/',
 };
 
