@@ -235,7 +235,19 @@ public class ExamService {
             redactedPayload.remove("correctOptionId");
             redactedPayload.remove("correctOptionIds");
             redactedPayload.remove("correctAnswer");
-            redactedPayload.remove("testCases"); // Remove all test cases for student response
+            redactedPayload.remove("testCases");
+            redactedPayload.remove("correctPairs"); // For MATCH questions
+            redactedPayload.remove("correctOrder"); // For SEQUENCE questions
+            
+            // For FILL_BLANK: remove acceptedAnswers from each blank
+            if (redactedPayload.has("blanks") && redactedPayload.get("blanks").isArray()) {
+                redactedPayload.get("blanks").forEach(blank -> {
+                    if (blank instanceof ObjectNode) {
+                        ((ObjectNode) blank).remove("acceptedAnswers");
+                    }
+                });
+            }
+            
             response.setPayload(redactedPayload);
         } else {
             response.setPayload(question.getPayload());
