@@ -104,6 +104,7 @@ class UserManagementControllerTest {
 
     // JwtAuthFilter (@Component) is in component scan — stub its constructor deps
     @MockitoBean private JwtService        jwtService;
+    @MockitoBean private com.app.auth.auth.service.TokenValidator tokenValidator;
     @MockitoBean private CacheService      cacheService;
     @MockitoBean private CookieFactory     cookieFactory;
     @MockitoBean private SessionRepository sessionRepository;

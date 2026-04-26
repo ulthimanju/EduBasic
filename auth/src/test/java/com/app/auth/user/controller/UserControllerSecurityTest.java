@@ -36,6 +36,7 @@ class UserControllerSecurityTest {
     @MockitoBean private CacheService cacheService;
     @MockitoBean private UserMapper userMapper;
     @MockitoBean private JwtService jwtService;
+    @MockitoBean private com.app.auth.auth.service.TokenValidator tokenValidator;
     @MockitoBean private CookieFactory cookieFactory;
     @MockitoBean private OAuthUserService oAuthUserService;
     @MockitoBean private OAuth2LoginSuccessHandler successHandler;

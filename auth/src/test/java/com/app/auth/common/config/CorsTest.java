@@ -36,6 +36,7 @@ class CorsTest {
     @MockitoBean private com.app.auth.user.management.service.UserManagementService userManagementService;
     @MockitoBean private com.app.auth.user.management.service.AdminAccessService    adminAccessService;
     @MockitoBean private JwtService     jwtService;
+    @MockitoBean private com.app.auth.auth.service.TokenValidator tokenValidator;
     @MockitoBean private CacheService   cacheService;
     @MockitoBean private CookieFactory  cookieFactory;
     @MockitoBean private com.app.auth.auth.service.OAuthUserService        oAuthUserService;
