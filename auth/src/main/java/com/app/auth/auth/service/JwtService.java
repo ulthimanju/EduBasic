@@ -161,14 +161,14 @@ public class JwtService {
     }
 
     private PrivateKey loadPrivateKey(String key) throws Exception {
-        byte[] encoded = java.util.Base64.getDecoder().decode(key);
+        byte[] encoded = java.util.Base64.getDecoder().decode(key.trim());
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePrivate(keySpec);
     }
 
     private PublicKey loadPublicKey(String key) throws Exception {
-        byte[] encoded = java.util.Base64.getDecoder().decode(key);
+        byte[] encoded = java.util.Base64.getDecoder().decode(key.trim());
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePublic(keySpec);

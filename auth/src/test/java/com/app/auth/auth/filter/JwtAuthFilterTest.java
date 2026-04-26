@@ -48,7 +48,6 @@ import static org.mockito.Mockito.*;
 class JwtAuthFilterTest {
 
     @Mock private JwtService        jwtService;
-    @Mock private CacheService      cacheService;
     @Mock private UserService       userService;
     @Mock private UserMapper        userMapper;
     @Mock private CookieFactory     cookieFactory;

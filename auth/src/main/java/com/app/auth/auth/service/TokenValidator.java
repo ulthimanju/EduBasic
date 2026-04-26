@@ -28,8 +28,10 @@ public class TokenValidator {
             Instant expiry = jwtService.extractExpiration(token);
             long remaining = Duration.between(Instant.now(), expiry).toSeconds();
             if (remaining > 0) {
+                log.info("Blacklisting token jti={} in Redis for {} seconds", jwtId, remaining);
                 cacheService.cacheJwtValidity(jwtId, false, remaining);
             } else {
+                log.debug("Token jti={} already expired, evicting from cache", jwtId);
                 cacheService.evictJwtCache(jwtId);
             }
         } catch (Exception e) {
@@ -48,12 +50,16 @@ public class TokenValidator {
         // 1. Redis cache check
         Optional<Boolean> cached = cacheService.getJwtValidity(jwtId);
         if (cached.isPresent()) {
-            if (!cached.get()) return false; // Definitely revoked
+            if (!cached.get()) {
+                log.debug("Access Token jti={} rejected (cached invalid)", jwtId);
+                return false;
+            }
             return true; // Trust "valid" for the short cache duration (60s)
         }
 
         // 2. Neo4j authoritative check
         if (!sessionService.isSessionValid(jwtId)) {
+            log.warn("Access Token jti={} rejected (revoked or not found in DB)", jwtId);
             invalidateToken(token, jwtId);
             return false;
         }
@@ -72,11 +78,13 @@ public class TokenValidator {
         // 1. Redis cache check - only trust "invalid"
         Optional<Boolean> cached = cacheService.getJwtValidity(jwtId);
         if (cached.isPresent() && !cached.get()) {
+            log.debug("Refresh Token jti={} rejected (cached invalid)", jwtId);
             return false;
         }
 
         // 2. Neo4j authoritative check
         if (!sessionService.isSessionValid(jwtId)) {
+            log.warn("Refresh Token jti={} rejected (revoked or not found in DB)", jwtId);
             invalidateToken(token, jwtId);
             return false;
         }

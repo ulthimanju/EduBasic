@@ -1,7 +1,6 @@
 package com.app.auth.auth.service;
 
 import com.app.auth.LogMessages;
-import com.app.auth.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -30,17 +29,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class OAuthUserService extends DefaultOAuth2UserService {
 
-    private final UserService userService;
-
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         // 1. Fetch user info from Google
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
         // 2. Extract stable Google identity fields
-        String googleId = oAuth2User.getAttribute("sub");
         String email    = oAuth2User.getAttribute("email");
-        String name     = oAuth2User.getAttribute("name");
 
         log.debug(LogMessages.OAUTH2_USER_LOADED_GOOGLE, email);
 

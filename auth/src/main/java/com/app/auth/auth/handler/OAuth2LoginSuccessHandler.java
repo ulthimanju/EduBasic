@@ -3,7 +3,7 @@ package com.app.auth.auth.handler;
 import com.app.auth.LogMessages;
 import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.service.JwtService;
-import com.app.auth.cache.service.CacheService;
+import com.app.auth.common.exception.EmailConflictException;
 import com.app.auth.session.service.SessionService;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.service.UserService;
@@ -58,21 +58,29 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         log.info(LogMessages.OAUTH2_LOGIN_SUCCESS, email);
 
-        UserNode userNode = userService.upsertUser(googleId, email, name);
+        try {
+            UserNode userNode = userService.upsertUser(googleId, email, name);
 
-        // Generate RT ID
-        String rtId = UUID.randomUUID().toString();
-        String refreshToken = jwtService.generateRefreshToken(userNode.getId(), rtId);
-        Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();
+            // Generate RT ID
+            String rtId = UUID.randomUUID().toString();
+            String refreshToken = jwtService.generateRefreshToken(userNode.getId(), rtId);
+            Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();
 
-        // Persist session tied to RT
-        sessionService.createSession(userNode.getId(), rtId, rtExpiresAt);
+            // Persist session tied to RT
+            sessionService.createSession(userNode.getId(), rtId, rtExpiresAt);
 
-        // Set Refresh Token Cookie
-        ResponseCookie cookie = cookieFactory.buildRefreshTokenCookie(refreshToken);
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            // Set Refresh Token Cookie
+            ResponseCookie cookie = cookieFactory.buildRefreshTokenCookie(refreshToken);
+            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        log.info("OAuth2 login successful for user {}, redirecting to dashboard", userNode.getId());
-        response.sendRedirect(frontendUrl + "/dashboard");
+            log.info("OAuth2 login successful for user {}, redirecting to dashboard", userNode.getId());
+            response.sendRedirect(frontendUrl + "/dashboard");
+        } catch (EmailConflictException e) {
+            log.warn("Login failed due to email conflict: {}", email);
+            response.sendRedirect(frontendUrl + "/login?error=email_conflict");
+        } catch (Exception e) {
+            log.error("Unexpected error during OAuth2 success handling", e);
+            response.sendRedirect(frontendUrl + "/login?error=server_error");
+        }
     }
 }

@@ -1,6 +1,8 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, Bot } from 'lucide-react';
 import { API_BASE_URL } from '../../../config/runtimeConfig';
+import ErrorMessage from '../../../components/ui/ErrorMessage/ErrorMessage';
 
 /**
  * LoginPage — displays the Google OAuth login button.
@@ -9,10 +11,24 @@ import { API_BASE_URL } from '../../../config/runtimeConfig';
  * - This component has ZERO logic — it is a pure anchor redirect.
  * - Clicking "Sign in with Google" navigates to Spring Boot's OAuth
  *   initiation endpoint, which redirects to Google's consent screen.
- * - No JS fetch, no state, no hooks.
+ * - No JS fetch, no state, no hooks (except useSearchParams for error display).
  */
 export default function LoginPage() {
+  const [searchParams] = useSearchParams();
+  const errorParam = searchParams.get('error');
+
   const googleAuthUrl = `${API_BASE_URL}/oauth2/authorization/google`;
+
+  const getErrorMessage = (code) => {
+    switch (code) {
+      case 'email_conflict':
+        return 'This email is already associated with a different Google account.';
+      case 'server_error':
+        return 'An unexpected error occurred during login. Please try again.';
+      default:
+        return 'Login failed. Please try again.';
+    }
+  };
 
   return (
     <section className="login-page page-enter">
@@ -25,6 +41,12 @@ export default function LoginPage() {
         <p className="login-subtitle">
           Continue with Google to access your authenticated workspace.
         </p>
+
+        {errorParam && (
+          <div className="login-error-container">
+            <ErrorMessage message={getErrorMessage(errorParam)} />
+          </div>
+        )}
 
         <a
           id="google-signin-btn"

@@ -14,6 +14,8 @@ public interface UserRepository extends Neo4jRepository<UserNode, String> {
 
     Optional<UserNode> findByGoogleId(String googleId);
 
+    Optional<UserNode> findByEmail(String email);
+
     /**
      * Atomic upsert via Cypher MERGE.
      * Prevents race conditions during simultaneous logins for new users.

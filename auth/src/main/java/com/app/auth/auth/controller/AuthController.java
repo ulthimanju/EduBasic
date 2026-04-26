@@ -4,7 +4,6 @@ import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.dto.TokenResponseDTO;
 import com.app.auth.auth.service.JwtService;
 import com.app.auth.auth.service.TokenValidator;
-import com.app.auth.cache.service.CacheService;
 import com.app.auth.session.service.SessionService;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.service.UserService;
@@ -73,7 +72,8 @@ public class AuthController {
             tokenValidator.invalidateToken(refreshToken, rtId);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        UserNode user = userOpt.get();
+        // Authoritative role sync (Config-driven)
+        UserNode user = userService.syncRoles(userOpt.get());
 
         // Ensure token is blacklisted in Redis immediately
         tokenValidator.invalidateToken(refreshToken, rtId);
@@ -84,13 +84,14 @@ public class AuthController {
         Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();
         sessionService.createSession(userId, newRtId, rtExpiresAt);
 
-        // 4. Generate new AT
+        // 5. Generate new AT
         String atId = UUID.randomUUID().toString();
         java.util.List<String> roles = user.getRoles().stream().map(Enum::name).toList();
+
         String accessToken = jwtService.generateToken(userId, user.getEmail(), atId, roles);
         sessionService.createSession(userId, atId, jwtService.getExpiryInstant());
 
-        // 5. Set new RT Cookie
+        // 6. Set new RT Cookie
         response.addHeader(HttpHeaders.SET_COOKIE, cookieFactory.buildRefreshTokenCookie(newRefreshToken).toString());
 
         return ResponseEntity.ok(TokenResponseDTO.builder()

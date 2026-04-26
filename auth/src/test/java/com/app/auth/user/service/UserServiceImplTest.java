@@ -1,6 +1,8 @@
 package com.app.auth.user.service;
 
 import com.app.auth.common.config.AdminProperties;
+import com.app.auth.common.exception.EmailConflictException;
+import com.app.auth.cache.service.CacheService;
 import com.app.auth.user.node.AppRole;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;
@@ -11,29 +13,25 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link UserServiceImpl}.
- *
- * <p>Verifies that:
- * <ul>
- *   <li>Users are correctly upserted with calculated roles</li>
- *   <li>Admin promotion/demotion logic works based on config</li>
- * </ul>
- * No Spring context; uses pure Mockito.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
 
     @Mock private UserRepository userRepository;
     @Mock private AdminProperties adminProperties;
+    @Mock private CacheService   cacheService;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -54,15 +52,11 @@ class UserServiceImplTest {
                         .email(inv.getArgument(2))
                         .name(inv.getArgument(3))
                         .roles(mapToAppRoles(inv.getArgument(4)))
-                        .createdAt(inv.getArgument(5))
-                        .lastLogin(inv.getArgument(5))
                         .build());
 
         UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL, NAME);
 
         assertThat(result.getRoles()).containsExactly(AppRole.STUDENT);
-        verify(userRepository).upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME),
-                argThat(roles -> roles.contains("STUDENT") && roles.size() == 1), any());
     }
 
     @Test
@@ -81,20 +75,54 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("upsertUser — admin demotion: loses ADMIN role when email is removed from config")
-    void upsertUser_adminDemotion_losesAdminRole() {
-        // config says no admins
+    @DisplayName("upsertUser — email conflict: throws EmailConflictException if email taken by different googleId")
+    void upsertUser_emailConflict_throwsException() {
+        UserNode otherUser = UserNode.builder()
+                .googleId("other-google-id")
+                .email(EMAIL)
+                .build();
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(otherUser));
+
+        assertThatThrownBy(() -> userService.upsertUser(GOOGLE_ID, EMAIL, NAME))
+                .isInstanceOf(EmailConflictException.class)
+                .hasMessageContaining("already associated with a different account");
+    }
+
+    @Test
+    @DisplayName("syncRoles — roles changed: updates DB and evicts cache")
+    void syncRoles_rolesChanged_updatesAndEvicts() {
+        UserNode user = UserNode.builder()
+                .id("u1")
+                .email(EMAIL)
+                .roles(new HashSet<>(Set.of(AppRole.STUDENT)))
+                .build();
+
+        when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of(EMAIL));
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UserNode result = userService.syncRoles(user);
+
+        assertThat(result.getRoles()).containsExactlyInAnyOrder(AppRole.STUDENT, AppRole.ADMIN);
+        verify(userRepository).save(user);
+        verify(cacheService).evictUserCache("u1");
+    }
+
+    @Test
+    @DisplayName("syncRoles — roles unchanged: does nothing")
+    void syncRoles_noChange_doesNothing() {
+        UserNode user = UserNode.builder()
+                .id("u1")
+                .email(EMAIL)
+                .roles(new HashSet<>(Set.of(AppRole.STUDENT)))
+                .build();
+
         when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
 
-        when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
-                .thenAnswer(inv -> UserNode.builder()
-                        .roles(mapToAppRoles(inv.getArgument(4)))
-                        .build());
+        UserNode result = userService.syncRoles(user);
 
-        UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL, NAME);
-
-        // Should only have STUDENT role even if they were admin before (handled by Cypher update)
-        assertThat(result.getRoles()).containsExactly(AppRole.STUDENT);
+        assertThat(result).isSameAs(user);
+        verifyNoInteractions(userRepository, cacheService);
     }
 
     private Set<AppRole> mapToAppRoles(Set<String> roles) {

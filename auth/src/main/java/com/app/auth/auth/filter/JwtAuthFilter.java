@@ -2,9 +2,7 @@ package com.app.auth.auth.filter;
 
 import com.app.auth.auth.service.JwtService;
 import com.app.auth.auth.service.TokenValidator;
-import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.config.SecurityConfig;
-import com.app.auth.session.repository.SessionRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

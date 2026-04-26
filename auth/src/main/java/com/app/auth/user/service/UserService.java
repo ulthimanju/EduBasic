@@ -27,4 +27,12 @@ public interface UserService {
      * Find a user by Google's stable "sub" claim.
      */
     Optional<UserNode> findByGoogleId(String googleId);
+
+    /**
+     * Synchronize user roles with current application configuration.
+     *
+     * @param user the user to sync
+     * @return the updated (or unchanged) UserNode
+     */
+    UserNode syncRoles(UserNode user);
 }
