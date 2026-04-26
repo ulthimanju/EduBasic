@@ -12,9 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -83,15 +82,17 @@ public class AttemptService {
             throw new RuntimeException("Version mismatch. Please refresh your progress.");
         }
 
-        // Update Postgres with answers
-        updateAnswers(attempt, request.getAnswers());
-
-        // Update Redis cache
+        // Update Redis cache (Source of truth for frequent autosaves)
         String redisKey = REDIS_PREFIX + attemptId;
         redisTemplate.opsForHash().put(redisKey, "answers", request.getAnswers());
-        redisTemplate.opsForHash().put(redisKey, "version", attempt.getVersion() + 1);
+        
+        // Every 5th version, we flush to Postgres as a checkpoint
+        if (request.getVersion() % 5 == 0) {
+            updateAnswers(attempt, request.getAnswers());
+        }
 
-        // attemptRepository.save will increment version due to @Version
+        // Increment version in Postgres (heartbeat and lock)
+        attempt.setVersion(attempt.getVersion() + 1);
         return mapToResponse(attemptRepository.save(attempt));
     }
 
@@ -102,6 +103,13 @@ public class AttemptService {
 
         if (!attempt.getStudentId().equals(studentId)) {
             throw new RuntimeException("Unauthorized attempt access");
+        }
+
+        // Final flush from Redis to Postgres on submit
+        String redisKey = REDIS_PREFIX + attemptId;
+        Map<UUID, String> latestAnswers = (Map<UUID, String>) redisTemplate.opsForHash().get(redisKey, "answers");
+        if (latestAnswers != null) {
+            updateAnswers(attempt, latestAnswers);
         }
 
         submitAttemptInternal(attempt);
@@ -128,7 +136,15 @@ public class AttemptService {
 
     @Transactional
     public void autoSubmitAttempt(UUID attemptId) {
-        attemptRepository.findById(attemptId).ifPresent(this::submitAttemptInternal);
+        attemptRepository.findById(attemptId).ifPresent(attempt -> {
+            // Final flush from Redis to Postgres on auto-submit
+            String redisKey = REDIS_PREFIX + attemptId;
+            Map<UUID, String> latestAnswers = (Map<UUID, String>) redisTemplate.opsForHash().get(redisKey, "answers");
+            if (latestAnswers != null) {
+                updateAnswers(attempt, latestAnswers);
+            }
+            submitAttemptInternal(attempt);
+        });
     }
 
     @Transactional(readOnly = true)
@@ -149,7 +165,8 @@ public class AttemptService {
                 "studentId", attempt.getStudentId().toString(),
                 "examId", exam.getId().toString(),
                 "startTime", attempt.getStartTime().toString(),
-                "version", 0
+                "version", 0,
+                "answers", new HashMap<UUID, String>()
         );
         redisTemplate.opsForHash().putAll(redisKey, sessionData);
         
@@ -160,18 +177,26 @@ public class AttemptService {
     }
 
     private void updateAnswers(StudentAttempt attempt, Map<UUID, String> answers) {
+        if (answers == null || answers.isEmpty()) {
+            return;
+        }
+
+        List<StudentAnswer> existingAnswers = answerRepository.findAllByAttemptId(attempt.getId());
+        Map<UUID, StudentAnswer> existingMap = existingAnswers.stream()
+                .collect(Collectors.toMap(a -> a.getQuestion().getId(), a -> a));
+
+        List<StudentAnswer> toSave = new ArrayList<>();
+
         for (Map.Entry<UUID, String> entry : answers.entrySet()) {
             UUID questionId = entry.getKey();
             String rawAnswer = entry.getValue();
 
-            Optional<StudentAnswer> existingOpt = answerRepository.findByAttemptIdAndQuestionId(attempt.getId(), questionId);
-            
-            if (existingOpt.isPresent()) {
-                StudentAnswer answer = existingOpt.get();
+            StudentAnswer answer = existingMap.get(questionId);
+            if (answer != null) {
                 if (rawAnswer != null && !rawAnswer.equals(answer.getRawAnswer())) {
                     answer.setRawAnswer(rawAnswer);
                     answer.setEvaluationStatus("PENDING");
-                    answerRepository.save(answer);
+                    toSave.add(answer);
                 }
             } else {
                 StudentAnswer a = new StudentAnswer();
@@ -179,8 +204,12 @@ public class AttemptService {
                 a.setQuestion(questionRepository.getReferenceById(questionId));
                 a.setRawAnswer(rawAnswer);
                 a.setEvaluationStatus("PENDING");
-                answerRepository.save(a);
+                toSave.add(a);
             }
+        }
+
+        if (!toSave.isEmpty()) {
+            answerRepository.saveAll(toSave);
         }
     }
 

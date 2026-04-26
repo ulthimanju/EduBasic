@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface ExamQuestionMappingRepository extends JpaRepository<ExamQuestionMapping, UUID> {
-    @EntityGraph(attributePaths = {"question"})
+    @EntityGraph(attributePaths = {"section", "question"})
     List<ExamQuestionMapping> findAllByExamIdOrderByOrderIndexAsc(UUID examId);
 
     @EntityGraph(attributePaths = {"question"})

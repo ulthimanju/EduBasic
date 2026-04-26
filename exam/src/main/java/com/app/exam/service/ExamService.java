@@ -187,21 +187,29 @@ public class ExamService {
 
     private ExamResponse mapToFullResponse(Exam exam) {
         ExamResponse response = mapToResponse(exam);
+        List<ExamQuestionMapping> allMappings = mappingRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId());
+
         if (exam.isHasSections()) {
             List<ExamSection> sections = sectionRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId());
+            Map<UUID, List<ExamQuestionMapping>> sectionMap = allMappings.stream()
+                    .filter(m -> m.getSection() != null)
+                    .collect(Collectors.groupingBy(m -> m.getSection().getId()));
+
             response.setSections(sections.stream().map(s -> {
                 ExamSectionResponse sr = new ExamSectionResponse();
                 sr.setId(s.getId());
                 sr.setTitle(s.getTitle());
                 sr.setDescription(s.getDescription());
                 sr.setOrderIndex(s.getOrderIndex());
-                sr.setQuestions(mappingRepository.findAllBySectionIdOrderByOrderIndexAsc(s.getId())
-                        .stream().map(this::mapToMappingResponse).collect(Collectors.toList()));
+                
+                List<ExamQuestionMapping> sectionMappings = sectionMap.getOrDefault(s.getId(), Collections.emptyList());
+                sr.setQuestions(sectionMappings.stream()
+                        .map(this::mapToMappingResponse).collect(Collectors.toList()));
                 return sr;
             }).collect(Collectors.toList()));
         } else {
-            response.setQuestions(mappingRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId())
-                    .stream().map(this::mapToMappingResponse).collect(Collectors.toList()));
+            response.setQuestions(allMappings.stream()
+                    .map(this::mapToMappingResponse).collect(Collectors.toList()));
         }
         return response;
     }

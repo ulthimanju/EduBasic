@@ -46,6 +46,7 @@ public class EvaluationService {
         BigDecimal totalScore = BigDecimal.ZERO;
         boolean needsManualEvaluation = false;
         boolean hasPendingAsync = false;
+        List<StudentAnswer> answersToSave = new ArrayList<>();
 
         EvaluationResult result = resultRepository.findByAttemptId(attemptId)
                 .orElseGet(() -> {
@@ -59,23 +60,26 @@ public class EvaluationService {
             Question question = mapping.getQuestion();
             StudentAnswer answer = answerMap.get(question.getId());
             
+            if (answer == null) continue;
+
             if (question.getType() == QuestionType.CODING) {
-                if (answer != null) {
-                    hasPendingAsync = true;
-                    sendToSandbox(attempt, question, answer, mapping);
-                }
+                hasPendingAsync = true;
+                answer.setEvaluationStatus("PENDING_SANDBOX");
+                answersToSave.add(answer);
+                sendToSandbox(attempt, question, answer, mapping);
             } else if (question.getType() == QuestionType.SUBJECTIVE) {
                 needsManualEvaluation = true;
-                if (answer != null) {
-                    answer.setEvaluationStatus("PENDING_MANUAL");
-                    answerRepository.save(answer);
-                }
+                answer.setEvaluationStatus("PENDING_MANUAL");
+                answersToSave.add(answer);
             } else {
-                if (answer != null) {
-                    BigDecimal score = autoEvaluate(question, answer, mapping.getMarks(), attempt.getExam().isNegativeMarking() ? mapping.getNegMark() : BigDecimal.ZERO);
-                    totalScore = totalScore.add(score);
-                }
+                BigDecimal score = calculateAutoScore(question, answer, mapping.getMarks(), attempt.getExam().isNegativeMarking() ? mapping.getNegMark() : BigDecimal.ZERO);
+                totalScore = totalScore.add(score);
+                answersToSave.add(answer);
             }
+        }
+
+        if (!answersToSave.isEmpty()) {
+            answerRepository.saveAll(answersToSave);
         }
 
         result.setTotalScore(totalScore);
@@ -115,9 +119,6 @@ public class EvaluationService {
             "timeLimitMs", 2000
         );
         
-        answer.setEvaluationStatus("PENDING_SANDBOX");
-        answerRepository.save(answer);
-
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -203,7 +204,7 @@ public class EvaluationService {
         log.info("Updated final status for attempt: {}. New status: {}, Total Score: {}", attemptId, result.getStatus(), totalScore);
     }
 
-    private BigDecimal autoEvaluate(Question question, StudentAnswer answer, BigDecimal maxMarks, BigDecimal negMark) {
+    private BigDecimal calculateAutoScore(Question question, StudentAnswer answer, BigDecimal maxMarks, BigDecimal negMark) {
         boolean isCorrect = false;
         try {
             JsonNode payload = question.getPayload();
@@ -230,7 +231,6 @@ public class EvaluationService {
         BigDecimal score = isCorrect ? maxMarks : negMark.negate();
         answer.setMarksObtained(score);
         answer.setEvaluationStatus(isCorrect ? "AUTO_GRADED_CORRECT" : "AUTO_GRADED_INCORRECT");
-        answerRepository.save(answer);
         return score;
     }
 }
