@@ -1,7 +1,6 @@
 package com.app.auth.user.service;
 
 import com.app.auth.common.config.AdminProperties;
-import com.app.auth.LogMessages;
 import com.app.auth.user.node.AppRole;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;

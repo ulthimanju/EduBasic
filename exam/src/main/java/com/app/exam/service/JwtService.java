@@ -71,11 +71,18 @@ public class JwtService {
         return keyCache.computeIfAbsent("default", k -> fetchPublicKeyFromJwks());
     }
 
+    @SuppressWarnings("unchecked")
     private PublicKey fetchPublicKeyFromJwks() {
         try {
             log.info("Fetching JWKS from {}", jwksUri);
             Map<String, Object> response = restTemplate.getForObject(jwksUri, Map.class);
+            if (response == null || !response.containsKey("keys")) {
+                throw new RuntimeException("JWKS response is empty or missing 'keys'");
+            }
             List<Map<String, Object>> keys = (List<Map<String, Object>>) response.get("keys");
+            if (keys == null || keys.isEmpty()) {
+                throw new RuntimeException("JWKS response contains no keys");
+            }
             Map<String, Object> keyData = keys.get(0); // Take first key
 
             String nStr = (String) keyData.get("n");

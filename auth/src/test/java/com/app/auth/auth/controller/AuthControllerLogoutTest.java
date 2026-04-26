@@ -60,7 +60,6 @@ class AuthControllerLogoutTest {
 
     private static final String VALID_JWT = "header.payload.sig";
     private static final String JWT_ID    = "test-jwt-id";
-    private static final String USER_ID   = "test-user-id";
 
     private ResponseCookie buildClearCookie() {
         return ResponseCookie.from("refresh_token", "").maxAge(0).path("/").build();

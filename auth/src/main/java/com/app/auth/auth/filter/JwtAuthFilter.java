@@ -1,7 +1,5 @@
 package com.app.auth.auth.filter;
 
-import com.app.auth.LogMessages;
-import com.app.auth.auth.cookie.CookieFactory;
 import com.app.auth.auth.service.JwtService;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.config.SecurityConfig;
@@ -35,7 +33,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService        jwtService;
     private final CacheService      cacheService;
     private final SessionRepository sessionRepository;
-    private final CookieFactory     cookieFactory;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest  request,

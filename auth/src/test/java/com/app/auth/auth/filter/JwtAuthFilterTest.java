@@ -5,13 +5,9 @@ import com.app.auth.auth.service.JwtService;
 import com.app.auth.cache.service.CacheService;
 import com.app.auth.common.config.SecurityConfig;
 import com.app.auth.session.repository.SessionRepository;
-import com.app.auth.user.dto.UserResponseDTO;
 import com.app.auth.user.mapper.UserMapper;
-import com.app.auth.user.node.AppRole;
-import com.app.auth.user.node.UserNode;
 import com.app.auth.user.service.UserService;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,17 +16,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
