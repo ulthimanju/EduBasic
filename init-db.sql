@@ -1,0 +1,2 @@
+CREATE DATABASE exam_db;
+CREATE DATABASE sandbox_db;
