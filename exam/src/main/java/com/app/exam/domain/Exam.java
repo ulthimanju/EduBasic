@@ -51,6 +51,12 @@ public class Exam extends BaseEntity {
     @Column(name = "negative_marking")
     private boolean negativeMarking = false;
 
+    @Column(name = "proctoring_enabled")
+    private boolean proctoringEnabled = false;
+
+    @Column(name = "max_violations")
+    private Integer maxViolations = 3;
+
     @Enumerated(EnumType.STRING)
     private ExamStatus status = ExamStatus.DRAFT;
 }

@@ -6,7 +6,7 @@ import Spinner from '../../../../components/ui/Spinner/Spinner';
 import QuestionRenderer from './QuestionRenderer';
 import { usePrompt } from '../../../../context/PromptContext';
 import { ROUTES } from '../../../../constants/appConstants';
-import { useExamProctoring } from '../../../../hooks/useExamProctoring';
+import { useExamLockdown } from '../../../../hooks/useExamLockdown';
 
 const ExamPage = () => {
   const { attemptId } = useParams();
@@ -24,7 +24,10 @@ const ExamPage = () => {
   const timerRef = useRef(null);
   const syncIntervalRef = useRef(null);
 
-  useExamProctoring(attemptId, !!currentExam);
+  useExamLockdown(attemptId, !!currentExam, () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+  });
 
   useEffect(() => {
     // In a real app, fetchAttempt(attemptId) would give examId

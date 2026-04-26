@@ -24,12 +24,13 @@ public class ProctoringLog {
     @JoinColumn(name = "attempt_id")
     private StudentAttempt attempt;
 
-    @Column(name = "event_type")
-    private String eventType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "violation_type")
+    private ViolationType violationType;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "event_data", columnDefinition = "JSONB")
-    private Map<String, Object> eventData;
+    @Column(name = "metadata", columnDefinition = "JSONB")
+    private Map<String, Object> metadata;
 
     @Column(name = "captured_at")
     private OffsetDateTime capturedAt = OffsetDateTime.now();

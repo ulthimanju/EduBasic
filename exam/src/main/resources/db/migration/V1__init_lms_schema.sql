@@ -38,6 +38,8 @@ CREATE TABLE exams (
     pass_marks DECIMAL(10,2),
     negative_marking BOOLEAN DEFAULT FALSE,
     status VARCHAR(20) DEFAULT 'DRAFT',
+    proctoring_enabled BOOLEAN DEFAULT FALSE,
+    max_violations INTEGER DEFAULT 3,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -112,8 +114,8 @@ CREATE TABLE certificates (
 CREATE TABLE proctoring_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     attempt_id UUID REFERENCES student_attempts(id),
-    event_type VARCHAR(100),
-    event_data JSONB,
+    violation_type VARCHAR(100), -- TAB_SWITCH, FULLSCREEN_EXIT, SHORTCUT_BLOCKED, PASTE_ATTEMPT
+    metadata JSONB,
     captured_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

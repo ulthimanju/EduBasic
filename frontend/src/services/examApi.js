@@ -98,6 +98,7 @@ export const examApi = {
   syncAttempt: (attemptId, data) => examClient.put(`/api/v1/attempts/${attemptId}/sync`, data),
   submitAttempt: (attemptId) => examClient.post(`/api/v1/attempts/${attemptId}/submit`),
   getResult: (attemptId) => examClient.get(`/api/v1/results/${attemptId}`),
+  recordViolation: (attemptId, data) => examClient.post(`/api/v1/attempts/${attemptId}/violations`, data),
 
   // Proctoring
   logProctoringEvent: (attemptId, data) => examClient.post(`/api/v1/proctoring/attempts/${attemptId}/log`, data),
