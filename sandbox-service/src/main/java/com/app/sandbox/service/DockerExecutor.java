@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 @Service
 @Slf4j
@@ -24,7 +23,6 @@ public class DockerExecutor {
 
         for (JsonNode tc : testCases) {
             String expectedOutput = tc.get("expectedOutput").asText().trim();
-            String input = tc.has("input") ? tc.get("input").asText().trim() : "";
             
             // For mock purposes, we'll assume the code is "correct" if it matches expected or contains the logic
             // To make it deterministic and non-random:
