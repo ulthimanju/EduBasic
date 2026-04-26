@@ -30,9 +30,9 @@ public final class CacheConstants {
     /** Value stored when a JWT is confirmed valid. */
     public static final String JWT_VALID   = "valid";
 
-    /** 
-     * Value stored when a JWT is confirmed invalid / revoked. 
-     * NOTE: This is a contract shared with the Exam service (TokenValidationService). 
+    /**
+     * Value stored when a JWT is confirmed invalid / revoked.
+     * NOTE: This is a contract shared with the Exam service (TokenValidationService).
      * Do not change without updating both services.
      */
     public static final String JWT_INVALID = "invalid";

@@ -77,7 +77,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // Populate SecurityContext with roles
         String userId = jwtService.extractUserId(jwt);
         List<String> roles = jwtService.extractRoles(jwt);
-        
+
         List<SimpleGrantedAuthority> authorities = roles != null ?
                 roles.stream().map(SimpleGrantedAuthority::new).toList() : List.of();
 

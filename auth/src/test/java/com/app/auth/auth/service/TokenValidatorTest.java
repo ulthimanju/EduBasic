@@ -37,9 +37,9 @@ class TokenValidatorTest {
     @DisplayName("isAccessTokenValid — cache hit valid → returns true (trusts short cache)")
     void isAccessTokenValid_cacheHitValid_returnsTrue() {
         when(cacheService.getJwtValidity(JTI)).thenReturn(Optional.of(true));
-        
+
         boolean valid = tokenValidator.isAccessTokenValid(TOKEN, JTI);
-        
+
         assertThat(valid).isTrue();
         verifyNoInteractions(sessionService);
     }
@@ -48,9 +48,9 @@ class TokenValidatorTest {
     @DisplayName("isAccessTokenValid — cache hit invalid → returns false")
     void isAccessTokenValid_cacheHitInvalid_returnsFalse() {
         when(cacheService.getJwtValidity(JTI)).thenReturn(Optional.of(false));
-        
+
         boolean valid = tokenValidator.isAccessTokenValid(TOKEN, JTI);
-        
+
         assertThat(valid).isFalse();
         verifyNoInteractions(sessionService);
     }
@@ -60,9 +60,9 @@ class TokenValidatorTest {
     void isAccessTokenValid_cacheMissDbValid_cachesAndReturnsTrue() {
         when(cacheService.getJwtValidity(JTI)).thenReturn(Optional.empty());
         when(sessionService.isSessionValid(JTI)).thenReturn(true);
-        
+
         boolean valid = tokenValidator.isAccessTokenValid(TOKEN, JTI);
-        
+
         assertThat(valid).isTrue();
         verify(cacheService).cacheJwtValidity(JTI, true, CacheConstants.VALID_JWT_TTL_SECONDS);
     }
@@ -74,9 +74,9 @@ class TokenValidatorTest {
     void isRefreshTokenValid_cacheHitValid_checksDb() {
         when(cacheService.getJwtValidity(JTI)).thenReturn(Optional.of(true));
         when(sessionService.isSessionValid(JTI)).thenReturn(true);
-        
+
         boolean valid = tokenValidator.isRefreshTokenValid(TOKEN, JTI);
-        
+
         assertThat(valid).isTrue();
         verify(sessionService).isSessionValid(JTI);
     }
@@ -85,9 +85,9 @@ class TokenValidatorTest {
     @DisplayName("isRefreshTokenValid — cache hit invalid → returns false (trusts blacklist)")
     void isRefreshTokenValid_cacheHitInvalid_returnsFalse() {
         when(cacheService.getJwtValidity(JTI)).thenReturn(Optional.of(false));
-        
+
         boolean valid = tokenValidator.isRefreshTokenValid(TOKEN, JTI);
-        
+
         assertThat(valid).isFalse();
         verifyNoInteractions(sessionService);
     }
@@ -99,9 +99,9 @@ class TokenValidatorTest {
         when(cacheService.getJwtValidity(JTI)).thenReturn(Optional.empty());
         when(sessionService.isSessionValid(JTI)).thenReturn(false);
         when(jwtService.extractExpiration(TOKEN)).thenReturn(expiry);
-        
+
         boolean valid = tokenValidator.isRefreshTokenValid(TOKEN, JTI);
-        
+
         assertThat(valid).isFalse();
         verify(cacheService).cacheJwtValidity(eq(JTI), eq(false), AdditionalMatchers.gt(95L));
     }
@@ -113,11 +113,11 @@ class TokenValidatorTest {
     void invalidateToken_calculatesTtl() {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(100);
-        
+
         when(jwtService.extractExpiration(TOKEN)).thenReturn(expiry);
-        
+
         tokenValidator.invalidateToken(TOKEN, JTI);
-        
+
         verify(cacheService).cacheJwtValidity(eq(JTI), eq(false), AdditionalMatchers.gt(95L));
     }
 }

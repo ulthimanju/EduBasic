@@ -46,7 +46,7 @@ public class UserServiceImpl implements UserService {
                 roleNames,
                 now
         );
-        
+
         log.info("User upserted successfully: {} ({})", saved.getEmail(), saved.getId());
         return saved;
     }

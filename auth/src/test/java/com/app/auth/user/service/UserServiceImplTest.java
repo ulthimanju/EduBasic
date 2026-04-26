@@ -48,7 +48,7 @@ class UserServiceImplTest {
     @DisplayName("upsertUser — new non-admin user: receives STUDENT role")
     void upsertUser_newStudent_receivesStudentRole() {
         when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
-        
+
         when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
                 .thenAnswer(inv -> UserNode.builder()
                         .id(inv.getArgument(0))
@@ -63,7 +63,7 @@ class UserServiceImplTest {
         UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL, NAME);
 
         assertThat(result.getRoles()).containsExactly(AppRole.STUDENT);
-        verify(userRepository).upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), 
+        verify(userRepository).upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME),
                 argThat(roles -> roles.contains("STUDENT") && roles.size() == 1), any());
     }
 
@@ -71,7 +71,7 @@ class UserServiceImplTest {
     @DisplayName("upsertUser — admin promotion: receives ADMIN role when email is in config")
     void upsertUser_adminPromotion_receivesAdminRole() {
         when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of(EMAIL));
-        
+
         when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
                 .thenAnswer(inv -> UserNode.builder()
                         .roles(mapToAppRoles(inv.getArgument(4)))
@@ -87,7 +87,7 @@ class UserServiceImplTest {
     void upsertUser_adminDemotion_losesAdminRole() {
         // config says no admins
         when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
-        
+
         when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
                 .thenAnswer(inv -> UserNode.builder()
                         .roles(mapToAppRoles(inv.getArgument(4)))

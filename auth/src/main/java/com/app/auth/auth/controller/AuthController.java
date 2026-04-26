@@ -105,7 +105,7 @@ public class AuthController {
                 log.warn("Failed to revoke refresh token session during logout: {}", e.getMessage());
             }
         }
-        
+
         // Also revoke the current Access Token if provided in header
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
