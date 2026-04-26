@@ -24,6 +24,7 @@ public class AttemptService {
     private final StudentAnswerRepository answerRepository;
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
+    private final ExamQuestionMappingRepository mappingRepository;
     private final ExamSnapshotRepository snapshotRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
