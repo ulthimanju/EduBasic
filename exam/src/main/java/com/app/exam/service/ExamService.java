@@ -7,8 +7,12 @@ import com.app.exam.repository.ExamRepository;
 import com.app.exam.repository.ExamSectionRepository;
 import com.app.exam.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -221,7 +225,22 @@ public class ExamService {
         response.setType(question.getType());
         response.setTitle(question.getTitle());
         response.setDescription(question.getDescription());
-        response.setPayload(question.getPayload());
+        
+        // Redact sensitive payload fields for students
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isStudent = auth != null && auth.getAuthorities().contains(new SimpleGrantedAuthority("STUDENT"));
+        
+        if (isStudent && question.getPayload() != null) {
+            ObjectNode redactedPayload = question.getPayload().deepCopy();
+            redactedPayload.remove("correctOptionId");
+            redactedPayload.remove("correctOptionIds");
+            redactedPayload.remove("correctAnswer");
+            redactedPayload.remove("testCases"); // Remove all test cases for student response
+            response.setPayload(redactedPayload);
+        } else {
+            response.setPayload(question.getPayload());
+        }
+
         response.setDifficulty(question.getDifficulty());
         response.setTags(question.getTags());
         response.setDefaultMarks(question.getDefaultMarks());
