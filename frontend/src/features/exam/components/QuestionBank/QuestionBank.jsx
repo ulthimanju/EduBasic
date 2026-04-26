@@ -7,10 +7,19 @@ const QuestionBank = () => {
   const { questions, fetchQuestions, isLoading, tags, fetchTags } = useExamStore();
   const [filter, setFilter] = useState({ type: '', difficulty: '', tag: '', search: '' });
 
+  // Load tags only once on mount
   useEffect(() => {
-    fetchQuestions(filter);
     fetchTags();
-  }, [filter]);
+  }, [fetchTags]);
+
+  // Debounce API calls for questions
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchQuestions(filter);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [filter, fetchQuestions]);
 
   const handleFilterChange = (e) => {
     setFilter({ ...filter, [e.target.name]: e.target.value });

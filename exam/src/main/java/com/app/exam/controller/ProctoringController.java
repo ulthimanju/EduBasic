@@ -6,12 +6,14 @@ import com.app.exam.dto.ProctoringEventRequest;
 import com.app.exam.repository.StudentAttemptRepository;
 import com.app.exam.service.ProctoringService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -39,7 +41,9 @@ public class ProctoringController {
 
     @GetMapping("/attempts/{attemptId}/logs")
     @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
-    public ResponseEntity<List<ProctoringLog>> getLogs(@PathVariable UUID attemptId) {
-        return ResponseEntity.ok(proctoringService.getLogs(attemptId));
+    public ResponseEntity<Page<ProctoringLog>> getLogs(
+            @PathVariable UUID attemptId,
+            @PageableDefault(size = 50) Pageable pageable) {
+        return ResponseEntity.ok(proctoringService.getLogs(attemptId, pageable));
     }
 }

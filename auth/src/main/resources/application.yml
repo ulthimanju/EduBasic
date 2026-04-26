@@ -69,6 +69,6 @@ management:
 logging:
   level:
     root: INFO
-    com.app.auth: DEBUG
-    org.springframework.security: DEBUG
+    com.app.auth: INFO
+    org.springframework.security: INFO
     org.springframework.data.neo4j.cypher.deprecation: ERROR

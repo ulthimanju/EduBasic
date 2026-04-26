@@ -164,17 +164,23 @@ public class AttemptService {
             UUID questionId = entry.getKey();
             String rawAnswer = entry.getValue();
 
-            StudentAnswer answer = answerRepository.findByAttemptIdAndQuestionId(attempt.getId(), questionId)
-                    .orElseGet(() -> {
-                        StudentAnswer a = new StudentAnswer();
-                        a.setAttempt(attempt);
-                        a.setQuestion(questionRepository.getReferenceById(questionId));
-                        return a;
-                    });
+            Optional<StudentAnswer> existingOpt = answerRepository.findByAttemptIdAndQuestionId(attempt.getId(), questionId);
             
-            answer.setRawAnswer(rawAnswer);
-            answer.setEvaluationStatus("PENDING");
-            answerRepository.save(answer);
+            if (existingOpt.isPresent()) {
+                StudentAnswer answer = existingOpt.get();
+                if (rawAnswer != null && !rawAnswer.equals(answer.getRawAnswer())) {
+                    answer.setRawAnswer(rawAnswer);
+                    answer.setEvaluationStatus("PENDING");
+                    answerRepository.save(answer);
+                }
+            } else {
+                StudentAnswer a = new StudentAnswer();
+                a.setAttempt(attempt);
+                a.setQuestion(questionRepository.getReferenceById(questionId));
+                a.setRawAnswer(rawAnswer);
+                a.setEvaluationStatus("PENDING");
+                answerRepository.save(a);
+            }
         }
     }
 

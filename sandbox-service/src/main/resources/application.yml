@@ -31,5 +31,5 @@ server:
 
 logging:
   level:
-    com.app.sandbox: DEBUG
+    com.app.sandbox: INFO
     org.springframework.web: INFO

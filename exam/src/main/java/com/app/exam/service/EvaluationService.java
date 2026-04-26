@@ -39,6 +39,9 @@ public class EvaluationService {
         log.info("Starting evaluation for attempt: {}", attemptId);
 
         List<ExamQuestionMapping> mappings = mappingRepository.findAllByExamIdOrderByOrderIndexAsc(attempt.getExam().getId());
+        List<StudentAnswer> allAnswers = answerRepository.findAllByAttemptId(attemptId);
+        Map<UUID, StudentAnswer> answerMap = new HashMap<>();
+        allAnswers.forEach(a -> answerMap.put(a.getQuestion().getId(), a));
         
         BigDecimal totalScore = BigDecimal.ZERO;
         boolean needsManualEvaluation = false;
@@ -54,23 +57,22 @@ public class EvaluationService {
 
         for (ExamQuestionMapping mapping : mappings) {
             Question question = mapping.getQuestion();
-            Optional<StudentAnswer> answerOpt = answerRepository.findByAttemptIdAndQuestionId(attemptId, question.getId());
+            StudentAnswer answer = answerMap.get(question.getId());
             
             if (question.getType() == QuestionType.CODING) {
-                if (answerOpt.isPresent()) {
+                if (answer != null) {
                     hasPendingAsync = true;
-                    sendToSandbox(attempt, question, answerOpt.get(), mapping);
+                    sendToSandbox(attempt, question, answer, mapping);
                 }
             } else if (question.getType() == QuestionType.SUBJECTIVE) {
                 needsManualEvaluation = true;
-                if (answerOpt.isPresent()) {
-                    StudentAnswer answer = answerOpt.get();
+                if (answer != null) {
                     answer.setEvaluationStatus("PENDING_MANUAL");
                     answerRepository.save(answer);
                 }
             } else {
-                if (answerOpt.isPresent()) {
-                    BigDecimal score = autoEvaluate(question, answerOpt.get(), mapping.getMarks(), attempt.getExam().isNegativeMarking() ? mapping.getNegMark() : BigDecimal.ZERO);
+                if (answer != null) {
+                    BigDecimal score = autoEvaluate(question, answer, mapping.getMarks(), attempt.getExam().isNegativeMarking() ? mapping.getNegMark() : BigDecimal.ZERO);
                     totalScore = totalScore.add(score);
                 }
             }

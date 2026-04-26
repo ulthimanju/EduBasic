@@ -50,5 +50,5 @@ server:
 
 logging:
   level:
-    com.app.exam: DEBUG
+    com.app.exam: INFO
     org.springframework.web: INFO

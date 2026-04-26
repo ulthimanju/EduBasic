@@ -3,12 +3,14 @@ package com.app.sandbox.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.github.dockerjava.api.command.WaitContainerResultCallback;
+import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.core.command.ExecStartResultCallback;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,6 +32,8 @@ import java.util.regex.Pattern;
 public class DockerExecutor {
 
     private final DockerClient dockerClient;
+    private final BlockingQueue<String> containerPool = new ArrayBlockingQueue<>(5);
+    private static final String IMAGE = "openjdk:21-slim";
 
     public DockerExecutor() {
         DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
@@ -39,104 +45,123 @@ public class DockerExecutor {
                 .responseTimeout(Duration.ofSeconds(45))
                 .build();
         this.dockerClient = DockerClientImpl.getInstance(config, httpClient);
-        
-        // Ensure the sandbox image is pulled
+    }
+
+    @PostConstruct
+    public void init() {
+        log.info("Bootstrapping Sandbox Container Pool...");
         try {
-            log.info("Pulling openjdk:21-slim image...");
-            dockerClient.pullImageCmd("openjdk:21-slim")
-                    .start()
-                    .awaitCompletion(5, TimeUnit.MINUTES);
-            log.info("Successfully pulled openjdk:21-slim");
+            dockerClient.pullImageCmd(IMAGE).start().awaitCompletion(5, TimeUnit.MINUTES);
+            for (int i = 0; i < 3; i++) {
+                containerPool.offer(createWarmContainer());
+            }
+            log.info("Sandbox Pool initialized with {} containers", containerPool.size());
         } catch (Exception e) {
-            log.warn("Failed to pull openjdk:21-slim. If it's not present locally, grading will fail.", e);
+            log.error("Failed to initialize Sandbox Pool", e);
         }
     }
+
+    @PreDestroy
+    public void cleanup() {
+        log.info("Cleaning up Sandbox Pool...");
+        String containerId;
+        while ((containerId = containerPool.poll()) != null) {
+            try {
+                dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+            } catch (Exception e) {
+                log.warn("Failed to remove container {}", containerId);
+            }
+        }
+    }
+
+    private String createWarmContainer() {
+        CreateContainerResponse container = dockerClient.createContainerCmd(IMAGE)
+                .withHostConfig(HostConfig.newHostConfig()
+                        .withMemory(256 * 1024 * 1024L)
+                        .withMemorySwap(256 * 1024 * 1024L)
+                        .withCpuQuota(50000L)
+                        .withNetworkMode("none"))
+                .withCmd("tail", "-f", "/dev/null")
+                .withNetworkDisabled(true)
+                .exec();
+        dockerClient.startContainerCmd(container.getId()).exec();
+        return container.getId();
+    }
+
     public List<Map<String, Object>> execute(String language, String sourceCode, JsonNode testCases, int timeLimitMs) {
         if (!"JAVA".equalsIgnoreCase(language)) {
             return List.of(Map.of("status", "ERROR", "actualOutput", "Only Java supported currently"));
         }
 
         String className = extractClassName(sourceCode);
-        List<Map<String, Object>> results = new ArrayList<>();
+        String containerId = null;
+        try {
+            containerId = containerPool.poll(10, TimeUnit.SECONDS);
+            if (containerId == null) {
+                log.warn("Pool empty, creating on-demand container");
+                containerId = createWarmContainer();
+            }
 
-        for (JsonNode tc : testCases) {
-            results.add(runInContainer(className, sourceCode, tc, timeLimitMs));
+            return runAllTestCases(containerId, className, sourceCode, testCases, timeLimitMs);
+
+        } catch (Exception e) {
+            log.error("Execution failed", e);
+            return createErrorResults(testCases, "Internal Error: " + e.getMessage());
+        } finally {
+            if (containerId != null) {
+                try {
+                    // Clean up files in container before returning to pool
+                    dockerClient.execCreateCmd(containerId).withCmd("sh", "-c", "rm -rf *").exec();
+                    containerPool.offer(containerId);
+                } catch (Exception e) {
+                    log.warn("Container tainted, removing: {}", containerId);
+                    try { dockerClient.removeContainerCmd(containerId).withForce(true).exec(); } catch (Exception ex) {}
+                    // Replenish pool
+                    new Thread(() -> containerPool.offer(createWarmContainer())).start();
+                }
+            }
+        }
+    }
+
+    private List<Map<String, Object>> runAllTestCases(String containerId, String className, String sourceCode, JsonNode testCases, int timeLimitMs) throws Exception {
+        // 1. Write and Compile
+        String encodedSource = Base64.getEncoder().encodeToString(sourceCode.getBytes(StandardCharsets.UTF_8));
+        String compileCmd = String.format("echo %s | base64 -d > %s.java && javac %s.java", encodedSource, className, className);
+        
+        ExecResult compileResult = runExec(containerId, compileCmd, 10000);
+        if (compileResult.exitCode != 0) {
+            return createErrorResults(testCases, "Compilation Error: " + compileResult.stderr);
         }
 
+        // 2. Run test cases
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (JsonNode tc : testCases) {
+            results.add(runSingleTestCase(containerId, className, tc, timeLimitMs));
+        }
         return results;
     }
 
-    private Map<String, Object> runInContainer(String className, String sourceCode, JsonNode tc, int timeLimitMs) {
+    private Map<String, Object> runSingleTestCase(String containerId, String className, JsonNode tc, int timeLimitMs) {
         String testCaseId = tc.get("id").asText();
         String input = tc.has("input") ? tc.get("input").asText() : "";
         String expected = tc.get("expectedOutput").asText().trim();
         boolean isHidden = tc.has("isHidden") && tc.get("isHidden").asBoolean();
 
-        String containerId = null;
+        String runCmd = String.format("echo -n \"%s\" | java %s", input.replace("\"", "\\\""), className);
+        long start = System.currentTimeMillis();
+        
         try {
-            // Encode source to avoid shell injection issues in a simple command
-            String encodedSource = Base64.getEncoder().encodeToString(sourceCode.getBytes(StandardCharsets.UTF_8));
-            
-            // Script to decode, compile, and run with input
-            String cmd = String.format(
-                "echo %s | base64 -d > %s.java && javac %s.java && echo -n \"%s\" | java %s",
-                encodedSource, className, className, input.replace("\"", "\\\""), className
-            );
-
-            CreateContainerResponse container = dockerClient.createContainerCmd("openjdk:21-slim")
-                    .withHostConfig(HostConfig.newHostConfig()
-                            .withMemory(256 * 1024 * 1024L) // 256MB
-                            .withMemorySwap(256 * 1024 * 1024L)
-                            .withCpuQuota(50000L) // 0.5 CPU
-                            .withNetworkMode("none"))
-                    .withName("sandbox-" + testCaseId + "-" + System.currentTimeMillis())
-                    .withCmd("sh", "-c", cmd)
-                    .withNetworkDisabled(true)
-                    .exec();
-
-            containerId = container.getId();
-            long start = System.currentTimeMillis();
-            dockerClient.startContainerCmd(containerId).exec();
-
-            // Wait for completion
-            WaitContainerResultCallback callback = new WaitContainerResultCallback();
-            dockerClient.waitContainerCmd(containerId).exec(callback);
-            
-            boolean finished = callback.awaitCompletion(timeLimitMs, TimeUnit.MILLISECONDS);
+            ExecResult runResult = runExec(containerId, runCmd, timeLimitMs);
             long executionTime = System.currentTimeMillis() - start;
 
-            if (!finished) {
-                try { dockerClient.stopContainerCmd(containerId).exec(); } catch (Exception e) {}
+            if (runResult.timedOut) {
                 return Map.of("testCaseId", testCaseId, "status", "TIME_LIMIT_EXCEEDED", "executionTimeMs", (int)executionTime, "isHidden", isHidden);
             }
-
-            InspectContainerResponse inspect = dockerClient.inspectContainerCmd(containerId).exec();
-            
-            // Get logs
-            ByteArrayOutputStream stdoutStream = new ByteArrayOutputStream();
-            ByteArrayOutputStream stderrStream = new ByteArrayOutputStream();
-            
-            dockerClient.logContainerCmd(containerId)
-                    .withStdOut(true)
-                    .withStdErr(true)
-                    .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<>() {
-                        @Override
-                        public void onNext(com.github.dockerjava.api.model.Frame item) {
-                            if (item.getStreamType() == com.github.dockerjava.api.model.StreamType.STDOUT) {
-                                try { stdoutStream.write(item.getPayload()); } catch (Exception e) {}
-                            } else {
-                                try { stderrStream.write(item.getPayload()); } catch (Exception e) {}
-                            }
-                        }
-                    }).awaitCompletion(5, TimeUnit.SECONDS);
-
-            String output = stdoutStream.toString().trim();
-            String error = stderrStream.toString().trim();
-
-            if (inspect.getState().getExitCodeLong() != 0) {
-                return Map.of("testCaseId", testCaseId, "status", "RUNTIME_ERROR", "actualOutput", error, "executionTimeMs", (int)executionTime, "isHidden", isHidden);
+            if (runResult.exitCode != 0) {
+                return Map.of("testCaseId", testCaseId, "status", "RUNTIME_ERROR", "actualOutput", runResult.stderr, "executionTimeMs", (int)executionTime, "isHidden", isHidden);
             }
 
+            String output = runResult.stdout.trim();
             boolean passed = output.equals(expected);
             return Map.of(
                 "testCaseId", testCaseId,
@@ -145,15 +170,55 @@ public class DockerExecutor {
                 "executionTimeMs", (int)executionTime,
                 "isHidden", isHidden
             );
-
         } catch (Exception e) {
-            log.error("Docker execution failed", e);
             return Map.of("testCaseId", testCaseId, "status", "ERROR", "actualOutput", e.getMessage(), "isHidden", isHidden);
-        } finally {
-            if (containerId != null) {
-                try { dockerClient.removeContainerCmd(containerId).withForce(true).exec(); } catch (Exception e) {}
-            }
         }
+    }
+
+    private ExecResult runExec(String containerId, String cmd, int timeoutMs) throws Exception {
+        ExecCreateCmdResponse execCreate = dockerClient.execCreateCmd(containerId)
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .withCmd("sh", "-c", cmd)
+                .exec();
+
+        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+        
+        ExecStartResultCallback callback = new ExecStartResultCallback(stdout, stderr);
+        dockerClient.execStartCmd(execCreate.getId()).exec(callback);
+        
+        boolean finished = callback.awaitCompletion(timeoutMs, TimeUnit.MILLISECONDS);
+        
+        ExecResult result = new ExecResult();
+        result.timedOut = !finished;
+        result.stdout = stdout.toString(StandardCharsets.UTF_8);
+        result.stderr = stderr.toString(StandardCharsets.UTF_8);
+        
+        if (finished) {
+            result.exitCode = dockerClient.inspectExecCmd(execCreate.getId()).exec().getExitCode();
+        }
+        return result;
+    }
+
+    private static class ExecResult {
+        int exitCode;
+        String stdout;
+        String stderr;
+        boolean timedOut;
+    }
+
+    private List<Map<String, Object>> createErrorResults(JsonNode testCases, String errorMessage) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (JsonNode tc : testCases) {
+            results.add(Map.of(
+                "testCaseId", tc.get("id").asText(),
+                "status", "ERROR",
+                "actualOutput", errorMessage,
+                "isHidden", tc.has("isHidden") && tc.get("isHidden").asBoolean()
+            ));
+        }
+        return results;
     }
 
     private String extractClassName(String sourceCode) {

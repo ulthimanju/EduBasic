@@ -8,11 +8,12 @@ import com.app.exam.repository.ProctoringLogRepository;
 import com.app.exam.repository.StudentAttemptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,7 +45,7 @@ public class ProctoringService {
         log.info("Proctoring event {} logged for attempt {}", eventType, attemptId);
     }
 
-    public List<ProctoringLog> getLogs(UUID attemptId) {
-        return logRepository.findAllByAttemptIdOrderByCapturedAtDesc(attemptId);
+    public Page<ProctoringLog> getLogs(UUID attemptId, Pageable pageable) {
+        return logRepository.findAllByAttemptId(attemptId, pageable);
     }
 }
