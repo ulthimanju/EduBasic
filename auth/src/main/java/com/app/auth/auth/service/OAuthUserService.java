@@ -44,10 +44,7 @@ public class OAuthUserService extends DefaultOAuth2UserService {
 
         log.debug(LogMessages.OAUTH2_USER_LOADED_GOOGLE, email);
 
-        // 3. Create or update user in Neo4j
-        userService.upsertUser(googleId, email, name);
-
-        // 4. Return unchanged OAuth2User — Spring Security needs its original attributes
+        // 3. Return unchanged OAuth2User — Spring Security needs its original attributes
         return oAuth2User;
     }
 }

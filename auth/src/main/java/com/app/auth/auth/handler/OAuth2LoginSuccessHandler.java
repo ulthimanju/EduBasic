@@ -41,7 +41,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final UserService    userService;
     private final JwtService     jwtService;
     private final SessionService sessionService;
-    private final CacheService   cacheService;
     private final CookieFactory  cookieFactory;
 
     @Value("${app.frontend.url}")

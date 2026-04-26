@@ -32,8 +32,6 @@ import java.util.Optional;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService        jwtService;
-    private final CacheService      cacheService;
-    private final SessionRepository sessionRepository;
     private final TokenValidator    tokenValidator;
 
     @Override

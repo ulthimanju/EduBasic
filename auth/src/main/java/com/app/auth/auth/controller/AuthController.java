@@ -33,7 +33,6 @@ public class AuthController {
     private final JwtService     jwtService;
     private final UserService    userService;
     private final SessionService sessionService;
-    private final CacheService   cacheService;
     private final CookieFactory  cookieFactory;
     private final TokenValidator tokenValidator;
 
