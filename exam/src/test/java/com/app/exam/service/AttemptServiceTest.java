@@ -194,6 +194,7 @@ class AttemptServiceTest {
         attemptService.syncAttempt(studentId, attemptId, request);
 
         // Verify that saveAll was called with an empty list or not at all
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<StudentAnswer>> captor = ArgumentCaptor.forClass(List.class);
         verify(answerRepository, atMostOnce()).saveAll(captor.capture());
         if (!captor.getAllValues().isEmpty()) {
@@ -222,6 +223,7 @@ class AttemptServiceTest {
 
         attemptService.syncAttempt(studentId, attemptId, request);
 
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<StudentAnswer>> captor = ArgumentCaptor.forClass(List.class);
         verify(answerRepository, atMostOnce()).saveAll(captor.capture());
         if (!captor.getAllValues().isEmpty()) {

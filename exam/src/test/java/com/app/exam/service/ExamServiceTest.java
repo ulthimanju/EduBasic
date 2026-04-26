@@ -1,9 +1,7 @@
 package com.app.exam.service;
 
 import com.app.exam.domain.*;
-import com.app.exam.dto.ExamQuestionMappingResponse;
 import com.app.exam.dto.ExamResponse;
-import com.app.exam.dto.QuestionResponse;
 import com.app.exam.repository.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

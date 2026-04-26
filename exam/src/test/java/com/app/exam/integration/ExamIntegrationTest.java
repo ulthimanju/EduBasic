@@ -3,31 +3,27 @@ package com.app.exam.integration;
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
 import com.app.exam.repository.*;
-import com.app.exam.service.ExamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -40,7 +36,9 @@ public class ExamIntegrationTest {
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Container
-    static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"));
+    @SuppressWarnings("resource")
+    static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0")
+            .asCompatibleSubstituteFor("apache/kafka"));
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -54,24 +52,9 @@ public class ExamIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ExamService examService;
-
-    @Autowired
-    private ExamRepository examRepository;
-
-    @Autowired
     private QuestionRepository questionRepository;
 
-    @Autowired
-    private ExamQuestionMappingRepository mappingRepository;
-
-    @Autowired
-    private StudentAttemptRepository attemptRepository;
-
-    @Autowired
-    private EvaluationResultRepository resultRepository;
-
-    @MockBean
+    @MockitoBean
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
@@ -115,22 +98,12 @@ public class ExamIntegrationTest {
         // Publish
         mockMvc.perform(post("/api/v1/exams/{id}/publish", examId))
                 .andExpect(status().isOk());
-
-        // 3. Student fetches exam - Verify Redaction
-        // Note: WithMockUser doesn't set the principal as a UUID which our controllers expect.
-        // We'll use a custom security context or just mock the authentication in the service if needed,
-        // but for integration we prefer actual auth. 
-        // Our controller: UUID userId = (UUID) auth.getPrincipal(); 
-        // This will fail with String principal from @WithMockUser.
-        // Let's use a workaround: manually set the principal in the test if possible,
-        // or just test the service method for redaction in ExamServiceTest (already done).
-        // For this test, we'll focus on the data flow.
     }
 
     @Test
     @WithMockUser(authorities = "STUDENT")
     void startAttemptFlow() throws Exception {
         // This test requires a UUID principal in SecurityContext.
-        // Mocking the behavior for now.
+        // Placeholder for future implementation.
     }
 }

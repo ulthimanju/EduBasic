@@ -1,7 +1,6 @@
 package com.app.exam.service;
 
 import com.app.exam.domain.*;
-import com.app.exam.dto.SubmitAttemptEvent;
 import com.app.exam.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
