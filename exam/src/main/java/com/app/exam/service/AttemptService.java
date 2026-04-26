@@ -190,6 +190,7 @@ public class AttemptService {
             return;
         }
 
+        UUID examId = attempt.getExam().getId();
         List<StudentAnswer> existingAnswers = answerRepository.findAllByAttemptId(attempt.getId());
         Map<UUID, StudentAnswer> existingMap = existingAnswers.stream()
                 .collect(Collectors.toMap(a -> a.getQuestion().getId(), a -> a));
@@ -199,6 +200,20 @@ public class AttemptService {
         for (Map.Entry<UUID, String> entry : answers.entrySet()) {
             UUID questionId = entry.getKey();
             String rawAnswer = entry.getValue();
+
+            // 1. Security Check: Ensure question belongs to the attempt's exam
+            if (!mappingRepository.existsByExamIdAndQuestionId(examId, questionId)) {
+                log.warn("Security alert: Attempt to save answer for question {} not in exam {} by student {}", 
+                        questionId, examId, attempt.getStudentId());
+                continue;
+            }
+
+            // 2. Abuse Protection: Limit answer size (e.g., 50KB)
+            if (rawAnswer != null && rawAnswer.length() > 50000) {
+                log.warn("Abuse protection: Answer for question {} too large ({} chars) for attempt {}", 
+                        questionId, rawAnswer.length(), attempt.getId());
+                continue;
+            }
 
             StudentAnswer answer = existingMap.get(questionId);
             if (answer != null) {

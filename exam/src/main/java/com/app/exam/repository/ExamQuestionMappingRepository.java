@@ -18,4 +18,6 @@ public interface ExamQuestionMappingRepository extends JpaRepository<ExamQuestio
 
     long countByExamId(UUID examId);
     long countBySectionId(UUID sectionId);
+
+    boolean existsByExamIdAndQuestionId(UUID examId, UUID questionId);
 }
