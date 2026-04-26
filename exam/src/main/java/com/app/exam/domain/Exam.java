@@ -51,6 +51,9 @@ public class Exam extends BaseEntity {
     @Column(name = "negative_marking")
     private boolean negativeMarking = false;
 
+    @Column(name = "current_version")
+    private Integer currentVersion = 1;
+
     @Column(name = "proctoring_enabled")
     private boolean proctoringEnabled = false;
 

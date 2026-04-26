@@ -24,6 +24,7 @@ public class AttemptService {
     private final StudentAnswerRepository answerRepository;
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
+    private final ExamSnapshotRepository snapshotRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -53,6 +54,12 @@ public class AttemptService {
         StudentAttempt attempt = new StudentAttempt();
         attempt.setStudentId(studentId);
         attempt.setExam(exam);
+        
+        // Link to the latest snapshot
+        ExamSnapshot snapshot = snapshotRepository.findByExamIdAndVersion(exam.getId(), exam.getCurrentVersion())
+                .orElseThrow(() -> new RuntimeException("Published exam version not found"));
+        attempt.setExamSnapshot(snapshot);
+
         attempt.setStatus(AttemptStatus.IN_PROGRESS);
         attempt.setStartTime(OffsetDateTime.now());
         

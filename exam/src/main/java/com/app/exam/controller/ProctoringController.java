@@ -23,11 +23,13 @@ public class ProctoringController {
 
     private final ProctoringService proctoringService;
     private final StudentAttemptRepository attemptRepository;
+    private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
 
     @PostMapping("/attempts/{attemptId}/log")
     public ResponseEntity<Void> logEvent(@PathVariable UUID attemptId, @RequestBody ProctoringEventRequest request) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
+        // We still do a quick check if the attempt exists and belongs to the student
         StudentAttempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new RuntimeException("Attempt not found"));
         
@@ -35,7 +37,15 @@ public class ProctoringController {
             return ResponseEntity.status(403).build();
         }
 
-        proctoringService.logEvent(attemptId, request.getEventType(), request.getEventData());
+        // Publish to Kafka for async processing
+        java.util.Map<String, Object> event = new java.util.HashMap<>();
+        event.put("attemptId", attemptId.toString());
+        event.put("eventType", request.getEventType());
+        event.put("eventData", request.getEventData());
+        event.put("timestamp", java.time.OffsetDateTime.now().toString());
+
+        kafkaTemplate.send("proctoring-events", attemptId.toString(), event);
+        
         return ResponseEntity.ok().build();
     }
 

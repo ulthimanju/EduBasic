@@ -25,6 +25,10 @@ public class StudentAttempt {
     @JoinColumn(name = "exam_id")
     private Exam exam;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "exam_snapshot_id")
+    private ExamSnapshot examSnapshot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AttemptStatus status;

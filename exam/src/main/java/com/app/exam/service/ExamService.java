@@ -6,6 +6,7 @@ import com.app.exam.repository.ExamQuestionMappingRepository;
 import com.app.exam.repository.ExamRepository;
 import com.app.exam.repository.ExamSectionRepository;
 import com.app.exam.repository.QuestionRepository;
+import com.app.exam.repository.ExamSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -32,6 +33,7 @@ public class ExamService {
     private final ExamSectionRepository sectionRepository;
     private final ExamQuestionMappingRepository mappingRepository;
     private final QuestionRepository questionRepository;
+    private final ExamSnapshotRepository snapshotRepository;
 
     @Transactional
     public ExamResponse createExam(CreateExamRequest request) {
@@ -134,12 +136,21 @@ public class ExamService {
         Exam exam = examRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
         
-        if (exam.getStatus() != ExamStatus.DRAFT) {
-            throw new RuntimeException("Only DRAFT exams can be published");
+        if (exam.getStatus() != ExamStatus.DRAFT && exam.getStatus() != ExamStatus.PUBLISHED) {
+            throw new RuntimeException("Only DRAFT or PUBLISHED exams can be snapshotted");
         }
 
         validateForPublish(exam);
         
+        // 1. Create Snapshot
+        ExamResponse fullDetails = mapToFullResponse(exam);
+        ExamSnapshot snapshot = new ExamSnapshot();
+        snapshot.setExam(exam);
+        snapshot.setVersion(exam.getCurrentVersion());
+        snapshot.setSnapshotData(fullDetails);
+        snapshotRepository.save(snapshot);
+
+        // 2. Update Exam Status
         exam.setStatus(ExamStatus.PUBLISHED);
         examRepository.save(exam);
     }
