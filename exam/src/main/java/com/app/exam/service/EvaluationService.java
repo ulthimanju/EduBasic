@@ -12,6 +12,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -81,9 +84,21 @@ public class EvaluationService {
         attempt.setScore(totalScore);
         if (result.getStatus() == EvaluationStatus.COMPLETED) {
             attempt.setStatus(AttemptStatus.EVALUATED);
-            kafkaTemplate.send("evaluation-completed", attemptId.toString(), new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId()));
+            final SubmitAttemptEvent event = new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId());
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    kafkaTemplate.send("evaluation-completed", attemptId.toString(), event);
+                }
+            });
         } else if (result.getStatus() == EvaluationStatus.PENDING_MANUAL) {
-            kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId()));
+            final SubmitAttemptEvent event = new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId());
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), event);
+                }
+            });
         }
         attemptRepository.save(attempt);
     }
@@ -97,9 +112,16 @@ public class EvaluationService {
             "testCases", question.getPayload().get("testCases"),
             "timeLimitMs", 2000
         );
-        kafkaTemplate.send("coding-submitted", attempt.getId().toString(), event);
+        
         answer.setEvaluationStatus("PENDING_SANDBOX");
         answerRepository.save(answer);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                kafkaTemplate.send("coding-submitted", attempt.getId().toString(), event);
+            }
+        });
     }
 
     @KafkaListener(topics = "coding-result", groupId = "evaluation-group")
@@ -158,9 +180,21 @@ public class EvaluationService {
         attempt.setScore(totalScore);
         if (result.getStatus() == EvaluationStatus.COMPLETED) {
             attempt.setStatus(AttemptStatus.EVALUATED);
-            kafkaTemplate.send("evaluation-completed", attemptId.toString(), new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId()));
+            final SubmitAttemptEvent completeEvent = new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId());
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    kafkaTemplate.send("evaluation-completed", attemptId.toString(), completeEvent);
+                }
+            });
         } else if (result.getStatus() == EvaluationStatus.PENDING_MANUAL) {
-            kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId()));
+            final SubmitAttemptEvent manualEvent = new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId());
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), manualEvent);
+                }
+            });
         }
         attemptRepository.save(attempt);
         

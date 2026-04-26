@@ -7,7 +7,7 @@ import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientBuilder;
+import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,11 +38,8 @@ public class DockerExecutor {
                 .connectionTimeout(Duration.ofSeconds(30))
                 .responseTimeout(Duration.ofSeconds(45))
                 .build();
-        this.dockerClient = DockerClientBuilder.getInstance(config)
-                .withDockerHttpClient(httpClient)
-                .build();
+        this.dockerClient = DockerClientImpl.getInstance(config, httpClient);
     }
-
     public List<Map<String, Object>> execute(String language, String sourceCode, JsonNode testCases, int timeLimitMs) {
         if (!"JAVA".equalsIgnoreCase(language)) {
             return List.of(Map.of("status", "ERROR", "actualOutput", "Only Java supported currently"));
