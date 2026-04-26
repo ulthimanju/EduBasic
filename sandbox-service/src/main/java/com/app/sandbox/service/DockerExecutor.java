@@ -80,8 +80,7 @@ public class DockerExecutor {
                             .withMemory(256 * 1024 * 1024L) // 256MB
                             .withMemorySwap(256 * 1024 * 1024L)
                             .withCpuQuota(50000L) // 0.5 CPU
-                            .withNetworkMode("none")
-                            .withAutoRemove(true))
+                            .withNetworkMode("none"))
                     .withName("sandbox-" + testCaseId + "-" + System.currentTimeMillis())
                     .withCmd("sh", "-c", cmd)
                     .withNetworkDisabled(true)
