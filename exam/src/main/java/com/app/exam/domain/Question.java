@@ -1,10 +1,15 @@
 package com.app.exam.domain;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,34 +17,42 @@ import java.util.UUID;
 @Table(name = "questions")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Question {
+@SQLDelete(sql = "UPDATE questions SET is_deleted = true WHERE id = ?")
+@SQLRestriction("is_deleted = false")
+public class Question extends BaseEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_id")
-    private Course course;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private QuestionType type;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String question;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb", nullable = false)
-    private List<String> options;
-
-    @Column(name = "correct_answer", length = 255)
-    private String correctAnswer;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String title;
 
     @Column(columnDefinition = "TEXT")
-    private String explanation;
+    private String description;
 
-    private String topic;
-    private String difficulty;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "JSONB")
+    private JsonNode payload;
 
-    @Builder.Default
-    private String source = "FALLBACK";
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Difficulty difficulty;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags", columnDefinition = "text[]")
+    private List<String> tags;
+
+    @Column(name = "default_marks")
+    private BigDecimal defaultMarks;
+
+    @Column(name = "default_neg_mark")
+    private BigDecimal defaultNegMark;
+
+    @Column(name = "is_public")
+    private boolean isPublic = false;
 }

@@ -1,288 +1,219 @@
 package com.app.exam.service;
 
-import com.app.exam.LogMessages;
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
-import com.app.exam.repository.*;
+import com.app.exam.repository.ExamQuestionMappingRepository;
+import com.app.exam.repository.ExamRepository;
+import com.app.exam.repository.ExamSectionRepository;
+import com.app.exam.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class ExamService {
-    private final GeminiService geminiService;
-    private final ExamSessionRepository sessionRepository;
-    private final CourseRepository courseRepository;
+
+    private final ExamRepository examRepository;
+    private final ExamSectionRepository sectionRepository;
+    private final ExamQuestionMappingRepository mappingRepository;
     private final QuestionRepository questionRepository;
-    private final UserAnswerRepository userAnswerRepository;
-    private final ResultRepository resultRepository;
-    private final AdaptiveEngine adaptiveEngine;
-    private final ScoreEngine scoreEngine;
-    private final LevelClassifier levelClassifier;
 
-    private static final int MAX_QUESTIONS = 20;
+    @Transactional
+    public ExamResponse createExam(CreateExamRequest request) {
+        Exam exam = new Exam();
+        exam.setTitle(request.getTitle());
+        exam.setDescription(request.getDescription());
+        exam.setHasSections(request.isHasSections());
+        exam.setTimeLimitMins(request.getTimeLimitMins());
+        exam.setShuffleQuestions(request.isShuffleQuestions());
+        exam.setShuffleOptions(request.isShuffleOptions());
+        exam.setAllowBacktrack(request.isAllowBacktrack());
+        exam.setMaxAttempts(request.getMaxAttempts());
+        exam.setPassMarks(request.getPassMarks());
+        exam.setNegativeMarking(request.isNegativeMarking());
+        exam.setStatus(ExamStatus.DRAFT);
 
-    public ExamSession startExam(UUID userId, StartExamRequest request) {
-        Course course = courseRepository.findById(request.getCourseId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+        return mapToResponse(examRepository.save(exam));
+    }
 
-        ExamSession session = ExamSession.builder()
-                .userId(userId)
-                .course(course)
-                .currentIndex(0)
-                .currentDifficulty("MEDIUM")
-                .streak(0)
-                .status(ExamSession.Status.ACTIVE)
-                .violationCount(0)
-                .build();
+    @Transactional(readOnly = true)
+    public List<ExamSummaryResponse> listExams(UUID createdBy, ExamStatus status) {
+        if (status != null) {
+            return examRepository.findAllByCreatedByAndStatus(createdBy, status).stream()
+                    .map(this::mapToSummary).collect(Collectors.toList());
+        }
+        return examRepository.findAllByCreatedBy(createdBy).stream()
+                .map(this::mapToSummary).collect(Collectors.toList());
+    }
 
-        return sessionRepository.save(session);
+    @Transactional(readOnly = true)
+    public ExamResponse getExam(UUID id) {
+        Exam exam = examRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
+        return mapToFullResponse(exam);
     }
 
     @Transactional
-    public QuestionResponse getCurrentQuestion(UUID sessionId) {
-        ExamSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-
-        if (session.getStatus() != ExamSession.Status.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exam session is not active. Current status: " + session.getStatus());
-        }
-
-        // Update activity timestamp
-        session.setLastActivityAt(LocalDateTime.now());
-        sessionRepository.save(session);
-
-        String difficulty = session.getCurrentDifficulty();
+    public void addSection(UUID examId, String title, String description, int orderIndex) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
         
-        // 1. Try to find an UNUSED question in the DB first (could be GEMINI or FALLBACK)
-        List<Question> questions = questionRepository.findRandomByCourseIdAndDifficultyAndNotUsedInSession(
-                session.getCourse().getId(), difficulty, session.getId(), 1);
-
-        // 2. If none, trigger REAL-TIME generation from Gemini
-        if (questions.isEmpty()) {
-            log.info(LogMessages.NO_UNUSED_QUESTIONS_IN_DB, 
-                    session.getCourse().getName(), difficulty);
-            
-            List<Question> generated = geminiService.generateQuestions(
-                    session.getCourse().getName(), 
-                    List.of(), // Could add topics from session history here
-                    difficulty, 
-                    3 // Generate a small batch
-            );
-
-            if (!generated.isEmpty()) {
-                // Attach course and source=GEMINI, then save
-                generated.forEach(q -> {
-                    q.setId(UUID.randomUUID());
-                    q.setCourse(session.getCourse());
-                    q.setSource("GEMINI");
-                });
-                questionRepository.saveAll(generated);
-                
-                // Pick the first one from the new batch
-                questions = List.of(generated.get(0));
-            }
+        if (!exam.isHasSections()) {
+            throw new RuntimeException("Exam does not support sections");
+        }
+        if (exam.getStatus() != ExamStatus.DRAFT) {
+            throw new RuntimeException("Only DRAFT exams can be modified");
         }
 
-        // 3. Fallback Ladder (If AI failed or DB is empty)
-        if (questions.isEmpty() && !"MEDIUM".equalsIgnoreCase(difficulty)) {
-            log.info(LogMessages.AI_DB_EMPTY_FALLBACK_MEDIUM, difficulty);
-            questions = questionRepository.findRandomByCourseIdAndDifficultyAndNotUsedInSession(
-                    session.getCourse().getId(), "MEDIUM", session.getId(), 1);
-        }
-
-        if (questions.isEmpty()) {
-            log.warn(LogMessages.EMERGENCY_FALLBACK_PICKING_QUESTION, session.getCourse().getId());
-            questions = questionRepository.findRandomByCourseIdAndNotUsedInSession(
-                    session.getCourse().getId(), session.getId(), 1);
-        }
-
-        if (questions.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No questions available for this course. Please contact support.");
-        }
-
-        Question question = questions.get(0);
-
-        return QuestionResponse.builder()
-                .sessionId(session.getId())
-                .questionId(question.getId())
-                .question(question.getQuestion())
-                .options(question.getOptions())
-                .index(session.getCurrentIndex() + 1)
-                .difficulty(question.getDifficulty())
-                .timeLimit(60)
-                .warningMessage(session.getWarningMessage())
-                .build();
+        ExamSection section = new ExamSection();
+        section.setExam(exam);
+        section.setTitle(title);
+        section.setDescription(description);
+        section.setOrderIndex(orderIndex);
+        sectionRepository.save(section);
     }
 
     @Transactional
-    public AnswerResponse submitAnswer(UUID sessionId, AnswerRequest request) {
-        ExamSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+    public void addQuestion(UUID examId, AddQuestionToExamRequest request) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
+        
+        if (exam.getStatus() != ExamStatus.DRAFT) {
+            throw new RuntimeException("Only DRAFT exams can be modified");
+        }
 
-        if (session.getStatus() != ExamSession.Status.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exam session is not active");
+        if (exam.isHasSections() && request.getSectionId() == null) {
+            throw new RuntimeException("Section ID is required for sectioned exams");
+        }
+        if (!exam.isHasSections() && request.getSectionId() != null) {
+            throw new RuntimeException("Section ID must be null for flat exams");
         }
 
         Question question = questionRepository.findById(request.getQuestionId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
+                .orElseThrow(() -> new RuntimeException("Question not found"));
 
-        boolean isCorrect = question.getCorrectAnswer().equalsIgnoreCase(request.getSelectedOption());
-
-        // Update streak
-        if (isCorrect) {
-            session.setStreak(Math.max(1, session.getStreak() + 1));
-        } else {
-            session.setStreak(Math.min(-1, session.getStreak() - 1));
+        ExamQuestionMapping mapping = new ExamQuestionMapping();
+        mapping.setExam(exam);
+        if (request.getSectionId() != null) {
+            ExamSection section = sectionRepository.findById(request.getSectionId())
+                    .orElseThrow(() -> new RuntimeException("Section not found"));
+            mapping.setSection(section);
         }
+        mapping.setQuestion(question);
+        mapping.setOrderIndex(request.getOrderIndex());
+        mapping.setMarks(request.getMarks());
+        mapping.setNegMark(request.getNegMark());
+        mapping.setMandatory(request.isMandatory());
 
-        // Save answer
-        UserAnswer answer = UserAnswer.builder()
-                .session(session)
-                .questionId(question.getId())
-                .selectedOption(request.getSelectedOption())
-                .isCorrect(isCorrect)
-                .timeTaken(request.getTimeTaken())
-                .build();
-        userAnswerRepository.save(answer);
-
-        // Update session
-        session.setLastActivityAt(LocalDateTime.now());
-        session.setCurrentIndex(session.getCurrentIndex() + 1);
-        
-        boolean sessionComplete = session.getCurrentIndex() >= MAX_QUESTIONS;
-        
-        if (sessionComplete) {
-            session.setStatus(ExamSession.Status.COMPLETED);
-            session.setCompletedAt(LocalDateTime.now());
-            calculateAndSaveResult(session);
-        } else {
-            String nextDifficulty = adaptiveEngine.getNextDifficulty(session, isCorrect, false);
-            session.setCurrentDifficulty(nextDifficulty);
-        }
-
-        sessionRepository.save(session);
-
-        return AnswerResponse.builder()
-                .correct(isCorrect)
-                .correctAnswer(question.getCorrectAnswer())
-                .explanation(question.getExplanation())
-                .sessionComplete(sessionComplete)
-                .warningMessage(session.getWarningMessage())
-                .build();
+        mappingRepository.save(mapping);
     }
 
     @Transactional
-    public ExamSession reportViolation(UUID sessionId, ViolationRequest request) {
-        ExamSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-
-        if (session.getStatus() != ExamSession.Status.ACTIVE) {
-            return session;
+    public void publishExam(UUID id) {
+        Exam exam = examRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
+        
+        if (exam.getStatus() != ExamStatus.DRAFT) {
+            throw new RuntimeException("Only DRAFT exams can be published");
         }
 
-        session.setViolationCount(session.getViolationCount() + 1);
-        session.setLastActivityAt(LocalDateTime.now());
+        validateForPublish(exam);
         
-        log.warn(LogMessages.INTEGRITY_VIOLATION_REPORTED, 
-                sessionId, request.getReason(), session.getViolationCount());
+        exam.setStatus(ExamStatus.PUBLISHED);
+        examRepository.save(exam);
+    }
 
-        if (session.getViolationCount() >= 2) {
-            return terminateSession(session, "Multiple integrity violations: " + request.getReason());
+    public void validateForPublish(Exam exam) {
+        long questionCount = mappingRepository.countByExamId(exam.getId());
+        if (questionCount == 0) {
+            throw new RuntimeException("Exam must have at least one question");
         }
 
-        session.setWarningMessage("Warning: Integrity violation detected. Multiple violations will result in exam termination. Reason: " + request.getReason());
-        return sessionRepository.save(session);
-    }
-
-    @Transactional
-    public ExamSession terminateSession(UUID sessionId, String reason) {
-        ExamSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-        return terminateSession(session, reason);
-    }
-
-    private ExamSession terminateSession(ExamSession session, String reason) {
-        if (session.getStatus() != ExamSession.Status.ACTIVE) {
-            return session;
-        }
-
-        log.info(LogMessages.TERMINATING_SESSION_REASON, session.getId(), reason);
-        session.setStatus(ExamSession.Status.TERMINATED);
-        session.setTerminationReason(reason);
-        session.setCompletedAt(LocalDateTime.now());
-        session.setLastActivityAt(LocalDateTime.now());
-        
-        calculateAndSaveResult(session);
-        
-        return sessionRepository.save(session);
-    }
-
-    private void calculateAndSaveResult(ExamSession session) {
-        List<UserAnswer> answers = userAnswerRepository.findBySessionId(session.getId());
-        
-        float rawScore = 0;
-        int maxPossibleRaw = 0;
-        
-        for (UserAnswer ans : answers) {
-            Question q = questionRepository.findById(ans.getQuestionId()).orElse(null);
-            if (q != null) {
-                rawScore += scoreEngine.calculatePoints(q.getDifficulty(), ans.getIsCorrect(), ans.getTimeTaken(), 60);
-                maxPossibleRaw += 4;
+        List<ExamQuestionMapping> mappings = mappingRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId());
+        for (ExamQuestionMapping mapping : mappings) {
+            if (mapping.isMandatory() && (mapping.getMarks() == null || mapping.getMarks().compareTo(BigDecimal.ZERO) <= 0)) {
+                throw new RuntimeException("All mandatory questions must have marks > 0");
+            }
+            if (exam.isNegativeMarking() && mapping.getNegMark() == null) {
+                throw new RuntimeException("Negative marking is enabled, but some questions lack neg_mark");
             }
         }
 
-        // Handle case with no answers
-        if (maxPossibleRaw == 0) maxPossibleRaw = 1;
-        
-        float normalizedScore = (rawScore / maxPossibleRaw) * 100;
-        String level = levelClassifier.classify(normalizedScore);
-        
-        ExamResult result = ExamResult.builder()
-                .session(session)
-                .userId(session.getUserId())
-                .course(session.getCourse())
-                .level(level)
-                .rawScore(rawScore)
-                .normalizedScore(normalizedScore)
-                .createdAt(LocalDateTime.now())
-                .build();
-        
-        resultRepository.save(result);
+        if (exam.isHasSections()) {
+            List<ExamSection> sections = sectionRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId());
+            for (ExamSection section : sections) {
+                if (mappingRepository.countBySectionId(section.getId()) == 0) {
+                    throw new RuntimeException("Section '" + section.getTitle() + "' must have at least one question");
+                }
+            }
+        }
     }
 
-    public ExamResultResponse getResult(UUID sessionId) {
-        ExamSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-        
-        if (session.getStatus() == ExamSession.Status.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exam is still in progress. Complete the exam to see results.");
+    private ExamResponse mapToResponse(Exam exam) {
+        ExamResponse response = new ExamResponse();
+        response.setId(exam.getId());
+        response.setCreatedBy(exam.getCreatedBy());
+        response.setTitle(exam.getTitle());
+        response.setDescription(exam.getDescription());
+        response.setHasSections(exam.isHasSections());
+        response.setTimeLimitMins(exam.getTimeLimitMins());
+        response.setShuffleQuestions(exam.isShuffleQuestions());
+        response.setShuffleOptions(exam.isShuffleOptions());
+        response.setAllowBacktrack(exam.isAllowBacktrack());
+        response.setMaxAttempts(exam.getMaxAttempts());
+        response.setPassMarks(exam.getPassMarks());
+        response.setNegativeMarking(exam.isNegativeMarking());
+        response.setStatus(exam.getStatus());
+        response.setCreatedAt(exam.getCreatedAt());
+        response.setUpdatedAt(exam.getUpdatedAt());
+        return response;
+    }
+
+    private ExamResponse mapToFullResponse(Exam exam) {
+        ExamResponse response = mapToResponse(exam);
+        if (exam.isHasSections()) {
+            List<ExamSection> sections = sectionRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId());
+            response.setSections(sections.stream().map(s -> {
+                ExamSectionResponse sr = new ExamSectionResponse();
+                sr.setId(s.getId());
+                sr.setTitle(s.getTitle());
+                sr.setDescription(s.getDescription());
+                sr.setOrderIndex(s.getOrderIndex());
+                sr.setQuestions(mappingRepository.findAllBySectionIdOrderByOrderIndexAsc(s.getId())
+                        .stream().map(this::mapToMappingResponse).collect(Collectors.toList()));
+                return sr;
+            }).collect(Collectors.toList()));
+        } else {
+            response.setQuestions(mappingRepository.findAllByExamIdOrderByOrderIndexAsc(exam.getId())
+                    .stream().map(this::mapToMappingResponse).collect(Collectors.toList()));
         }
+        return response;
+    }
 
-        ExamResult result = resultRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found for this session. It might have been abandoned or errored."));
+    private ExamQuestionMappingResponse mapToMappingResponse(ExamQuestionMapping mapping) {
+        ExamQuestionMappingResponse response = new ExamQuestionMappingResponse();
+        response.setId(mapping.getId());
+        response.setQuestionId(mapping.getQuestion().getId());
+        response.setOrderIndex(mapping.getOrderIndex());
+        response.setMarks(mapping.getMarks());
+        response.setNegMark(mapping.getNegMark());
+        response.setMandatory(mapping.isMandatory());
+        // Optionally map question detail here if needed
+        return response;
+    }
 
-        return ExamResultResponse.builder()
-                .sessionId(sessionId)
-                .level(result.getLevel())
-                .rawScore(result.getRawScore())
-                .normalizedScore(result.getNormalizedScore())
-                .topicsStrong(result.getTopicsStrong())
-                .topicsWeak(result.getTopicsWeak())
-                .difficultyBreakdown(result.getDifficultyBreakdown())
-                .status(session.getStatus().name())
-                .terminationReason(session.getTerminationReason())
-                .warningMessage(session.getWarningMessage())
-                .violationCount(session.getViolationCount())
-                .build();
+    private ExamSummaryResponse mapToSummary(Exam exam) {
+        ExamSummaryResponse response = new ExamSummaryResponse();
+        response.setId(exam.getId());
+        response.setCreatedBy(exam.getCreatedBy());
+        response.setTitle(exam.getTitle());
+        response.setStatus(exam.getStatus());
+        return response;
     }
 }

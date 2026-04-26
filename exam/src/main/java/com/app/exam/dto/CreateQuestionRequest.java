@@ -3,26 +3,34 @@ package com.app.exam.dto;
 import com.app.exam.domain.Difficulty;
 import com.app.exam.domain.QuestionType;
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Data
-public class QuestionResponse {
-    private UUID id;
-    private UUID createdBy;
+public class CreateQuestionRequest {
+    @NotNull
     private QuestionType type;
+
+    @NotBlank
     private String title;
+
     private String description;
+
+    @NotNull
     private JsonNode payload;
+
+    @NotNull
     private Difficulty difficulty;
+
     private List<String> tags;
+
     private BigDecimal defaultMarks;
+
     private BigDecimal defaultNegMark;
+
     private boolean isPublic;
-    private OffsetDateTime createdAt;
-    private OffsetDateTime updatedAt;
 }

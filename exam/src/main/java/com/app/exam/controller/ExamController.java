@@ -1,47 +1,55 @@
 package com.app.exam.controller;
 
-import com.app.exam.domain.ExamSession;
+import com.app.exam.domain.ExamStatus;
 import com.app.exam.dto.*;
 import com.app.exam.service.ExamService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/exam")
+@RequestMapping("/api/v1/exams")
 @RequiredArgsConstructor
 public class ExamController {
+
     private final ExamService examService;
 
-    @PostMapping("/start")
-    public ExamSession startExam(@AuthenticationPrincipal UUID userId, @RequestBody StartExamRequest request) {
-        return examService.startExam(userId, request);
+    @PostMapping
+    public ResponseEntity<ExamResponse> createExam(@Valid @RequestBody CreateExamRequest request) {
+        return ResponseEntity.ok(examService.createExam(request));
     }
 
-    @GetMapping("/{sessionId}/question")
-    public QuestionResponse getCurrentQuestion(@PathVariable UUID sessionId) {
-        return examService.getCurrentQuestion(sessionId);
+    @GetMapping
+    public ResponseEntity<List<ExamSummaryResponse>> listExams(@RequestParam(required = false) ExamStatus status) {
+        UUID userId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(examService.listExams(userId, status));
     }
 
-    @PostMapping("/{sessionId}/answer")
-    public AnswerResponse submitAnswer(@PathVariable UUID sessionId, @RequestBody AnswerRequest request) {
-        return examService.submitAnswer(sessionId, request);
+    @GetMapping("/{id}")
+    public ResponseEntity<ExamResponse> getExam(@PathVariable UUID id) {
+        return ResponseEntity.ok(examService.getExam(id));
     }
 
-    @GetMapping("/{sessionId}/result")
-    public ExamResultResponse getResult(@PathVariable UUID sessionId) {
-        return examService.getResult(sessionId);
+    @PostMapping("/{id}/publish")
+    public ResponseEntity<Void> publishExam(@PathVariable UUID id) {
+        examService.publishExam(id);
+        return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{sessionId}/violation")
-    public ExamSession reportViolation(@PathVariable UUID sessionId, @RequestBody ViolationRequest request) {
-        return examService.reportViolation(sessionId, request);
+    @PostMapping("/{id}/sections")
+    public ResponseEntity<Void> addSection(@PathVariable UUID id, @RequestBody ExamSectionRequest request) {
+        examService.addSection(id, request.getTitle(), request.getDescription(), request.getOrderIndex());
+        return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{sessionId}/terminate")
-    public ExamSession terminateSession(@PathVariable UUID sessionId, @RequestBody ViolationRequest request) {
-        return examService.terminateSession(sessionId, request.getReason());
+    @PostMapping("/{id}/questions")
+    public ResponseEntity<Void> addQuestion(@PathVariable UUID id, @Valid @RequestBody AddQuestionToExamRequest request) {
+        examService.addQuestion(id, request);
+        return ResponseEntity.ok().build();
     }
 }

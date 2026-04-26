@@ -30,8 +30,12 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/courses/**").permitAll() // Allow viewing courses
-                .requestMatchers("/ws/**").permitAll() // WebSocket endpoint
+                .requestMatchers("/api/v1/question-bank/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
+                .requestMatchers("/api/v1/exams/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
+                .requestMatchers("/api/v1/evaluations/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
+                .requestMatchers("/api/v1/attempts/**").hasAuthority("STUDENT")
+                .requestMatchers("/api/v1/results/**").hasAuthority("STUDENT")
+                .requestMatchers("/ws/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
