@@ -46,6 +46,7 @@ app:
     private-key: ${JWT_PRIVATE_KEY:}
     public-key: ${JWT_PUBLIC_KEY:}
     expiration-seconds: 3600
+    allow-ephemeral-keys: ${ALLOW_EPHEMERAL_KEYS:false}
   frontend:
     url: ${FRONTEND_URL:http://localhost:5173}
   cookie:
