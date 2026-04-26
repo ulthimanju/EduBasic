@@ -32,7 +32,7 @@ public class StudentAnswer {
     private String rawAnswer;
 
     @Column(name = "evaluation_status", nullable = false)
-    private String evaluationStatus; -- PENDING, AUTO_GRADED, MANUALLY_GRADED
+    private String evaluationStatus; // PENDING, AUTO_GRADED, MANUALLY_GRADED
 
     @Column(name = "marks_obtained")
     private BigDecimal marksObtained;

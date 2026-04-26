@@ -19,7 +19,7 @@ public class StudentAttempt {
     private UUID id;
 
     @Column(name = "student_id", nullable = false)
-    private String studentId;
+    private UUID studentId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id")

@@ -46,10 +46,12 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public Page<QuestionSummaryResponse> listQuestions(QuestionType type, Difficulty difficulty, UUID createdBy, String tag, Pageable pageable) {
-        Specification<Question> spec = Specification.where(QuestionSpecification.hasType(type))
-                .and(QuestionSpecification.hasDifficulty(difficulty))
-                .and(QuestionSpecification.hasCreatedBy(createdBy))
-                .and(QuestionSpecification.hasTag(tag));
+        Specification<Question> spec = Specification.allOf(
+                QuestionSpecification.hasType(type),
+                QuestionSpecification.hasDifficulty(difficulty),
+                QuestionSpecification.hasCreatedBy(createdBy),
+                QuestionSpecification.hasTag(tag)
+        );
         
         return questionRepository.findAll(spec, pageable).map(this::mapToSummary);
     }

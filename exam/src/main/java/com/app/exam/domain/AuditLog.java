@@ -29,7 +29,7 @@ public class AuditLog {
     private String action;
 
     @Column(name = "performed_by")
-    private String performedBy;
+    private UUID performedBy;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "JSONB")
