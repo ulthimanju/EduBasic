@@ -68,7 +68,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         // Persist session tied to RT
         sessionService.createSession(userNode.getId(), rtId, rtExpiresAt);
-        cacheService.cacheJwtValidity(rtId, true);
 
         // Set Refresh Token Cookie
         ResponseCookie cookie = cookieFactory.buildRefreshTokenCookie(refreshToken);

@@ -76,14 +76,12 @@ public class AuthController {
         String newRefreshToken = jwtService.generateRefreshToken(userId, newRtId);
         Instant rtExpiresAt = jwtService.getRefreshExpiryInstant();
         sessionService.createSession(userId, newRtId, rtExpiresAt);
-        cacheService.cacheJwtValidity(newRtId, true);
 
         // 4. Generate new AT
         String atId = UUID.randomUUID().toString();
         java.util.List<String> roles = user.getRoles().stream().map(Enum::name).toList();
         String accessToken = jwtService.generateToken(userId, user.getEmail(), atId, roles);
         sessionService.createSession(userId, atId, jwtService.getExpiryInstant());
-        cacheService.cacheJwtValidity(atId, true);
 
         // 5. Set new RT Cookie
         response.addHeader(HttpHeaders.SET_COOKIE, cookieFactory.buildRefreshTokenCookie(newRefreshToken).toString());
