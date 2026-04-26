@@ -6,12 +6,14 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Date;
 
 /**
@@ -34,8 +36,17 @@ public class JwtService {
     private long refreshExpirationSeconds;
 
     public JwtService(@Value("${app.jwt.private-key:}") String privateKeyStr,
-                      @Value("${app.jwt.public-key:}")  String publicKeyStr) throws Exception {
+                      @Value("${app.jwt.public-key:}")  String publicKeyStr,
+                      Environment env) throws Exception {
+        
+        boolean isProduction = Arrays.asList(env.getActiveProfiles()).contains("prod");
+
         if (privateKeyStr.isEmpty() || publicKeyStr.isEmpty()) {
+            if (isProduction) {
+                log.error("FATAL: JWT RSA keys are missing in production profile!");
+                throw new IllegalStateException("JWT RSA keys must be provided in production.");
+            }
+            log.warn("JWT RSA keys are missing. Generating ephemeral keys for development...");
             log.info("Generating new RSA key pair for JWT signing (RS256)...");
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
@@ -43,7 +54,7 @@ public class JwtService {
             this.privateKey = keyPair.getPrivate();
             this.publicKey  = keyPair.getPublic();
         } else {
-            log.info("Loading RSA keys from environment variables...");
+            log.info("Loading RSA keys from configuration...");
             this.privateKey = loadPrivateKey(privateKeyStr);
             this.publicKey  = loadPublicKey(publicKeyStr);
         }
