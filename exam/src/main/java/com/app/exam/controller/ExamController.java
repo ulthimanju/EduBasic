@@ -3,6 +3,7 @@ package com.app.exam.controller;
 import com.app.exam.domain.ExamStatus;
 import com.app.exam.dto.*;
 import com.app.exam.service.ExamService;
+import io.micrometer.core.annotation.Timed;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ public class ExamController {
     }
 
     @GetMapping
+    @Timed(value = "exam.list", description = "Time taken to list exams")
     public ResponseEntity<List<ExamSummaryResponse>> listExams(@RequestParam(required = false) ExamStatus status) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = (UUID) auth.getPrincipal();
@@ -41,6 +43,7 @@ public class ExamController {
     }
 
     @GetMapping("/{id}")
+    @Timed(value = "exam.get", description = "Time taken to fetch full exam details")
     public ResponseEntity<ExamResponse> getExam(@PathVariable UUID id) {
         return ResponseEntity.ok(examService.getExam(id));
     }

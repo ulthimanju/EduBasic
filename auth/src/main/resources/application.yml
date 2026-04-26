@@ -55,12 +55,15 @@ app:
     admin:
       allowed-emails: ${ADMIN_ALLOWED_EMAILS:}
 
-# ── Actuator ──────────────────────────────────────────────────────────────────
+# ── Actuator & Management ─────────────────────────────────────────────────────
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
   endpoint:
     health:
       show-details: always

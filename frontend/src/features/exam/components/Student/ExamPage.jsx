@@ -67,9 +67,12 @@ const ExamPage = () => {
 
   useEffect(() => {
     const bootstrap = async () => {
+      const start = performance.now();
       try {
         const attempt = await fetchAttempt(attemptId);
         await fetchExam(attempt.examId);
+        const end = performance.now();
+        console.log(`Exam bootstrap took ${(end - start).toFixed(2)}ms`);
       } catch (err) {
         console.error('Failed to bootstrap exam session', err);
         navigate(ROUTES.DASHBOARD);
@@ -94,6 +97,7 @@ const ExamPage = () => {
   const handleSync = useCallback(async (isFullSync = false) => {
     if (!isFullSync && dirtyQuestionIds.size === 0) return;
     
+    const start = performance.now();
     try {
       const deltaAnswers = serializeAnswers(!isFullSync);
       const updatedAttempt = await syncAttempt(attemptId, { version, answers: deltaAnswers });
@@ -101,6 +105,8 @@ const ExamPage = () => {
       if (!isFullSync) {
         setDirtyQuestionIds(new Set());
       }
+      const end = performance.now();
+      console.log(`Autosave (${isFullSync ? 'full' : 'delta'}) took ${(end - start).toFixed(2)}ms`);
     } catch (err) {
       console.error('Autosave failed', err);
     }

@@ -6,6 +6,7 @@ import com.app.exam.dto.CreateQuestionRequest;
 import com.app.exam.dto.QuestionResponse;
 import com.app.exam.dto.QuestionSummaryResponse;
 import com.app.exam.service.QuestionService;
+import io.micrometer.core.annotation.Timed;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,6 +30,7 @@ public class QuestionController {
     }
 
     @GetMapping
+    @Timed(value = "exam.questions.list", description = "Time taken to list questions from question bank")
     public ResponseEntity<Page<QuestionSummaryResponse>> listQuestions(
             @RequestParam(required = false) QuestionType type,
             @RequestParam(required = false) Difficulty difficulty,

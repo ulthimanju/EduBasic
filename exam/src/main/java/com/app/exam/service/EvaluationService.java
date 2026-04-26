@@ -5,6 +5,8 @@ import com.app.exam.dto.SubmitAttemptEvent;
 import com.app.exam.repository.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,6 +32,7 @@ public class EvaluationService {
     private final EvaluationResultRepository resultRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public void evaluateAttempt(UUID attemptId) {
@@ -130,25 +133,30 @@ public class EvaluationService {
     @KafkaListener(topics = "coding-result", groupId = "evaluation-group")
     @Transactional
     public void consumeCodingResult(Map<String, Object> event) {
-        UUID attemptId = UUID.fromString((String) event.get("attemptId"));
-        UUID questionId = UUID.fromString((String) event.get("questionId"));
-        double scorePercent = (double) event.get("scorePercent");
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            UUID attemptId = UUID.fromString((String) event.get("attemptId"));
+            UUID questionId = UUID.fromString((String) event.get("questionId"));
+            double scorePercent = (double) event.get("scorePercent");
 
-        log.info("Received coding result for attempt: {}, question: {}", attemptId, questionId);
+            log.info("Received coding result for attempt: {}, question: {}", attemptId, questionId);
 
-        StudentAnswer answer = answerRepository.findByAttemptIdAndQuestionId(attemptId, questionId)
-                .orElseThrow(() -> new RuntimeException("Answer not found"));
+            StudentAnswer answer = answerRepository.findByAttemptIdAndQuestionId(attemptId, questionId)
+                    .orElseThrow(() -> new RuntimeException("Answer not found"));
 
-        ExamQuestionMapping mapping = mappingRepository.findAllByExamIdOrderByOrderIndexAsc(answer.getAttempt().getExam().getId())
-                .stream().filter(m -> m.getQuestion().getId().equals(questionId)).findFirst().get();
+            ExamQuestionMapping mapping = mappingRepository.findAllByExamIdOrderByOrderIndexAsc(answer.getAttempt().getExam().getId())
+                    .stream().filter(m -> m.getQuestion().getId().equals(questionId)).findFirst().get();
 
-        BigDecimal marks = mapping.getMarks().multiply(BigDecimal.valueOf(scorePercent / 100.0));
-        answer.setMarksObtained(marks);
-        answer.setEvaluationStatus("AUTO_GRADED_CODING");
-        answerRepository.save(answer);
+            BigDecimal marks = mapping.getMarks().multiply(BigDecimal.valueOf(scorePercent / 100.0));
+            answer.setMarksObtained(marks);
+            answer.setEvaluationStatus("AUTO_GRADED_CODING");
+            answerRepository.save(answer);
 
-        // Update overall result
-        updateAttemptFinalStatus(attemptId);
+            // Update overall result
+            updateAttemptFinalStatus(attemptId);
+        } finally {
+            sample.stop(meterRegistry.timer("exam.evaluation.coding.result.time"));
+        }
     }
 
     private void updateAttemptFinalStatus(UUID attemptId) {

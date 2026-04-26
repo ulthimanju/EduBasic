@@ -48,6 +48,15 @@ server:
   error:
     include-message: always
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
 logging:
   level:
     com.app.exam: INFO
