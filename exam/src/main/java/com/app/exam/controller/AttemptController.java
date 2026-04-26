@@ -6,7 +6,6 @@ import com.app.exam.dto.StartAttemptRequest;
 import com.app.exam.dto.SyncAttemptRequest;
 import com.app.exam.service.AttemptService;
 import com.app.exam.service.CertificateService;
-import jakarta.validation.Valid;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

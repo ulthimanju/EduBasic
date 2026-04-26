@@ -107,6 +107,7 @@ public class AttemptService {
 
         // Final flush from Redis to Postgres on submit
         String redisKey = REDIS_PREFIX + attemptId;
+        @SuppressWarnings("unchecked")
         Map<UUID, String> latestAnswers = (Map<UUID, String>) redisTemplate.opsForHash().get(redisKey, "answers");
         if (latestAnswers != null) {
             updateAnswers(attempt, latestAnswers);
@@ -139,6 +140,7 @@ public class AttemptService {
         attemptRepository.findById(attemptId).ifPresent(attempt -> {
             // Final flush from Redis to Postgres on auto-submit
             String redisKey = REDIS_PREFIX + attemptId;
+            @SuppressWarnings("unchecked")
             Map<UUID, String> latestAnswers = (Map<UUID, String>) redisTemplate.opsForHash().get(redisKey, "answers");
             if (latestAnswers != null) {
                 updateAnswers(attempt, latestAnswers);
