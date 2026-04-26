@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     rm -f target/*-sources.jar target/*-javadoc.jar
 
 # ─── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine AS runtime
 
 # Install tini for proper signal handling in containers
 RUN apk add --no-cache tini
