@@ -127,8 +127,44 @@ public class EvaluationService {
     }
 
     private void updateAttemptFinalStatus(UUID attemptId) {
-        // TODO: Recalculate total score and check if all questions are graded
-        // implementation to finalize if no more PENDING_SANDBOX or PENDING_AUTO
+        StudentAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new RuntimeException("Attempt not found"));
+        
+        List<StudentAnswer> answers = answerRepository.findAllByAttemptId(attemptId);
+        
+        boolean hasPendingSandbox = answers.stream()
+                .anyMatch(a -> "PENDING_SANDBOX".equals(a.getEvaluationStatus()));
+        boolean hasPendingManual = answers.stream()
+                .anyMatch(a -> "PENDING_MANUAL".equals(a.getEvaluationStatus()));
+        
+        BigDecimal totalScore = answers.stream()
+                .map(a -> a.getMarksObtained() != null ? a.getMarksObtained() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        EvaluationResult result = resultRepository.findByAttemptId(attemptId)
+                .orElseThrow(() -> new RuntimeException("Evaluation result record missing"));
+        
+        result.setTotalScore(totalScore);
+        if (hasPendingSandbox) {
+            result.setStatus(EvaluationStatus.PENDING_AUTO);
+        } else if (hasPendingManual) {
+            result.setStatus(EvaluationStatus.PENDING_MANUAL);
+        } else {
+            result.setStatus(EvaluationStatus.COMPLETED);
+        }
+        result.setUpdatedAt(OffsetDateTime.now());
+        resultRepository.save(result);
+        
+        attempt.setScore(totalScore);
+        if (result.getStatus() == EvaluationStatus.COMPLETED) {
+            attempt.setStatus(AttemptStatus.EVALUATED);
+            kafkaTemplate.send("evaluation-completed", attemptId.toString(), new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId()));
+        } else if (result.getStatus() == EvaluationStatus.PENDING_MANUAL) {
+            kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), new SubmitAttemptEvent(attemptId, attempt.getStudentId(), attempt.getExam().getId()));
+        }
+        attemptRepository.save(attempt);
+        
+        log.info("Updated final status for attempt: {}. New status: {}, Total Score: {}", attemptId, result.getStatus(), totalScore);
     }
 
     private BigDecimal autoEvaluate(Question question, StudentAnswer answer, BigDecimal maxMarks, BigDecimal negMark) {
