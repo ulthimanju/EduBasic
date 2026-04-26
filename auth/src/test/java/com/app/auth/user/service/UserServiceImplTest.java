@@ -1,12 +1,12 @@
 package com.app.auth.user.service;
 
 import com.app.auth.common.config.AdminProperties;
+import com.app.auth.user.node.AppRole;
 import com.app.auth.user.node.UserNode;
 import com.app.auth.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -14,9 +14,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,8 +26,8 @@ import static org.mockito.Mockito.when;
  *
  * <p>Verifies that:
  * <ul>
- *   <li>New users are created with all fields set correctly</li>
- *   <li>Returning users have email, name, AND lastLogin updated (email drift fix)</li>
+ *   <li>Users are correctly upserted with calculated roles</li>
+ *   <li>Admin promotion/demotion logic works based on config</li>
  * </ul>
  * No Spring context; uses pure Mockito.</p>
  */
@@ -40,62 +41,65 @@ class UserServiceImplTest {
     private UserServiceImpl userService;
 
     private static final String GOOGLE_ID  = "google-sub-123";
-    private static final String EMAIL_OLD  = "old@example.com";
-    private static final String EMAIL_NEW  = "new@example.com";
-    private static final String NAME_NEW   = "Updated Name";
-    private static final String USER_ID    = "internal-uuid-456";
+    private static final String EMAIL      = "user@example.com";
+    private static final String NAME       = "Test User";
 
     @Test
-    @DisplayName("upsertUser — new user: creates node with all fields populated")
-    void upsertUser_newUser_createsWithAllFields() {
+    @DisplayName("upsertUser — new non-admin user: receives STUDENT role")
+    void upsertUser_newStudent_receivesStudentRole() {
         when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
-        when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.empty());
-        when(userRepository.save(any(UserNode.class))).thenAnswer(inv -> inv.getArgument(0));
+        
+        when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
+                .thenAnswer(inv -> UserNode.builder()
+                        .id(inv.getArgument(0))
+                        .googleId(inv.getArgument(1))
+                        .email(inv.getArgument(2))
+                        .name(inv.getArgument(3))
+                        .roles(mapToAppRoles(inv.getArgument(4)))
+                        .createdAt(inv.getArgument(5))
+                        .lastLogin(inv.getArgument(5))
+                        .build());
 
-        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
-        UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL_NEW, NAME_NEW);
-        LocalDateTime after = LocalDateTime.now().plusSeconds(1);
+        UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL, NAME);
 
-        assertThat(result.getGoogleId()).isEqualTo(GOOGLE_ID);
-        assertThat(result.getEmail()).isEqualTo(EMAIL_NEW);
-        assertThat(result.getName()).isEqualTo(NAME_NEW);
-        assertThat(result.getId()).isNotBlank();
-        assertThat(result.getCreatedAt()).isBetween(before, after);
-        assertThat(result.getLastLogin()).isBetween(before, after);
+        assertThat(result.getRoles()).containsExactly(AppRole.STUDENT);
+        verify(userRepository).upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), 
+                argThat(roles -> roles.contains("STUDENT") && roles.size() == 1), any());
     }
 
     @Test
-    @DisplayName("upsertUser — existing user: updates email, name, and lastLogin (email drift fix)")
-    void upsertUser_existingUser_updatesEmailNameAndLastLogin() {
-        UserNode existing = UserNode.builder()
-                .id(USER_ID)
-                .googleId(GOOGLE_ID)
-                .email(EMAIL_OLD)
-                .name("Old Name")
-                .createdAt(LocalDateTime.now().minusDays(10))
-                .lastLogin(LocalDateTime.now().minusDays(1))
-                .build();
+    @DisplayName("upsertUser — admin promotion: receives ADMIN role when email is in config")
+    void upsertUser_adminPromotion_receivesAdminRole() {
+        when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of(EMAIL));
+        
+        when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
+                .thenAnswer(inv -> UserNode.builder()
+                        .roles(mapToAppRoles(inv.getArgument(4)))
+                        .build());
 
+        UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL, NAME);
+
+        assertThat(result.getRoles()).containsExactlyInAnyOrder(AppRole.STUDENT, AppRole.ADMIN);
+    }
+
+    @Test
+    @DisplayName("upsertUser — admin demotion: loses ADMIN role when email is removed from config")
+    void upsertUser_adminDemotion_losesAdminRole() {
+        // config says no admins
         when(adminProperties.getAllowedEmailSet()).thenReturn(Set.of());
-        when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.of(existing));
-        when(userRepository.save(any(UserNode.class))).thenAnswer(inv -> inv.getArgument(0));
+        
+        when(userRepository.upsertUser(anyString(), eq(GOOGLE_ID), eq(EMAIL), eq(NAME), anySet(), any()))
+                .thenAnswer(inv -> UserNode.builder()
+                        .roles(mapToAppRoles(inv.getArgument(4)))
+                        .build());
 
-        ArgumentCaptor<UserNode> captor = ArgumentCaptor.forClass(UserNode.class);
+        UserNode result = userService.upsertUser(GOOGLE_ID, EMAIL, NAME);
 
-        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
-        userService.upsertUser(GOOGLE_ID, EMAIL_NEW, NAME_NEW);
-        LocalDateTime after = LocalDateTime.now().plusSeconds(1);
+        // Should only have STUDENT role even if they were admin before (handled by Cypher update)
+        assertThat(result.getRoles()).containsExactly(AppRole.STUDENT);
+    }
 
-        verify(userRepository).save(captor.capture());
-        UserNode saved = captor.getValue();
-
-        // Email must be updated (core of the email drift fix)
-        assertThat(saved.getEmail()).isEqualTo(EMAIL_NEW);
-        assertThat(saved.getName()).isEqualTo(NAME_NEW);
-        assertThat(saved.getLastLogin()).isBetween(before, after);
-
-        // ID and googleId must not change
-        assertThat(saved.getId()).isEqualTo(USER_ID);
-        assertThat(saved.getGoogleId()).isEqualTo(GOOGLE_ID);
+    private Set<AppRole> mapToAppRoles(Set<String> roles) {
+        return roles.stream().map(AppRole::valueOf).collect(Collectors.toSet());
     }
 }

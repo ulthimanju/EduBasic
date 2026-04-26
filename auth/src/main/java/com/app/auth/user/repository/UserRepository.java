@@ -21,7 +21,7 @@ public interface UserRepository extends Neo4jRepository<UserNode, String> {
     @Query("MERGE (u:User {googleId: $googleId}) " +
            "ON CREATE SET u.id = $id, u.email = $email, u.name = $name, " +
            "              u.roles = $roles, u.createdAt = $now, u.lastLogin = $now " +
-           "ON MATCH SET  u.email = $email, u.name = $name, u.lastLogin = $now " +
+           "ON MATCH SET  u.email = $email, u.name = $name, u.roles = $roles, u.lastLogin = $now " +
            "RETURN u")
     UserNode upsertUser(@Param("id") String id,
                         @Param("googleId") String googleId,
