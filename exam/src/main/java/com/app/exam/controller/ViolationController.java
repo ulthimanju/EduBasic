@@ -5,6 +5,7 @@ import com.app.exam.dto.ViolationRequest;
 import com.app.exam.dto.ViolationResponse;
 import com.app.exam.repository.StudentAttemptRepository;
 import com.app.exam.service.ViolationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,7 +22,7 @@ public class ViolationController {
     private final StudentAttemptRepository attemptRepository;
 
     @PostMapping("/{attemptId}/violations")
-    public ResponseEntity<ViolationResponse> recordViolation(@PathVariable UUID attemptId, @RequestBody ViolationRequest request) {
+    public ResponseEntity<ViolationResponse> recordViolation(@PathVariable UUID attemptId, @Valid @RequestBody ViolationRequest request) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         StudentAttempt attempt = attemptRepository.findById(attemptId)

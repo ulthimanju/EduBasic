@@ -61,7 +61,7 @@ public class ExamController {
     }
 
     @PostMapping("/{id}/sections")
-    public ResponseEntity<Void> addSection(@PathVariable UUID id, @RequestBody ExamSectionRequest request) {
+    public ResponseEntity<Void> addSection(@PathVariable UUID id, @Valid @RequestBody ExamSectionRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID instructorId = (UUID) auth.getPrincipal();
         examService.addSection(id, instructorId, request.getTitle(), request.getDescription(), request.getOrderIndex());

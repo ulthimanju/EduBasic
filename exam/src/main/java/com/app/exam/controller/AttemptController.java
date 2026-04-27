@@ -7,6 +7,7 @@ import com.app.exam.dto.SyncAttemptRequest;
 import com.app.exam.service.AttemptService;
 import com.app.exam.service.CertificateService;
 import io.micrometer.core.annotation.Timed;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,14 +25,14 @@ public class AttemptController {
     private final CertificateService certificateService;
 
     @PostMapping
-    public ResponseEntity<AttemptResponse> startAttempt(@RequestBody StartAttemptRequest request) {
+    public ResponseEntity<AttemptResponse> startAttempt(@Valid @RequestBody StartAttemptRequest request) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return new ResponseEntity<>(attemptService.startAttempt(studentId, request.getExamId()), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}/sync")
     @Timed(value = "exam.attempt.sync", description = "Time taken to sync attempt answers")
-    public ResponseEntity<AttemptResponse> syncAttempt(@PathVariable UUID id, @RequestBody SyncAttemptRequest request) {
+    public ResponseEntity<AttemptResponse> syncAttempt(@PathVariable UUID id, @Valid @RequestBody SyncAttemptRequest request) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(attemptService.syncAttempt(studentId, id, request));
     }

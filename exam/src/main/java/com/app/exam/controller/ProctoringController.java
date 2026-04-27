@@ -5,6 +5,7 @@ import com.app.exam.domain.StudentAttempt;
 import com.app.exam.dto.ProctoringEventRequest;
 import com.app.exam.repository.StudentAttemptRepository;
 import com.app.exam.service.ProctoringService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +27,7 @@ public class ProctoringController {
     private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
 
     @PostMapping("/attempts/{attemptId}/log")
-    public ResponseEntity<Void> logEvent(@PathVariable UUID attemptId, @RequestBody ProctoringEventRequest request) {
+    public ResponseEntity<Void> logEvent(@PathVariable UUID attemptId, @Valid @RequestBody ProctoringEventRequest request) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         // We still do a quick check if the attempt exists and belongs to the student
