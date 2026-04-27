@@ -7,6 +7,7 @@ import QuestionRenderer from './QuestionRenderer';
 import { usePrompt } from '../../../../context/PromptContext';
 import { ROUTES }     from '../../../../constants/appConstants';
 import { useExamLockdown } from '../../../../hooks/useExamLockdown';
+import TerminatedOverlay from './TerminatedOverlay';
 
 const ExamTimer = memo(({ initialSeconds, onTimeUp }) => {
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
@@ -58,14 +59,23 @@ const ExamPage = () => {
   const [answers, setAnswers] = useState({}); // questionId -> answer
   const [dirtyQuestionIds, setDirtyQuestionIds] = useState(new Set());
   const [version, setVersion] = useState(0);
-  const [isTerminated, setIsTerminated] = useState(false);
+  const [isTerminatedInternal, setIsTerminatedInternal] = useState(false);
 
   const syncIntervalRef = useRef(null);
 
-  useExamLockdown(attemptId, !!currentExam && !isTerminated, () => {
-    setIsTerminated(true);
+  const { isTerminated } = useExamLockdown(attemptId, !!currentExam && !isTerminatedInternal, () => {
+    setIsTerminatedInternal(true);
     if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
   });
+
+  useEffect(() => {
+    if (isTerminated) {
+      const timer = setTimeout(() => {
+        navigate(ROUTES.RESULT.replace(':attemptId', attemptId), { replace: true });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isTerminated, attemptId, navigate]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -212,6 +222,7 @@ const ExamPage = () => {
 
   return (
     <div className="exam-layout animate-page-enter" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      {isTerminated && <TerminatedOverlay />}
       <header className="exam-toolbar panel">
         <div className="exam-toolbar__progress">
           <div className="exam-toolbar__headline">

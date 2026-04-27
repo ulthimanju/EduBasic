@@ -75,24 +75,12 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
           setIsTerminated(true);
           if (onAutoSubmit) onAutoSubmit();
 
-          // Freeze UI immediately
-          const overlay = document.createElement('div');
-          overlay.id = 'exam-terminated-overlay';
-          overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:sans-serif;text-align:center;padding:20px;';
-          overlay.innerHTML = '<h1 style="color:#ff4d4f;margin-bottom:16px;">Exam Terminated</h1><p style="font-size:18px;max-width:500px;margin-bottom:24px;">Your exam has been automatically submitted due to multiple security violations. You are being redirected to the results page.</p><div class="spinner"></div>';
-          document.body.appendChild(overlay);
-
           // Force exit fullscreen to allow navigation/seeing browser bars
           if (document.fullscreenElement) {
             document.exitFullscreen().catch(() => {});
           }
 
-          // Delay slightly so user can see the message before redirect
-          setTimeout(() => {
-            navigate(ROUTES.RESULT.replace(':attemptId', attemptId), { replace: true });
-            document.body.removeChild(overlay);
-          }, 3000);
-
+          // Delay slightly so user can see the message before redirect (handled in component now)
         } else {
           openPrompt({
             type: 'message',
@@ -135,4 +123,6 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
       document.body.style.userSelect = 'auto';
     };
   }, [attemptId, isActive, isTerminated, navigate, onAutoSubmit, openPrompt]);
+
+  return { isTerminated };
 };
