@@ -39,10 +39,17 @@ public class ViolationService {
         proctoringLog.setCapturedAt(request.getTimestamp());
         logRepository.save(proctoringLog);
 
-        // Redis Counter
-        String redisKey = VIOLATION_PREFIX + attemptId;
-        Long violationCount = redisTemplate.opsForValue().increment(redisKey);
-        if (violationCount == null) violationCount = 1L;
+        // Redis Counter with Postgres Fallback
+        Long violationCount;
+        try {
+            String redisKey = VIOLATION_PREFIX + attemptId;
+            violationCount = redisTemplate.opsForValue().increment(redisKey);
+            if (violationCount == null) violationCount = 1L;
+        } catch (Exception e) {
+            log.warn("Redis unavailable for violation count, falling back to Postgres for attempt: {}", attemptId);
+            // Fallback: count from DB (which already includes the current log saved above)
+            violationCount = logRepository.countByAttemptId(attemptId);
+        }
 
         int maxViolations = attempt.getExam().getMaxViolations();
         boolean autoSubmitted = false;

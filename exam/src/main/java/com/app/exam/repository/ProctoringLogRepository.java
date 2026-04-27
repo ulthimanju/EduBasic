@@ -11,4 +11,5 @@ import java.util.UUID;
 @Repository
 public interface ProctoringLogRepository extends JpaRepository<ProctoringLog, UUID> {
     Page<ProctoringLog> findAllByAttemptId(UUID attemptId, Pageable pageable);
+    long countByAttemptId(UUID attemptId);
 }
