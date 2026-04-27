@@ -100,9 +100,56 @@ public class ExamIntegrationTest {
     }
 
     @Test
-    @WithMockUser(authorities = "STUDENT")
-    void startAttemptFlow() throws Exception {
-        // This test requires a UUID principal in SecurityContext.
-        // Placeholder for future implementation.
+    @WithMockStudent
+    void fullAttemptAndSubmissionFlow() throws Exception {
+        // 1. Setup - Create a published exam (needs to be done as instructor)
+        // We use a helper or just do it in this test with different mock users if allowed,
+        // or just use repository directly for setup.
+        
+        Exam exam = new Exam();
+        exam.setTitle("Flow Exam");
+        exam.setStatus(ExamStatus.PUBLISHED);
+        exam.setCreatedBy(UUID.randomUUID());
+        exam.setTimeLimitMins(60);
+        exam = examRepository.save(exam);
+
+        UUID examId = exam.getId();
+
+        // 2. Start Attempt
+        StartAttemptRequest startReq = new StartAttemptRequest();
+        startReq.setExamId(examId);
+
+        String attemptJson = mockMvc.perform(post("/api/v1/attempts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(startReq)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        
+        UUID attemptId = UUID.fromString(objectMapper.readTree(attemptJson).get("id").asText());
+
+        // 3. Sync Answer
+        SyncAttemptRequest syncReq = new SyncAttemptRequest();
+        syncReq.setVersion(0);
+        syncReq.setAnswers(java.util.Map.of(UUID.randomUUID(), "Answer text"));
+
+        mockMvc.perform(put("/api/v1/attempts/{id}/sync", attemptId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(syncReq)))
+                .andExpect(status().isOk());
+
+        // 4. Submit
+        mockMvc.perform(post("/api/v1/attempts/{id}/submit", attemptId))
+                .andExpect(status().isNoContent());
+
+        // 5. Verify status
+        mockMvc.perform(get("/api/v1/attempts/{id}", attemptId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUBMITTED"));
     }
+
+    @Autowired
+    private ExamRepository examRepository;
+
+    @Autowired
+    private StudentAttemptRepository attemptRepository;
 }
