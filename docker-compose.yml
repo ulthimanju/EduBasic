@@ -215,6 +215,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       KAFKA_BOOTSTRAP: kafka:9092
       AUTH_JWKS_URI: http://auth-service:8080/api/v1/auth/.well-known/jwks.json
+      EXAM_SERVICE_URL: http://exam-service:8081
     depends_on:
       postgres:
         condition: service_healthy

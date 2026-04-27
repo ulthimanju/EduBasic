@@ -22,7 +22,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.setSessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Management endpoints (Instructor/Admin)
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses", "/api/v1/courses/*/modules", "/api/v1/modules/*/lessons", "/api/v1/courses/*/exams").hasAnyAuthority("INSTRUCTOR", "ADMIN")

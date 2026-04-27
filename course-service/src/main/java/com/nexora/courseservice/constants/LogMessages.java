@@ -9,4 +9,5 @@ public final class LogMessages {
     public static final String EXAM_COMPLETED_RECEIVED = "Exam completed event received for student {} exam {}";
     public static final String COMPLETION_CHECK_TRIGGERED = "Completion check triggered for student {} course {}";
     public static final String COURSE_COMPLETED        = "Course completed for student {} course {}";
+    public static final String EXAM_SERVICE_UNREACHABLE  = "Exam service unreachable for examId: {}";
 }

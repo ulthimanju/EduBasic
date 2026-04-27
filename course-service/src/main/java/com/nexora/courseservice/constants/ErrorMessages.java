@@ -10,4 +10,7 @@ public final class ErrorMessages {
     public static final String COURSE_NOT_PUBLISHED    = "Course is not published";
     public static final String UNAUTHORIZED_ACCESS     = "You do not have access to this resource";
     public static final String INVALID_STATUS_TRANSITION = "Invalid status transition";
+    public static final String EXAM_NOT_FOUND            = "Exam not found in exam-service";
+    public static final String EXAM_SERVICE_UNAVAILABLE  = "Exam service is currently unavailable";
+    public static final String EXAM_NOT_PUBLISHED        = "Linked exam is not published";
 }
