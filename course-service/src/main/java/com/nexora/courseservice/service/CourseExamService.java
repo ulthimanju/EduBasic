@@ -5,7 +5,9 @@ import com.nexora.courseservice.dto.request.LinkExamRequest;
 import com.nexora.courseservice.dto.response.CourseExamResponse;
 import com.nexora.courseservice.entity.Course;
 import com.nexora.courseservice.entity.CourseExam;
+import com.nexora.courseservice.entity.EnrollmentStatus;
 import com.nexora.courseservice.exception.CourseServiceException;
+import com.nexora.courseservice.repository.CourseEnrollmentRepository;
 import com.nexora.courseservice.repository.CourseExamRepository;
 import com.nexora.courseservice.repository.CourseRepository;
 import com.nexora.courseservice.security.ExamServiceClient;
@@ -26,6 +28,7 @@ public class CourseExamService {
 
     private final CourseExamRepository courseExamRepository;
     private final CourseRepository courseRepository;
+    private final CourseEnrollmentRepository enrollmentRepository;
     private final ExamServiceClient examServiceClient;
 
     @Transactional
@@ -62,7 +65,19 @@ public class CourseExamService {
     }
 
     @Transactional(readOnly = true)
-    public List<CourseExamResponse> listExams(UUID courseId) {
+    public List<CourseExamResponse> listExams(UUID courseId, UUID requesterId) {
+        Course course = courseRepository.findByIdAndIsDeletedFalse(courseId)
+                .orElseThrow(() -> new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND));
+
+        boolean isInstructor = course.getCreatedBy().equals(requesterId);
+        boolean isEnrolled = enrollmentRepository.findByCourseIdAndStudentId(courseId, requesterId)
+                .map(e -> e.getStatus() == EnrollmentStatus.ACTIVE || e.getStatus() == EnrollmentStatus.COMPLETED)
+                .orElse(false);
+
+        if (!isInstructor && !isEnrolled) {
+            throw new CourseServiceException("You must be enrolled to view course exams", "NOT_ENROLLED", HttpStatus.FORBIDDEN);
+        }
+
         return courseExamRepository.findByCourseIdOrderByOrderIndex(courseId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());

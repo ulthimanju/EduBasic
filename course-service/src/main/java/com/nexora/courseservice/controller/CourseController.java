@@ -108,7 +108,10 @@ public class CourseController {
     }
 
     @GetMapping("/{courseId}/exams")
-    public ResponseEntity<List<CourseExamResponse>> listExams(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(courseExamService.listExams(courseId));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<CourseExamResponse>> listExams(
+            @PathVariable UUID courseId,
+            @AuthenticationPrincipal UUID requesterId) {
+        return ResponseEntity.ok(courseExamService.listExams(courseId, requesterId));
     }
 }
