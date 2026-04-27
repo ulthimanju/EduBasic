@@ -151,9 +151,6 @@ public class DockerExecutor {
             ExecResult runResult = runExec(containerId, runCmd, timeLimitMs);
             long executionTime = System.currentTimeMillis() - start;
 
-            if (runResult.timedOut) {
-                return Map.of("testCaseId", testCaseId, "status", "TIME_LIMIT_EXCEEDED", "executionTimeMs", (int)executionTime, "isHidden", isHidden);
-            }
             if (runResult.exitCode != 0) {
                 return Map.of("testCaseId", testCaseId, "status", "RUNTIME_ERROR", "actualOutput", runResult.stderr, "executionTimeMs", (int)executionTime, "isHidden", isHidden);
             }
@@ -164,6 +161,15 @@ public class DockerExecutor {
                 "testCaseId", testCaseId,
                 "status", passed ? "PASSED" : "FAILED",
                 "actualOutput", output,
+                "executionTimeMs", (int)executionTime,
+                "isHidden", isHidden
+            );
+        } catch (java.util.concurrent.TimeoutException e) {
+            long executionTime = System.currentTimeMillis() - start;
+            log.warn("Test case {} timed out after {}ms", testCaseId, executionTime);
+            return Map.of(
+                "testCaseId", testCaseId,
+                "status", "TIME_LIMIT_EXCEEDED",
                 "executionTimeMs", (int)executionTime,
                 "isHidden", isHidden
             );
@@ -196,14 +202,21 @@ public class DockerExecutor {
         
         boolean finished = callback.awaitCompletion(timeoutMs, TimeUnit.MILLISECONDS);
         
+        if (!finished) {
+            try {
+                callback.close();
+            } catch (Exception e) {
+                log.warn("Failed to close callback after timeout");
+            }
+            throw new java.util.concurrent.TimeoutException("Execution timed out after " + timeoutMs + "ms");
+        }
+        
         ExecResult result = new ExecResult();
-        result.timedOut = !finished;
+        result.timedOut = false;
         result.stdout = stdout.toString(StandardCharsets.UTF_8);
         result.stderr = stderr.toString(StandardCharsets.UTF_8);
+        result.exitCode = dockerClient.inspectExecCmd(execCreate.getId()).exec().getExitCodeLong().intValue();
         
-        if (finished) {
-            result.exitCode = dockerClient.inspectExecCmd(execCreate.getId()).exec().getExitCodeLong().intValue();
-        }
         return result;
     }
 
