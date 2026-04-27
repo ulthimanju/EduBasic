@@ -1,8 +1,8 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import useCurrentUser from '../hooks/useCurrentUser';
-import useAuthStore from '../store/authStore';
-import ErrorMessage from '../../../components/ui/ErrorMessage/ErrorMessage';
+import useAuthStore from '../../../stores/authStore';
+import ErrorBanner from '../../../components/common/ErrorBanner/ErrorBanner';
 import { ROUTES } from '../../../constants/appConstants';
 
 /**
@@ -38,7 +38,7 @@ export default function PublicOnlyRoute() {
     return (
       <div className="public-error-wrapper page-enter" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '2rem' }}>
         <div className="panel" style={{ width: '100%', maxWidth: '400px', marginBottom: '1rem' }}>
-          <ErrorMessage message="Failed to check session status." />
+          <ErrorBanner message="Failed to check session status." />
           <button 
             className="btn btn-secondary" 
             style={{ marginTop: '1rem' }} 

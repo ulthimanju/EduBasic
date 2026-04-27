@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { getCurrentUser } from '../services/authService';
-import useAuthStore from '../store/authStore';
+import useAuthStore from '../../../stores/authStore';
 
 let inFlightPromise = null;
 

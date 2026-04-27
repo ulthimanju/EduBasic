@@ -2,7 +2,7 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, Bot } from 'lucide-react';
 import { API_BASE_URL } from '../../../config/runtimeConfig';
-import ErrorMessage from '../../../components/ui/ErrorMessage/ErrorMessage';
+import ErrorBanner from '../../../components/common/ErrorBanner/ErrorBanner';
 
 /**
  * LoginPage — displays the Google OAuth login button.
@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   const googleAuthUrl = `${API_BASE_URL}/oauth2/authorization/google`;
 
-  const getErrorMessage = (code) => {
+  const getErrorBanner = (code) => {
     switch (code) {
       case 'email_conflict':
         return 'This email is already associated with a different Google account.';
@@ -44,7 +44,7 @@ export default function LoginPage() {
 
         {errorParam && (
           <div className="login-error-container">
-            <ErrorMessage message={getErrorMessage(errorParam)} />
+            <ErrorBanner message={getErrorBanner(errorParam)} />
           </div>
         )}
 

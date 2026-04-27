@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useExamStore from '../../store/examStore';
 import examApi from '../../../../services/examApi';
 import { Trophy, Home, AlertCircle, FileCheck } from 'lucide-react';
-import Spinner from '../../../../components/ui/Spinner/Spinner';
+import Spinner from '../../../../components/common/Spinner/Spinner';
 import { ROUTES } from '../../../../constants/appConstants';
 
 const ResultPage = () => {

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from '
 import { useParams, useNavigate } from 'react-router-dom';
 import useExamStore from '../../store/examStore';
 import { Clock, ChevronLeft, ChevronRight, Save, Send, ShieldAlert, List } from 'lucide-react';
-import Spinner from '../../../../components/ui/Spinner/Spinner';
+import Spinner from '../../../../components/common/Spinner/Spinner';
 import QuestionRenderer from './QuestionRenderer';
 import { usePrompt } from '../../../../context/PromptContext';
 import { ROUTES }     from '../../../../constants/appConstants';

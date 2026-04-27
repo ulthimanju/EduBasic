@@ -1,4 +1,4 @@
-import apiClient from '../../../services/apiClient';
+import apiClient from '../../../api/client';
 import { API_PATHS } from '../../../constants/appConstants';
 
 /**

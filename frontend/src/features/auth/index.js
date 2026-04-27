@@ -4,5 +4,5 @@
  */
 export { default as useCurrentUser } from './hooks/useCurrentUser';
 export { default as useLogout }      from './hooks/useLogout';
-export { default as useAuthStore }   from './store/authStore';
+export { default as useAuthStore }   from '../../stores/authStore';
 export { getCurrentUser, logout }    from './services/authService';

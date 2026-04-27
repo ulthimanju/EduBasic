@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import examApi from '../../../services/examApi';
+import examApi from '../../../api/exam';
 
 const useExamStore = create((set, get) => ({
   questions: [],
