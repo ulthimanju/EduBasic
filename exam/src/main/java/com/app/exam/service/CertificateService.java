@@ -2,6 +2,7 @@ package com.app.exam.service;
 
 import com.app.exam.domain.Certificate;
 import com.app.exam.domain.StudentAttempt;
+import com.app.exam.dto.CertificateResponse;
 import com.app.exam.repository.CertificateRepository;
 import com.app.exam.repository.StudentAttemptRepository;
 import lombok.RequiredArgsConstructor;
@@ -108,8 +109,19 @@ public class CertificateService {
         }
     }
 
-    public Certificate getCertificate(UUID attemptId) {
-        return certificateRepository.findByAttemptId(attemptId)
+    public CertificateResponse getCertificate(UUID studentId, UUID attemptId) {
+        Certificate certificate = certificateRepository.findByAttemptId(attemptId)
                 .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        if (!certificate.getAttempt().getStudentId().equals(studentId)) {
+            throw new RuntimeException("Unauthorized: Attempt does not belong to student");
+        }
+
+        return CertificateResponse.builder()
+                .id(certificate.getId())
+                .attemptId(certificate.getAttempt().getId())
+                .certificateUrl(certificate.getCertificateUrl())
+                .issuedAt(certificate.getIssuedAt())
+                .build();
     }
 }

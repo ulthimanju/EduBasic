@@ -1,7 +1,7 @@
 package com.app.exam.controller;
 
-import com.app.exam.domain.Certificate;
 import com.app.exam.dto.AttemptResponse;
+import com.app.exam.dto.CertificateResponse;
 import com.app.exam.dto.StartAttemptRequest;
 import com.app.exam.dto.SyncAttemptRequest;
 import com.app.exam.service.AttemptService;
@@ -49,7 +49,8 @@ public class AttemptController {
     }
 
     @GetMapping("/{id}/certificate")
-    public ResponseEntity<Certificate> getCertificate(@PathVariable UUID id) {
-        return ResponseEntity.ok(certificateService.getCertificate(id));
+    public ResponseEntity<CertificateResponse> getCertificate(@PathVariable UUID id) {
+        UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(certificateService.getCertificate(studentId, id));
     }
 }
