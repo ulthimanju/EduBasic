@@ -10,6 +10,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -142,10 +144,27 @@ public class AttemptService {
         // Clear Redis Session
         redisTemplate.delete(REDIS_PREFIX + attempt.getId());
 
-        // Publish to Kafka
+        // Publish to Kafka after transaction commit
         SubmitAttemptEvent event = new SubmitAttemptEvent(attempt.getId(), attempt.getStudentId(), attempt.getExam().getId());
-        kafkaTemplate.send("exam-submitted", attempt.getId().toString(), event);
-        log.info("Published submission event for attempt: {}", attempt.getId());
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publishSubmitEvent(attempt.getId(), event);
+                }
+            });
+        } else {
+            publishSubmitEvent(attempt.getId(), event);
+        }
+    }
+
+    private void publishSubmitEvent(UUID attemptId, SubmitAttemptEvent event) {
+        try {
+            kafkaTemplate.send("exam-submitted", attemptId.toString(), event);
+            log.info("Published submission event for attempt: {}", attemptId);
+        } catch (Exception e) {
+            log.error("Failed to publish submission event for attempt: {} to topic: exam-submitted", attemptId, e);
+        }
     }
 
     @Transactional
