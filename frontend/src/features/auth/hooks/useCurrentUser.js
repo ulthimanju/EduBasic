@@ -14,19 +14,43 @@ export default function useAuthBootstrap() {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        // Attempt to get user info / refresh token from secure cookie session
-        const { data } = await axios.get(`${API_BASE_URL}/api/v1/me`, { withCredentials: true });
-        if (data) {
-          setAuth({
-            accessToken: data.accessToken,
-            userId: data.id,
-            email: data.email,
-            roles: data.roles || []
+        // 1. Exchange the refresh token (in cookie) for a new access token
+        // Use axios directly to avoid interceptors and control headers precisely
+        const refreshRes = await axios.post(
+          `${API_BASE_URL}/api/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
+        const { accessToken } = refreshRes.data;
+
+        if (accessToken) {
+          // 2. Use the new access token to fetch user profile
+          const userRes = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
           });
+
+          // API response format is { success: boolean, data: UserDTO, message: string }
+          const userData = userRes.data.data;
+
+          if (userData) {
+            setAuth({
+              accessToken,
+              userId: userData.id,
+              email: userData.email,
+              roles: userData.roles || []
+            });
+          } else {
+            clearAuth();
+          }
         } else {
           clearAuth();
         }
       } catch (err) {
+        // Only log if it's not a 401 (which just means no active session)
+        if (err.response?.status !== 401) {
+          console.error('Auth bootstrap failed:', err.message);
+        }
         clearAuth();
       } finally {
         setIsInitializing(false);

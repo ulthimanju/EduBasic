@@ -1,4 +1,4 @@
-import apiClient from '../../../api/client';
+import { authClient } from '../../../api/client';
 import { API_PATHS } from '../../../constants/appConstants';
 
 /**
@@ -11,7 +11,7 @@ import { API_PATHS } from '../../../constants/appConstants';
  * @returns {Promise<{id: string, email: string, name: string}>}
  */
 export async function getCurrentUser() {
-  const response = await apiClient.get(API_PATHS.ME);
+  const response = await authClient.get(API_PATHS.ME);
   return response.data.data;
 }
 
@@ -21,7 +21,7 @@ export async function getCurrentUser() {
  * @returns {Promise<{accessToken: string, expiresIn: number}>}
  */
 export async function refresh() {
-  const response = await apiClient.post('/api/auth/refresh');
+  const response = await authClient.post('/api/auth/refresh');
   return response.data;
 }
 
@@ -31,5 +31,5 @@ export async function refresh() {
  * @returns {Promise<void>}
  */
 export async function logout() {
-  await apiClient.post(API_PATHS.LOGOUT);
+  await authClient.post(API_PATHS.LOGOUT);
 }

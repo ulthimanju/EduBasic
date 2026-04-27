@@ -15,7 +15,7 @@ import { ROUTES } from '../../../constants/appConstants';
  * @returns {{ logout: () => Promise<void>, isLoading: boolean, error: Error|null }}
  */
 export default function useLogout() {
-  const { clear }     = useAuthStore();
+  const clearAuth     = useAuthStore(s => s.clearAuth);
   const navigate      = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState(null);
@@ -25,7 +25,7 @@ export default function useLogout() {
     setError(null);
     try {
       await logoutService();
-      clear();
+      clearAuth();
       navigate(ROUTES.LOGIN, { replace: true });
     } catch (err) {
       // Do not clear state — the session may still be active server-side
