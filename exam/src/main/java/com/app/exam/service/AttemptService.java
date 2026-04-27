@@ -94,7 +94,11 @@ public class AttemptService {
 
         // Update Redis cache (Source of truth for frequent autosaves)
         String redisKey = REDIS_PREFIX + attemptId;
-        redisTemplate.opsForHash().put(redisKey, "answers", request.getAnswers());
+        try {
+            redisTemplate.opsForHash().put(redisKey, "answers", request.getAnswers());
+        } catch (Exception e) {
+            log.warn("Failed to update Redis cache for attempt: {}. Error: {}", attemptId, e.getMessage());
+        }
         
         // Persist to Postgres on every sync to prevent data loss
         updateAnswers(attempt, request.getAnswers());
@@ -114,17 +118,7 @@ public class AttemptService {
         }
 
         // Final flush from Redis to Postgres on submit
-        String redisKey = REDIS_PREFIX + attemptId;
-        Object rawAnswers = redisTemplate.opsForHash().get(redisKey, "answers");
-        if (rawAnswers instanceof Map<?, ?> rawMap) {
-            Map<UUID, String> latestAnswers = rawMap.entrySet().stream()
-                .filter(e -> e.getKey() != null && e.getValue() != null)
-                .collect(Collectors.toMap(
-                    e -> UUID.fromString(e.getKey().toString()),
-                    e -> e.getValue().toString()
-                ));
-            updateAnswers(attempt, latestAnswers);
-        }
+        flushRedisToPostgres(attempt);
 
         submitAttemptInternal(attempt);
     }
@@ -140,7 +134,12 @@ public class AttemptService {
         attemptRepository.save(attempt);
 
         // Clear Redis Session
-        redisTemplate.delete(REDIS_PREFIX + attempt.getId());
+        String redisKey = REDIS_PREFIX + attempt.getId();
+        try {
+            redisTemplate.delete(redisKey);
+        } catch (Exception e) {
+            log.warn("Failed to delete Redis session for attempt: {}. Error: {}", attempt.getId(), e.getMessage());
+        }
 
         // Publish to Kafka after transaction commit
         SubmitAttemptEvent event = new SubmitAttemptEvent(attempt.getId(), attempt.getStudentId(), attempt.getExam().getId());
@@ -169,7 +168,14 @@ public class AttemptService {
     public void autoSubmitAttempt(UUID attemptId) {
         attemptRepository.findById(attemptId).ifPresent(attempt -> {
             // Final flush from Redis to Postgres on auto-submit
-            String redisKey = REDIS_PREFIX + attemptId;
+            flushRedisToPostgres(attempt);
+            submitAttemptInternal(attempt);
+        });
+    }
+
+    private void flushRedisToPostgres(StudentAttempt attempt) {
+        String redisKey = REDIS_PREFIX + attempt.getId();
+        try {
             Object rawAnswers = redisTemplate.opsForHash().get(redisKey, "answers");
             if (rawAnswers instanceof Map<?, ?> rawMap) {
                 Map<UUID, String> latestAnswers = rawMap.entrySet().stream()
@@ -180,8 +186,10 @@ public class AttemptService {
                     ));
                 updateAnswers(attempt, latestAnswers);
             }
-            submitAttemptInternal(attempt);
-        });
+        } catch (Exception e) {
+            log.warn("Failed to flush Redis cache to Postgres for attempt: {}. Proceeding with current Postgres data. Error: {}", 
+                    attempt.getId(), e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -205,11 +213,15 @@ public class AttemptService {
                 "version", 0,
                 "answers", new HashMap<UUID, String>()
         );
-        redisTemplate.opsForHash().putAll(redisKey, sessionData);
-        
-        // TTL: exam duration + 15-minute grace period
-        if (exam.getTimeLimitMins() != null) {
-            redisTemplate.expire(redisKey, Duration.ofMinutes(exam.getTimeLimitMins() + 15));
+        try {
+            redisTemplate.opsForHash().putAll(redisKey, sessionData);
+            
+            // TTL: exam duration + 15-minute grace period
+            if (exam.getTimeLimitMins() != null) {
+                redisTemplate.expire(redisKey, Duration.ofMinutes(exam.getTimeLimitMins() + 15));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to initialize Redis session for attempt: {}. Error: {}", attempt.getId(), e.getMessage());
         }
     }
 
