@@ -1,1 +1,80 @@
-.container {}
+.navbar {
+  width: 240px;
+  height: 100vh;
+  background: var(--color-white);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6) 0;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+}
+.brand {
+  padding: 0 var(--space-6) var(--space-8);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.brandName {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+.navLinks {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.sectionLabel {
+  padding: 0 var(--space-6) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+}
+.link, .active {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+}
+.link {
+  color: var(--color-text-secondary);
+}
+.link:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-primary);
+}
+.active {
+  background: rgba(201, 100, 66, 0.08);
+  color: var(--color-primary);
+  border-right: 4px solid var(--color-primary);
+}
+.footer {
+  padding: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+.logoutBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  transition: color var(--transition-fast);
+}
+.logoutBtn:hover {
+  color: var(--color-error);
+}

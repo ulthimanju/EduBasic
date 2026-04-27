@@ -1,161 +1,88 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen, GraduationCap, Layers3, Sparkles, Clock, FileText } from 'lucide-react';
-import examApi from '../../api/exam';
-import Spinner from '../../components/common/Spinner/Spinner';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useCatalog } from '../../hooks/useCatalog';
+import CatalogCourseCard from '../../components/catalog/CatalogCourseCard/CatalogCourseCard';
+import CatalogSearchBar from '../../components/catalog/CatalogSearchBar/CatalogSearchBar';
+import SkeletonCard from '../../components/common/SkeletonCard/SkeletonCard';
 import ErrorBanner from '../../components/common/ErrorBanner/ErrorBanner';
-import { ROUTES } from '../../constants/appConstants';
+import Navbar from '../../components/layout/Navbar/Navbar';
+import styles from './CourseCatalogPage.module.css';
 
-const CourseCatalogPage = () => {
-  const [exams, setExams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
-  const [actionError, setActionError] = useState(null);
-  const [startingExamId, setStartingExamId] = useState(null);
-  const navigate = useNavigate();
+export default function CourseCatalogPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
+  const page = parseInt(searchParams.get('page') || '0', 10);
+  const size = 12;
 
+  const { data, isLoading, isError, refetch } = useCatalog({ keyword, page, size });
+
+  // Handle keyword change with debounce would be better, but keeping it simple for now
   useEffect(() => {
-    const fetchExams = async () => {
-      try {
-        const response = await examApi.getExams({ status: 'PUBLISHED' });
-        setExams(response.data);
-      } catch (err) {
-        setLoadError('Failed to load available exams');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchExams();
-  }, []);
+    const timer = setTimeout(() => {
+      setSearchParams(prev => {
+        if (keyword) prev.set('keyword', keyword);
+        else prev.delete('keyword');
+        prev.set('page', '0');
+        return prev;
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [keyword, setSearchParams]);
 
-  const summary = useMemo(() => {
-    return {
-      totalExams: exams.length,
-      sectioned: exams.filter(e => e.hasSections).length,
-      flat: exams.filter(e => !e.hasSections).length,
-    };
-  }, [exams]);
-
-  const handleStartExam = async (examId) => {
-    setActionError(null);
-    setStartingExamId(examId);
-
-    try {
-      const response = await examApi.startAttempt(examId);
-      navigate(ROUTES.EXAM.replace(':attemptId', response.data.id));
-    } catch (err) {
-      setActionError('Failed to start exam attempt. Please try again.');
-      setStartingExamId(null);
-    }
+  const setPage = (newPage) => {
+    setSearchParams(prev => {
+      prev.set('page', newPage.toString());
+      return prev;
+    });
   };
 
-  if (loading) return <Spinner />;
-  if (loadError) return <ErrorBanner message={loadError} />;
-
   return (
-    <section className="dashboard dashboard--wide course-select page-enter">
-      <header className="course-select__hero panel">
-        <div className="course-select__hero-main">
-          <div className="course-select__eyebrow">
-            <div className="login-logo" aria-hidden="true">
-              <GraduationCap size={20} />
-            </div>
-            <span>Academic Portal</span>
-          </div>
+    <div className={styles.container}>
+      <Navbar />
+      <main className={styles.main}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>Course Catalog</h1>
+          <CatalogSearchBar value={keyword} onChange={setKeyword} />
+        </header>
 
-          <div className="course-select__headline">
-            <h1 className="dashboard-hero__greeting">Available Assessments</h1>
-            <p className="dashboard-hero__subtitle">
-              Choose an exam to begin. Your progress is saved automatically during the session.
-            </p>
+        {isError && (
+          <div className={styles.errorWrapper}>
+            <ErrorBanner message="Failed to load courses. Please try again." onRetry={refetch} />
           </div>
+        )}
 
-          <div className="course-select__highlights">
-            <div className="course-select__highlight">
-              <Sparkles size={16} />
-              <span>Real-time proctoring</span>
-            </div>
-            <div className="course-select__highlight">
-              <Clock size={16} />
-              <span>Timed sessions</span>
-            </div>
-          </div>
+        <div className={styles.grid}>
+          {isLoading ? (
+            Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            data?.content?.map(course => (
+              <CatalogCourseCard key={course.id} course={course} />
+            ))
+          )}
         </div>
 
-        <aside className="course-select__hero-panel">
-          <p className="course-select__panel-label">Session Overview</p>
-          <div className="course-select__stats">
-            <div className="course-select__stat">
-              <span className="course-select__stat-value">{summary.totalExams}</span>
-              <span className="course-select__stat-label">Exams</span>
-            </div>
-            <div className="course-select__stat">
-              <span className="course-select__stat-value">{summary.sectioned}</span>
-              <span className="course-select__stat-label">Sectioned</span>
-            </div>
+        {data && data.totalPages > 1 && (
+          <div className={styles.pagination}>
+            <button 
+              onClick={() => setPage(page - 1)} 
+              disabled={page === 0}
+              className={styles.pageBtn}
+            >
+              Previous
+            </button>
+            <span className={styles.pageInfo}>
+              Page {page + 1} of {data.totalPages}
+            </span>
+            <button 
+              onClick={() => setPage(page + 1)} 
+              disabled={page >= data.totalPages - 1}
+              className={styles.pageBtn}
+            >
+              Next
+            </button>
           </div>
-        </aside>
-      </header>
-
-      {actionError && <ErrorBanner message={actionError} />}
-
-      {exams.length === 0 ? (
-        <section className="empty-state panel">
-          <FileText className="empty-state__icon" />
-          <h2 className="empty-state__title">No active exams</h2>
-          <p className="empty-state__text">
-            There are currently no published exams available for you to take.
-          </p>
-        </section>
-      ) : (
-        <section className="course-select__grid">
-          {exams.map((exam, index) => {
-            const isStarting = startingExamId === exam.id;
-
-            return (
-              <article key={exam.id} className="course-card panel">
-                <div className="course-card__eyebrow">
-                  <span className="course-card__badge">EXAM {index + 1}</span>
-                  <span className="course-card__meta">{exam.hasSections ? 'Sectioned' : 'Flat'}</span>
-                </div>
-
-                <div className="course-card__header">
-                  <div className="dashboard-card__icon">
-                    <BookOpen size={18} strokeWidth={1.5} />
-                  </div>
-
-                  <div className="course-card__heading">
-                    <h2 className="dashboard-card__title">{exam.title}</h2>
-                    <p className="course-card__description">
-                      {exam.description || 'No description provided.'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="course-card__footer">
-                  <div style={{ display: 'flex', gap: 'var(--space-4)', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                      <Clock size={14} />
-                      <span>{exam.timeLimitMins || 'No limit'} mins</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleStartExam(exam.id)}
-                    className="btn btn-primary course-card__action"
-                    disabled={startingExamId !== null}
-                  >
-                    <span>{isStarting ? 'Starting...' : 'Begin Assessment'}</span>
-                    <ArrowRight size={16} strokeWidth={1.75} />
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      )}
-    </section>
+        )}
+      </main>
+    </div>
   );
-};
-
-export default CourseCatalogPage;
+}

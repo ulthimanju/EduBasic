@@ -183,6 +183,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
         VITE_EXAM_API_BASE_URL: ${VITE_EXAM_API_BASE_URL:-http://localhost:8081}
+        VITE_COURSE_SERVICE_URL: ${VITE_COURSE_SERVICE_URL:-http://localhost:8083}
     container_name: edubasic-frontend
     <<: *common-config
     ports:

@@ -1,102 +1,280 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import useExamStore from '../../features/exam/store/examStore';
-import { Plus, Layout, Clock, CheckCircle, FileText, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  useCourseDetail, 
+  useCreateCourse, 
+  useUpdateCourse, 
+  useAddModule, 
+  useDeleteModule,
+  useAddLesson,
+  useDeleteLesson,
+  useLinkExam,
+  useUnlinkExam,
+  usePublishCourse
+} from '../../hooks/useInstructor';
+import useUiStore from '../../stores/uiStore';
+import Navbar from '../../components/layout/Navbar/Navbar';
+import ModuleCard from '../../components/instructor/ModuleCard/ModuleCard';
+import LinkExamModal from '../../components/instructor/LinkExamModal/LinkExamModal';
 import Spinner from '../../components/common/Spinner/Spinner';
-import { ROUTES } from '../../constants/appConstants';
+import ErrorBanner from '../../components/common/ErrorBanner/ErrorBanner';
+import { Save, Send, Plus, ClipboardList, Trash2, ExternalLink } from 'lucide-react';
+import styles from './CourseBuilderPage.module.css';
 
-const CourseBuilderPage = () => {
+export default function CourseBuilderPage() {
+  const { courseId } = useParams();
   const navigate = useNavigate();
-  const { exams, fetchExams, isLoading } = useExamStore();
-  const [filter, setFilter] = useState({ status: '' });
+  const isNew = !courseId;
+
+  const { data: course, isLoading, isError } = useCourseDetail(courseId);
+  const createMutation = useCreateCourse();
+  const updateMutation = useUpdateCourse(courseId);
+  const addModuleMutation = useAddModule(courseId);
+  const linkExamMutation = useLinkExam(courseId);
+  const unlinkExamMutation = useUnlinkExam(courseId);
+  const publishMutation = usePublishCourse();
+
+  const openConfirmModal = useUiStore(s => s.openConfirmModal);
+  const closeConfirmModal = useUiStore(s => s.closeConfirmModal);
+
+  const [metadata, setMetadata] = useState({
+    title: '',
+    description: '',
+    thumbnailUrl: '',
+    requireAllLessons: true,
+    requireAllExams: true,
+    minPassPercentage: 70
+  });
+
+  const [showExamModal, setShowExamModal] = useState(false);
 
   useEffect(() => {
-    fetchExams(filter);
-  }, [filter]);
+    if (course) {
+      setMetadata({
+        title: course.title || '',
+        description: course.description || '',
+        thumbnailUrl: course.thumbnailUrl || '',
+        requireAllLessons: course.completionRules?.requireAllLessons ?? true,
+        requireAllExams: course.completionRules?.requireAllExams ?? true,
+        minPassPercentage: course.completionRules?.minPassPercentage ?? 70
+      });
+    }
+  }, [course]);
+
+  const handleSaveMetadata = async () => {
+    try {
+      if (isNew) {
+        const newCourse = await createMutation.mutateAsync(metadata);
+        navigate(`/instructor/courses/${newCourse.id}`, { replace: true });
+      } else {
+        await updateMutation.mutateAsync(metadata);
+      }
+    } catch (err) {
+      console.error('Failed to save metadata', err);
+    }
+  };
+
+  const handleAddModule = () => {
+    const title = prompt('Enter module title:');
+    if (title) {
+      addModuleMutation.mutate({ title, orderIndex: (course?.modules?.length || 0) });
+    }
+  };
+
+  const handleLinkExam = (data) => {
+    linkExamMutation.mutate(data, {
+      onSuccess: () => setShowExamModal(false)
+    });
+  };
+
+  const handleUnlinkExam = (examId, title) => {
+    openConfirmModal({
+      title: 'Unlink Exam',
+      message: `Are you sure you want to remove "${title}" from this course?`,
+      confirmLabel: 'Remove',
+      isDangerous: true,
+      onConfirm: async () => {
+        await unlinkExamMutation.mutateAsync(examId);
+        closeConfirmModal();
+      },
+      onCancel: closeConfirmModal
+    });
+  };
+
+  if (isLoading && !isNew) return <div className={styles.loading}><Spinner size="lg" /></div>;
+  if (isError) return <ErrorBanner message="Failed to load course details" />;
 
   return (
-    <div className="dashboard dashboard--wide animate-page-enter">
-      <header className="dashboard-hero panel">
-        <div className="dashboard-hero__content">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 className="dashboard-hero__greeting">Exam Builder</h1>
-              <p className="dashboard-hero__subtitle">Create and manage your exams, configure rules, and map questions.</p>
+    <div className={styles.container}>
+      <Navbar />
+      <div className={styles.layout}>
+        {/* Left Panel: Metadata */}
+        <aside className={`${styles.panel} ${styles.leftPanel}`}>
+          <h2 className={styles.panelTitle}>Course Details</h2>
+          <div className={styles.formGroup}>
+            <label>Title</label>
+            <input 
+              type="text" 
+              value={metadata.title} 
+              onChange={e => setMetadata(m => ({ ...m, title: e.target.value }))}
+              placeholder="e.g. Advanced Java Patterns"
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Description</label>
+            <textarea 
+              value={metadata.description} 
+              onChange={e => setMetadata(m => ({ ...m, description: e.target.value }))}
+              placeholder="What will students learn?"
+              rows={4}
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Thumbnail URL</label>
+            <input 
+              type="text" 
+              value={metadata.thumbnailUrl} 
+              onChange={e => setMetadata(m => ({ ...m, thumbnailUrl: e.target.value }))}
+              placeholder="https://..."
+            />
+            {metadata.thumbnailUrl && (
+              <img src={metadata.thumbnailUrl} alt="Preview" className={styles.thumbPreview} />
+            )}
+          </div>
+
+          <div className={styles.rulesSection}>
+            <h3 className={styles.subTitle}>Completion Rules</h3>
+            <label className={styles.checkboxLabel}>
+              <input 
+                type="checkbox" 
+                checked={metadata.requireAllLessons}
+                onChange={e => setMetadata(m => ({ ...m, requireAllLessons: e.target.checked }))}
+              />
+              Require all lessons
+            </label>
+            <label className={styles.checkboxLabel}>
+              <input 
+                type="checkbox" 
+                checked={metadata.requireAllExams}
+                onChange={e => setMetadata(m => ({ ...m, requireAllExams: e.target.checked }))}
+              />
+              Require all exams
+            </label>
+            <div className={styles.formGroupInline}>
+              <label>Min Pass %</label>
+              <input 
+                type="number" 
+                value={metadata.minPassPercentage}
+                onChange={e => setMetadata(m => ({ ...m, minPassPercentage: parseInt(e.target.value) }))}
+                min="0" max="100"
+              />
             </div>
-            <button className="btn btn-primary">
-              <Plus size={18} />
-              <span>New Exam</span>
+          </div>
+
+          <div className={styles.metadataActions}>
+            <button 
+              className={styles.saveBtn} 
+              onClick={handleSaveMetadata}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              <Save size={18} />
+              {isNew ? 'Create Course' : 'Save Changes'}
+            </button>
+            {!isNew && (
+              <button 
+                className={styles.publishBtn} 
+                onClick={() => publishMutation.mutate(courseId)}
+                disabled={publishMutation.isPending || course.status === 'PUBLISHED'}
+              >
+                <Send size={18} />
+                Publish
+              </button>
+            )}
+            {publishMutation.isError && (
+              <div className={styles.inlineError}>
+                ⚠ {publishMutation.error?.response?.data?.message || 'Publish failed'}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Center Panel: Module Builder */}
+        <main className={`${styles.panel} ${styles.centerPanel}`}>
+          <div className={styles.panelHeader}>
+            <h2 className={styles.panelTitle}>Curriculum</h2>
+            <button className={styles.addBtn} onClick={handleAddModule} disabled={isNew}>
+              <Plus size={18} /> Add Module
             </button>
           </div>
-        </div>
-      </header>
 
-      <section className="panel" style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'center', padding: 'var(--space-3)' }}>
-        <Layout size={18} style={{ marginLeft: '12px', color: 'var(--color-text-muted)' }} />
-        <span style={{ fontWeight: 500, fontSize: 'var(--text-sm)' }}>Filter by Status:</span>
-        <select 
-          name="status" 
-          value={filter.status} 
-          onChange={(e) => setFilter({ status: e.target.value })} 
-          style={{ width: '160px' }}
-        >
-          <option value="">All Status</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="ARCHIVED">Archived</option>
-        </select>
-      </section>
-
-      {isLoading ? (
-        <div style={{ display: 'grid', placeItems: 'center', height: '200px' }}>
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <div className="dashboard-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
-          {exams.length === 0 ? (
-            <div className="empty-state">
-              <FileText className="empty-state__icon" />
-              <h3 className="empty-state__title">No exams created</h3>
-              <p className="empty-state__text">Start by creating your first exam draft.</p>
+          {isNew ? (
+            <div className={styles.emptyCurriculum}>
+              Save the course metadata first to start building the curriculum.
             </div>
           ) : (
-            exams.map(exam => (
-              <div 
-                key={exam.id} 
-                className="panel course-card" 
-                onClick={() => navigate(ROUTES.EXAM_DETAIL.replace(':examId', exam.id))}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="course-card__eyebrow">
-                  <span className={`course-card__badge ${exam.status.toLowerCase()}`}>{exam.status}</span>
-                  <span className="course-card__meta">
-                    {exam.hasSections ? 'Sectioned' : 'Flat List'}
-                  </span>
+            <div className={styles.moduleList}>
+              {course.modules?.map((module, idx) => (
+                <ModuleCard 
+                  key={module.id} 
+                  module={module} 
+                  courseId={courseId} 
+                  isFirst={idx === 0}
+                  isLast={idx === (course.modules.length - 1)}
+                />
+              ))}
+              {course.modules?.length === 0 && (
+                <div className={styles.emptyState}>No modules added yet.</div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* Right Panel: Exam Linker */}
+        <aside className={`${styles.panel} ${styles.rightPanel}`}>
+          <div className={styles.panelHeader}>
+            <h2 className={styles.panelTitle}>Linked Exams</h2>
+            <button 
+              className={styles.iconBtn} 
+              onClick={() => setShowExamModal(true)}
+              disabled={isNew}
+              title="Link Exam"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+
+          <div className={styles.examList}>
+            {course?.exams?.map(exam => (
+              <div key={exam.id} className={styles.examItem}>
+                <div className={styles.examInfo}>
+                  <ClipboardList size={16} />
+                  <span className={styles.examTitle}>{exam.title}</span>
                 </div>
-                <div className="course-card__heading">
-                  <h3 className="course-card__title">{exam.title}</h3>
+                <div className={styles.examBadges}>
+                  {exam.required && <span className={styles.badge}>Required</span>}
+                  <span className={styles.badge}>{exam.minPassPercentage}% pass</span>
                 </div>
-                <div className="course-card__footer">
-                  <div style={{ display: 'flex', gap: 'var(--space-4)', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                      <Clock size={14} />
-                      <span>{exam.timeLimitMins || 'No limit'} mins</span>
-                    </div>
-                    {exam.passMarks && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                        <CheckCircle size={14} />
-                        <span>Pass: {exam.passMarks}</span>
-                      </div>
-                    )}
-                  </div>
+                <div className={styles.examActions}>
+                  <button onClick={() => handleUnlinkExam(exam.id, exam.title)} className={styles.unlinkBtn}>
+                    <Trash2 size={14} /> Unlink
+                  </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+            {!isNew && course?.exams?.length === 0 && (
+              <div className={styles.emptyStateSmall}>No exams linked.</div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {showExamModal && (
+        <LinkExamModal 
+          onClose={() => setShowExamModal(false)} 
+          onSave={handleLinkExam}
+          isPending={linkExamMutation.isPending}
+        />
       )}
     </div>
   );
-};
-
-export default CourseBuilderPage;
+}

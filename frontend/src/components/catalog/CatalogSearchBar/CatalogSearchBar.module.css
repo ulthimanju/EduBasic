@@ -1,1 +1,25 @@
-.container {}
+.container {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+}
+.icon {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+}
+.input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-12);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(201, 100, 66, 0.1);
+}

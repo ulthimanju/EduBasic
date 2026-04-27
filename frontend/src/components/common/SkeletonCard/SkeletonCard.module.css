@@ -1,1 +1,20 @@
-.container {}
+.card {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+.pulse {
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, var(--color-border) 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.thumb  { height: 140px; border-radius: var(--radius-md); margin-bottom: var(--space-4); }
+.title  { height: 20px; width: 75%; margin-bottom: var(--space-2); }
+.sub    { height: 14px; width: 50%; margin-bottom: var(--space-4); }
+.footer { height: 14px; width: 40%; }

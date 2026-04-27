@@ -1,108 +1,75 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Bot, LayoutDashboard, LogOut, Monitor, MoonStar, SunMedium, UserCircle2, BookOpen } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { 
+  BookOpen, 
+  LayoutDashboard, 
+  LogOut, 
+  GraduationCap, 
+  Database, 
+  ClipboardList,
+  PlusCircle
+} from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
-import useLogout from '../../../features/auth/hooks/useLogout';
-import { ROUTES } from '../../../constants/appConstants';
+import styles from './Navbar.module.css';
 
-/**
- * Left navigation sidebar with account section.
- */
-export default function Navbar({ themeMode, effectiveTheme, onThemeModeChange }) {
-  const { user, isAuthenticated } = useAuthStore();
-  const { logout, isLoading }     = useLogout();
+export default function Navbar() {
+  const { isInstructor, clearAuth } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate('/login');
+  };
 
   return (
-    <aside className="sidebar" role="navigation" aria-label="Primary">
-      <div className="sidebar__brand">
-        <Bot size={18} strokeWidth={1.5} />
-        <span>Auth Console</span>
+    <nav className={styles.navbar}>
+      <div className={styles.brand}>
+        <GraduationCap size={24} color="var(--color-primary)" />
+        <span className={styles.brandName}>EduBasic</span>
       </div>
 
-      <div className="divider" />
+      <div className={styles.navLinks}>
+        <div className={styles.section}>
+          <span className={styles.sectionLabel}>Student</span>
+          <NavLink to="/courses" className={({ isActive }) => isActive ? styles.active : styles.link}>
+            <BookOpen size={18} />
+            <span>Courses</span>
+          </NavLink>
+          <NavLink to="/my-courses" className={({ isActive }) => isActive ? styles.active : styles.link}>
+            <LayoutDashboard size={18} />
+            <span>My Learning</span>
+          </NavLink>
+          <NavLink to="/assessments" className={({ isActive }) => isActive ? styles.active : styles.link}>
+            <ClipboardList size={18} />
+            <span>Assessments</span>
+          </NavLink>
+        </div>
 
-      <div className="sidebar__section-title">Workspace</div>
-      <nav className="sidebar__nav" aria-label="Navigation links">
-        <NavLink
-          to={ROUTES.DASHBOARD}
-          className={({ isActive }) => `sidebar__item ${isActive ? 'is-active' : ''}`}
-        >
-          <LayoutDashboard size={18} strokeWidth={1.5} />
-          <span>Dashboard</span>
-        </NavLink>
-
-        <NavLink
-          to={ROUTES.COURSES}
-          className={({ isActive }) => `sidebar__item ${isActive ? 'is-active' : ''}`}
-        >
-          <BookOpen size={18} strokeWidth={1.5} />
-          <span>Exams</span>
-        </NavLink>
-      </nav>
-
-      <div className="sidebar__theme-group" role="group" aria-label="Theme mode">
-        <button
-          className={`sidebar__theme-item ${themeMode === 'system' ? 'is-active' : ''}`}
-          type="button"
-          onClick={() => onThemeModeChange('system')}
-          aria-pressed={themeMode === 'system'}
-        >
-          <Monitor size={18} strokeWidth={1.5} />
-          <span>System</span>
-          <span className="sidebar__theme-note">{effectiveTheme}</span>
-        </button>
-
-        <button
-          className={`sidebar__theme-item ${themeMode === 'dark' ? 'is-active' : ''}`}
-          type="button"
-          onClick={() => onThemeModeChange('dark')}
-          aria-pressed={themeMode === 'dark'}
-        >
-          <MoonStar size={18} strokeWidth={1.5} />
-          <span>Dark</span>
-        </button>
-
-        <button
-          className={`sidebar__theme-item ${themeMode === 'light' ? 'is-active' : ''}`}
-          type="button"
-          onClick={() => onThemeModeChange('light')}
-          aria-pressed={themeMode === 'light'}
-        >
-          <SunMedium size={18} strokeWidth={1.5} />
-          <span>Light</span>
-        </button>
-      </div>
-
-      <div className="sidebar__spacer" />
-
-      {isAuthenticated && user ? (
-        <div className="sidebar__account">
-          <div className="sidebar__userline">
-            <div className="sidebar__avatar" aria-hidden="true">
-              {user.name?.[0]?.toUpperCase() ?? '?'}
-            </div>
-            <div>
-              <div className="sidebar__username">{user.name}</div>
-              <div className="sidebar__useremail">{user.email}</div>
-            </div>
+        {isInstructor() && (
+          <div className={styles.section}>
+            <span className={styles.sectionLabel}>Instructor</span>
+            <NavLink to="/instructor/courses" className={({ isActive }) => isActive ? styles.active : styles.link}>
+              <PlusCircle size={18} />
+              <span>My Courses</span>
+            </NavLink>
+            <NavLink to="/instructor/question-bank" className={({ isActive }) => isActive ? styles.active : styles.link}>
+              <Database size={18} />
+              <span>Question Bank</span>
+            </NavLink>
+            <NavLink to="/instructor/exams" className={({ isActive }) => isActive ? styles.active : styles.link}>
+              <ClipboardList size={18} />
+              <span>Exams</span>
+            </NavLink>
           </div>
+        )}
+      </div>
 
-          <button
-            className="btn btn-secondary"
-            onClick={logout}
-            disabled={isLoading}
-            aria-label="Sign out"
-          >
-            <LogOut size={16} strokeWidth={1.5} />
-            {isLoading ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
-      ) : (
-        <div className="sidebar__account sidebar__account--empty">
-          <UserCircle2 size={18} strokeWidth={1.5} />
-          <span>Not signed in</span>
-        </div>
-      )}
-    </aside>
+      <div className={styles.footer}>
+        <button onClick={handleLogout} className={styles.logoutBtn}>
+          <LogOut size={18} />
+          <span>Logout</span>
+        </button>
+      </div>
+    </nav>
   );
 }

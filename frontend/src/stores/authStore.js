@@ -1,33 +1,23 @@
 import { create } from 'zustand';
 
-const getResolvedAuthState = (user, accessToken) => (
-  user
-    ? { user, accessToken, isAuthenticated: true, authStatus: 'authenticated', authError: null }
-    : { user: null, accessToken: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }
-);
-
-/**
- * Zustand store for authentication state.
- */
-const useAuthStore = create((set) => ({
-  user: null,
+const useAuthStore = create((set, get) => ({
   accessToken: null,
-  isAuthenticated: false,
-  authStatus: 'idle',
-  authError: null,
+  userId: null,
+  email: null,
+  roles: [],
 
-  startBootstrap: () => set({ authStatus: 'loading', authError: null }),
-  
-  setAuth: (user, accessToken) => set(getResolvedAuthState(user, accessToken)),
-  
-  resolveAuthenticated: (user) => set(getResolvedAuthState(user, null)),
-  resolveAnonymous: () => set({ user: null, accessToken: null, isAuthenticated: false, authStatus: 'anonymous', authError: null }),
-  resolveError: (error) => set({ authStatus: 'error', authError: error }),
+  setAuth: ({ accessToken, userId, email, roles }) =>
+    set({ accessToken, userId, email, roles }),
 
-  setUser: (user) => set((state) => getResolvedAuthState(user, state.accessToken)),
-  setAccessToken: (token) => set((state) => getResolvedAuthState(state.user, token)),
+  clearAuth: () =>
+    set({ accessToken: null, userId: null, email: null, roles: [] }),
 
-  clear: () => set({ user: null, accessToken: null, isAuthenticated: false, authStatus: 'idle', authError: null }),
+  getAccessToken: () => get().accessToken,
+
+  hasRole: (role) => get().roles.includes(role),
+
+  isInstructor: () =>
+    get().roles.includes('INSTRUCTOR') || get().roles.includes('ADMIN'),
 }));
 
 export default useAuthStore;

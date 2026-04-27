@@ -1,1 +1,184 @@
-.container {}
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 260px;
+  gap: var(--space-6);
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.panel {
+  overflow-y: auto;
+  padding: var(--space-6);
+  background: var(--color-white);
+  border-right: 1px solid var(--color-border);
+}
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+.panelTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+}
+.subTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-4);
+}
+
+.formGroup {
+  margin-bottom: var(--space-4);
+}
+.formGroup label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.formGroup input, .formGroup textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.thumbPreview {
+  margin-top: var(--space-2);
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.rulesSection {
+  margin: var(--space-8) 0;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+}
+.formGroupInline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.formGroupInline input {
+  width: 60px;
+}
+
+.metadataActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.saveBtn, .publishBtn {
+  width: 100%;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.saveBtn { background: var(--color-surface-alt); color: var(--color-text-primary); }
+.publishBtn { background: var(--color-primary); color: var(--color-white); }
+.publishBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.addBtn {
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.moduleList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.emptyCurriculum, .emptyState {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.examList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.examItem {
+  padding: var(--space-4);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-md);
+}
+.examInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-2);
+}
+.examBadges {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.badge {
+  font-size: var(--font-size-xs);
+  padding: 1px 6px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+}
+.unlinkBtn {
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.emptyStateSmall {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-4);
+}
+.inlineError {
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+  padding: var(--space-2);
+  background: var(--color-error-bg);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 1024px) {
+  .layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .panel { border-right: none; border-bottom: 1px solid var(--color-border); height: auto; }
+}

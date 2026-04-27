@@ -1,59 +1,40 @@
-import { useEffect } from 'react';
-import { getCurrentUser } from '../services/authService';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 import useAuthStore from '../../../stores/authStore';
-
-let inFlightPromise = null;
+import { API_BASE_URL } from '../../../config/runtimeConfig';
 
 /**
- * Hook that resolves the current authenticated user.
- *
- * Uses module-scoped promise to deduplicate simultaneous bootstrap calls.
- *
- * @returns {{ user, isAuthenticated, isLoading, error, authStatus, retry }}
+ * Hook to bootstrap auth state on app load.
  */
-export default function useCurrentUser() {
-  const { 
-    user, isAuthenticated, authStatus, authError,
-    startBootstrap, resolveAuthenticated, resolveAnonymous, resolveError
-  } = useAuthStore();
-
-  const loadUser = async () => {
-    startBootstrap();
-    try {
-      const fetchedUser = await getCurrentUser();
-      if (fetchedUser) {
-        resolveAuthenticated(fetchedUser);
-      } else {
-        resolveAnonymous();
-      }
-    } catch (err) {
-      if (err.response?.status === 401) {
-        resolveAnonymous();
-      } else {
-        resolveError(err);
-      }
-    } finally {
-      inFlightPromise = null;
-    }
-  };
-
-  const executeBootstrap = () => {
-    const currentState = useAuthStore.getState();
-    if (!inFlightPromise && currentState.authStatus === 'idle') {
-      inFlightPromise = loadUser();
-    }
-  };
+export default function useAuthBootstrap() {
+  const [isInitializing, setIsInitializing] = useState(true);
+  const setAuth = useAuthStore(s => s.setAuth);
+  const clearAuth = useAuthStore(s => s.clearAuth);
 
   useEffect(() => {
-    executeBootstrap();
-  }, []);
+    const bootstrap = async () => {
+      try {
+        // Attempt to get user info / refresh token from secure cookie session
+        const { data } = await axios.get(`${API_BASE_URL}/api/v1/me`, { withCredentials: true });
+        if (data) {
+          setAuth({
+            accessToken: data.accessToken,
+            userId: data.id,
+            email: data.email,
+            roles: data.roles || []
+          });
+        } else {
+          clearAuth();
+        }
+      } catch (err) {
+        clearAuth();
+      } finally {
+        setIsInitializing(false);
+      }
+    };
 
-  const retry = () => {
-    inFlightPromise = null;
-    inFlightPromise = loadUser();
-  };
+    bootstrap();
+  }, [setAuth, clearAuth]);
 
-  const isLoading = authStatus === 'idle' || authStatus === 'loading';
-
-  return { user, isAuthenticated, isLoading, error: authError, authStatus, retry };
+  return { isInitializing };
 }

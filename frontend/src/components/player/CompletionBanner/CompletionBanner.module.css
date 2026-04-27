@@ -1,1 +1,32 @@
-.container {}
+.banner {
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: var(--font-weight-semibold);
+  animation: slideDown 0.3s ease;
+  margin-bottom: var(--space-6);
+}
+.message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.link {
+  background: var(--color-white);
+  color: var(--color-primary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  transition: opacity var(--transition-fast);
+}
+.link:hover {
+  opacity: 0.9;
+}
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}

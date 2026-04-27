@@ -1,16 +1,17 @@
 import React from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import styles from './ErrorBanner.module.css';
 
-/**
- * Inline error message for API / hook error states.
- *
- * @param {{ message?: string }} props
- */
-export default function ErrorBanner({ message = 'Something went wrong.' }) {
+export default function ErrorBanner({ message, onRetry }) {
   return (
-    <div className="error-message" role="alert" aria-live="polite">
-      <AlertCircle className="error-message__icon" size={16} strokeWidth={1.5} aria-hidden="true" />
-      <span>{message}</span>
+    <div className={styles.banner}>
+      <AlertCircle size={18} />
+      <span>{message ?? 'Something went wrong'}</span>
+      {onRetry && (
+        <button className={styles.retry} onClick={onRetry}>
+          <RefreshCw size={14} /> Retry
+        </button>
+      )}
     </div>
   );
 }

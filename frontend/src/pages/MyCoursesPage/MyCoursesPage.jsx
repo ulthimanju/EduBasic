@@ -1,70 +1,108 @@
-import React from 'react';
-import { Navigate, Link } from 'react-router-dom';
-import { UserRound, Database, Layout, PenTool } from 'lucide-react';
-import useAuthStore from '../../stores/authStore';
-import { ROUTES } from '../../constants/appConstants';
-import { DASHBOARD_CONTENT } from '../../content/pageContent';
-import { getUserFirstName } from '../../utils/viewModels';
+import React, { useState, useMemo } from 'react';
+import { useMyCourses } from '../../hooks/useEnrollment';
+import Navbar from '../../components/layout/Navbar/Navbar';
+import SkeletonCard from '../../components/common/SkeletonCard/SkeletonCard';
+import ErrorBanner from '../../components/common/ErrorBanner/ErrorBanner';
+import ProgressBar from '../../components/common/ProgressBar/ProgressBar';
+import StatusBadge from '../../components/common/StatusBadge/StatusBadge';
+import { Link } from 'react-router-dom';
+import styles from './MyCoursesPage.module.css';
 
-/**
- * MyCoursesPage — the main authenticated landing page.
- * Shows a welcome card with the user's profile.
- */
 export default function MyCoursesPage() {
-  const { user } = useAuthStore();
+  const [filter, setFilter] = useState('all');
+  const { data: courses, isLoading, isError, refetch } = useMyCourses();
 
-  if (!user) {
-    return <Navigate to={ROUTES.LOGIN} replace />;
-  }
+  const filtered = useMemo(() => {
+    if (!courses) return [];
+    return courses.filter((c) => {
+      if (filter === 'in_progress') return c.enrollmentStatus === 'ACTIVE' && c.overallProgressPercent < 100;
+      if (filter === 'completed')   return c.enrollmentStatus === 'COMPLETED' || c.overallProgressPercent === 100;
+      return c.enrollmentStatus !== 'DROPPED';
+    });
+  }, [courses, filter]);
 
   return (
-    <section className="dashboard page-enter">
-      <section className="dashboard-hero panel">
-        <div className="dashboard-hero__content">
-          <h1 className="dashboard-hero__greeting">
-            {DASHBOARD_CONTENT.GREETING} {getUserFirstName(user.name, DASHBOARD_CONTENT.GREETING_FALLBACK)}
-          </h1>
-          <p className="dashboard-hero__subtitle">
-            {DASHBOARD_CONTENT.SIGNED_IN_AS} <span className="dashboard-hero__email">{user.email}</span>
-          </p>
-        </div>
-      </section>
-
-      <section className="dashboard-cards">
-        {(user.roles?.includes('INSTRUCTOR') || user.roles?.includes('ADMIN')) && (
-          <article className="dashboard-card panel">
-            <div className="dashboard-card__icon" aria-hidden="true">
-              <PenTool size={18} strokeWidth={1.5} />
-            </div>
-            <h2 className="dashboard-card__title">Instructor Tools</h2>
-            <div style={{ display: 'grid', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-              <Link to={ROUTES.QUESTION_BANK} className="sidebar__item">
-                <Database size={18} />
-                <span>Question Bank</span>
-              </Link>
-              <Link to={ROUTES.EXAM_BUILDER} className="sidebar__item">
-                <Layout size={18} />
-                <span>Exam Builder</span>
-              </Link>
-            </div>
-          </article>
-        )}
-
-        <article className="dashboard-card panel">
-          <div className="dashboard-card__icon" aria-hidden="true">
-            <UserRound size={18} strokeWidth={1.5} />
+    <div className={styles.container}>
+      <Navbar />
+      <main className={styles.main}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>My Learning</h1>
+          <div className={styles.tabs}>
+            <button 
+              className={`${styles.tab} ${filter === 'all' ? styles.activeTab : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All Courses
+            </button>
+            <button 
+              className={`${styles.tab} ${filter === 'in_progress' ? styles.activeTab : ''}`}
+              onClick={() => setFilter('in_progress')}
+            >
+              In Progress
+            </button>
+            <button 
+              className={`${styles.tab} ${filter === 'completed' ? styles.activeTab : ''}`}
+              onClick={() => setFilter('completed')}
+            >
+              Completed
+            </button>
           </div>
-          <h2 className="dashboard-card__title">{DASHBOARD_CONTENT.PROFILE_TITLE}</h2>
-          <dl className="profile-list">
-            <dt>{DASHBOARD_CONTENT.PROFILE_LABELS.NAME}</dt>
-            <dd id="profile-name">{user.name}</dd>
-            <dt>{DASHBOARD_CONTENT.PROFILE_LABELS.EMAIL}</dt>
-            <dd id="profile-email">{user.email}</dd>
-            <dt>{DASHBOARD_CONTENT.PROFILE_LABELS.ID}</dt>
-            <dd id="profile-id" className="profile-id">{user.id}</dd>
-          </dl>
-        </article>
-      </section>
-    </section>
+        </header>
+
+        {isError && <ErrorBanner onRetry={refetch} />}
+
+        <div className={styles.grid}>
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            filtered.map(course => (
+              <MyCourseSummaryCard key={course.id} course={course} />
+            ))
+          )}
+          {!isLoading && filtered.length === 0 && (
+            <div className={styles.empty}>
+              <p>No courses found in this category.</p>
+              <Link to="/courses" className={styles.browseBtn}>Browse Catalog</Link>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function MyCourseSummaryCard({ course }) {
+  const { id, title, thumbnailUrl, overallProgressPercent, completedLessons, totalLessons, passedExams, totalRequiredExams, enrollmentStatus } = course;
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.cardThumb}>
+        {thumbnailUrl ? (
+          <img src={thumbnailUrl} alt={title} />
+        ) : (
+          <div className={styles.placeholder} />
+        )}
+      </div>
+      <div className={styles.cardBody}>
+        <h3 className={styles.cardTitle}>{title}</h3>
+        <div className={styles.progressSection}>
+          <div className={styles.progressLabel}>
+            <span>Overall Progress</span>
+            <span>{overallProgressPercent}%</span>
+          </div>
+          <ProgressBar percent={overallProgressPercent} />
+        </div>
+        <div className={styles.stats}>
+          <span>{completedLessons}/{totalLessons} lessons</span>
+          <span>{passedExams}/{totalRequiredExams} exams</span>
+        </div>
+        <div className={styles.cardFooter}>
+          <StatusBadge status={enrollmentStatus} />
+          <Link to={`/courses/${id}/learn`} className={styles.continueBtn}>
+            {enrollmentStatus === 'COMPLETED' ? 'Review' : 'Continue'}
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

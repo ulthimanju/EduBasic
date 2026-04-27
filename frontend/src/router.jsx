@@ -1,96 +1,91 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import LoginPage      from './features/auth/components/LoginPage';
+import React from 'react';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 import RoleGuard from './components/layout/RoleGuard/RoleGuard';
-import PublicOnlyRoute from './features/auth/components/PublicOnlyRoute';
-import Spinner        from './components/common/Spinner/Spinner';
+import LoginPage from './features/auth/components/LoginPage';
+import CourseCatalogPage from './pages/CourseCatalogPage/CourseCatalogPage';
+import CoursePreviewPage from './pages/CoursePreviewPage/CoursePreviewPage';
+import LessonPlayerPage from './pages/LessonPlayerPage/LessonPlayerPage';
+import MyCoursesPage from './pages/MyCoursesPage/MyCoursesPage';
+import InstructorDashboardPage from './pages/InstructorDashboardPage/InstructorDashboardPage';
+import CourseBuilderPage from './pages/CourseBuilderPage/CourseBuilderPage';
+import QuestionBankPage from './pages/QuestionBankPage/QuestionBankPage';
+import ResultPage from './pages/ResultPage/ResultPage';
+import useAuthBootstrap from './features/auth/hooks/useCurrentUser';
+import Spinner from './components/common/Spinner/Spinner';
+import ConfirmModal from './components/common/ConfirmModal/ConfirmModal';
+import useUiStore from './stores/uiStore';
 
-// Lazy loaded components
-const Dashboard       = lazy(() => import('./pages/MyCoursesPage/MyCoursesPage'));
-const CourseSelectPage = lazy(() => import('./pages/CourseCatalogPage/CourseCatalogPage'));
-const ExamPage        = lazy(() => import('./pages/LessonPlayerPage/LessonPlayerPage'));
-const ResultPage      = lazy(() => import('./pages/ResultPage/ResultPage'));
-const QuestionBank    = lazy(() => import('./pages/QuestionBankPage/QuestionBankPage'));
-const ExamBuilder     = lazy(() => import('./pages/CourseBuilderPage/CourseBuilderPage'));
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-import Navbar         from './components/layout/Navbar/Navbar';
-import useAuthStore   from './stores/authStore';
-import useCurrentUser from './features/auth/hooks/useCurrentUser';
-import useThemeMode   from './hooks/useThemeMode';
-import { ROUTES }     from './constants/appConstants';
-import { PromptProvider } from './context/PromptContext';
-import PromptDialog     from './components/common/ConfirmModal/ConfirmModal';
-
-/**
- * Root application component.
- *
- * Routing:
- *   /login      → LoginPage (public restricted)
- *   /           → redirect to /dashboard
- *   /dashboard  → Dashboard (protected via RoleGuard)
- *
- * Global: Listens for the 'auth:unauthorized' event dispatched by apiClient
- * interceptor — sets anonymous state and lets RoleGuard redirect to /login.
- */
-function AppShell() {
-  const resolveAnonymous = useAuthStore((s) => s.resolveAnonymous);
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
   
-  // Triggers the shared auth bootstrap exactly once per app load
-  useCurrentUser();
+  // Student routes
+  {
+    element: <RoleGuard />,
+    children: [
+      { path: '/',                                     element: <Navigate to="/courses" replace /> },
+      { path: '/courses',                              element: <CourseCatalogPage /> },
+      { path: '/courses/:courseId',                    element: <CoursePreviewPage /> },
+      { path: '/courses/:courseId/learn',              element: <LessonPlayerPage /> },
+      { path: '/courses/:courseId/learn/:lessonId',    element: <LessonPlayerPage /> },
+      { path: '/my-courses',                           element: <MyCoursesPage /> },
+      { path: '/assessments',                          element: <Navigate to="/my-courses" replace /> },
+    ]
+  },
 
-  const location = useLocation();
-  const isLoginRoute = location.pathname === ROUTES.LOGIN;
-  const isExamRoute = location.pathname.startsWith('/exam/');
-  
-  const { themeMode, setThemeMode: updateThemeMode, effectiveTheme } = useThemeMode();
+  // Instructor routes
+  {
+    element: <RoleGuard role="INSTRUCTOR" />,
+    children: [
+      { path: '/instructor/courses',               element: <InstructorDashboardPage /> },
+      { path: '/instructor/courses/new',           element: <CourseBuilderPage /> },
+      { path: '/instructor/courses/:courseId',     element: <CourseBuilderPage /> },
+      { path: '/instructor/question-bank',         element: <QuestionBankPage /> },
+    ],
+  },
 
-  // Listen for 401 event emitted by apiClient interceptor
-  useEffect(() => {
-    const handler = () => resolveAnonymous();
-    window.addEventListener('auth:unauthorized', handler);
-    return () => window.removeEventListener('auth:unauthorized', handler);
-  }, [resolveAnonymous]);
+  { path: '*', element: <Navigate to="/courses" replace /> }
+]);
+
+function AppContent() {
+  const { isInitializing } = useAuthBootstrap();
+  const { confirmModal, closeConfirmModal } = useUiStore();
+
+  if (isInitializing) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
-    <div className="app-shell">
-      {!isLoginRoute && !isExamRoute && (
-        <Navbar
-          themeMode={themeMode}
-          effectiveTheme={effectiveTheme}
-          onThemeModeChange={updateThemeMode}
+    <>
+      <RouterProvider router={router} />
+      {confirmModal && (
+        <ConfirmModal 
+          {...confirmModal} 
+          onCancel={confirmModal.onCancel || closeConfirmModal}
         />
       )}
-      <main className={`app-main ${isLoginRoute ? 'app-main--auth' : isExamRoute ? 'app-main--exam' : ''}`}>
-        <Suspense fallback={<div className="spinner-center"><Spinner size="lg" /></div>}>
-          <Routes>
-            <Route element={<PublicOnlyRoute />}>
-              <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-            </Route>
-
-            <Route element={<RoleGuard />}>
-              <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
-              <Route path={ROUTES.COURSES} element={<CourseSelectPage />} />
-              <Route path={ROUTES.EXAM} element={<ExamPage />} />
-              <Route path={ROUTES.RESULT} element={<ResultPage />} />
-              <Route path={ROUTES.QUESTION_BANK} element={<QuestionBank />} />
-              <Route path={ROUTES.EXAM_BUILDER} element={<ExamBuilder />} />
-            </Route>
-
-            <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <PromptDialog />
-    </div>
+    </>
   );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <PromptProvider>
-        <AppShell />
-      </PromptProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
   );
 }
