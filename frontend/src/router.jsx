@@ -12,6 +12,8 @@ import InstructorDashboardPage from './pages/InstructorDashboardPage/InstructorD
 import CourseBuilderPage from './pages/CourseBuilderPage/CourseBuilderPage';
 import QuestionBankPage from './pages/QuestionBankPage/QuestionBankPage';
 import ResultPage from './pages/ResultPage/ResultPage';
+import ExamPage from './pages/ExamPage/ExamPage';
+import StartExamPage from './pages/ExamPage/StartExamPage';
 import useAuthBootstrap from './features/auth/hooks/useCurrentUser';
 import Spinner from './components/common/Spinner/Spinner';
 import ConfirmModal from './components/common/ConfirmModal/ConfirmModal';
@@ -40,6 +42,11 @@ const router = createBrowserRouter([
       { path: '/courses/:courseId/learn/:lessonId',    element: <LessonPlayerPage /> },
       { path: '/my-courses',                           element: <MyCoursesPage /> },
       { path: '/assessments',                          element: <Navigate to="/my-courses" replace /> },
+      
+      // Exam routes
+      { path: '/exam/:examId/start',                   element: <StartExamPage /> },
+      { path: '/exam/:attemptId',                      element: <ExamPage /> },
+      { path: '/result/:attemptId',                    element: <ResultPage /> },
     ]
   },
 
@@ -63,7 +70,7 @@ function AppContent() {
 
   if (isInitializing) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Spinner size="lg" />
       </div>
     );

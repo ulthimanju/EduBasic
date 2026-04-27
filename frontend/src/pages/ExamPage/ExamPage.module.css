@@ -1,0 +1,98 @@
+.container {
+  min-height: 100vh;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+}
+.main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-6);
+}
+.loading {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.startCard {
+  background: var(--color-white);
+  padding: var(--space-10);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.startHeader {
+  text-align: center;
+}
+.title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-2);
+}
+.subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-md);
+}
+.detailItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.detailItem strong {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.warningBox {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(245, 124, 0, 0.2);
+}
+.warningBox p {
+  font-size: var(--font-size-sm);
+  margin-top: 2px;
+}
+
+.startBtn {
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  transition: background var(--transition-fast);
+}
+.startBtn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+.startBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

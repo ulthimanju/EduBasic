@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import useUiStore from '../../../stores/uiStore';
 import { ClipboardList } from 'lucide-react';
 import styles from './LessonSidebar.module.css';
@@ -33,15 +33,15 @@ export default function LessonSidebar({ outline, courseId }) {
             </div>
             
             {module.exams?.map(exam => (
-              <a 
+              <Link 
                 key={exam.id} 
-                href={`/exam/${exam.id}/start`} 
+                to={`/exam/${exam.id}/start`} 
                 className={styles.examLink}
               >
                 <ClipboardList size={16} />
                 <span className={styles.lessonTitle}>{exam.title}</span>
                 {exam.required && <span className={styles.requiredBadge}>Required</span>}
-              </a>
+              </Link>
             ))}
           </div>
         ))}
