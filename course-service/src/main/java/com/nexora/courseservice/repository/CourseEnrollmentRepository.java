@@ -1,6 +1,9 @@
 package com.nexora.courseservice.repository;
 
 import com.nexora.courseservice.entity.CourseEnrollment;
+import com.nexora.courseservice.entity.EnrollmentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,4 +14,5 @@ import java.util.UUID;
 public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollment, UUID> {
     Optional<CourseEnrollment> findByCourseIdAndStudentId(UUID courseId, UUID studentId);
     boolean existsByCourseIdAndStudentId(UUID courseId, UUID studentId);
+    Page<CourseEnrollment> findByStudentIdAndStatusNot(UUID studentId, EnrollmentStatus status, Pageable pageable);
 }

@@ -92,9 +92,7 @@ public class EnrollmentService {
 
     @Transactional(readOnly = true)
     public Page<MyCourseSummaryResponse> getMyEnrolledCourses(UUID studentId, Pageable pageable) {
-        // This query needs a custom implementation in repository to filter by student and status != DROPPED
-        // For now using placeholder logic
-        return enrollmentRepository.findAll(pageable) // Simplified for demo
+        return enrollmentRepository.findByStudentIdAndStatusNot(studentId, EnrollmentStatus.DROPPED, pageable)
                 .map(e -> {
                     String cacheKey = CacheKeys.progress(studentId, e.getCourseId());
                     try {

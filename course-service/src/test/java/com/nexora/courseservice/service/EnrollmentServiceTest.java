@@ -8,16 +8,25 @@ import com.nexora.courseservice.entity.CourseStatus;
 import com.nexora.courseservice.exception.CourseServiceException;
 import com.nexora.courseservice.repository.CourseEnrollmentRepository;
 import com.nexora.courseservice.repository.CourseRepository;
+import com.nexora.courseservice.repository.LessonRepository;
+import com.nexora.courseservice.repository.LessonProgressRepository;
+import com.nexora.courseservice.entity.CourseEnrollment;
+import com.nexora.courseservice.entity.EnrollmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +41,10 @@ class EnrollmentServiceTest {
     private CourseEnrollmentRepository enrollmentRepository;
     @Mock
     private CourseRepository courseRepository;
+    @Mock
+    private LessonRepository lessonRepository;
+    @Mock
+    private LessonProgressRepository progressRepository;
     @Mock
     private RedisTemplate<String, String> redisTemplate;
     @Mock
@@ -54,6 +67,27 @@ class EnrollmentServiceTest {
         course.setId(courseId);
         course.setStatus(CourseStatus.PUBLISHED);
         course.setTitle("Test Course");
+    }
+
+    @Test
+    void getMyEnrolledCourses_ShouldFilterByStudentIdAndExcludeDropped() {
+        Pageable pageable = PageRequest.of(0, 10);
+        CourseEnrollment enrollment = new CourseEnrollment();
+        enrollment.setCourseId(courseId);
+        enrollment.setStudentId(studentId);
+        enrollment.setStatus(EnrollmentStatus.ACTIVE);
+        
+        Page<CourseEnrollment> page = new PageImpl<>(List.of(enrollment));
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(enrollmentRepository.findByStudentIdAndStatusNot(eq(studentId), eq(EnrollmentStatus.DROPPED), any(Pageable.class)))
+                .thenReturn(page);
+        when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+
+        enrollmentService.getMyEnrolledCourses(studentId, pageable);
+
+        verify(enrollmentRepository).findByStudentIdAndStatusNot(studentId, EnrollmentStatus.DROPPED, pageable);
+        verify(enrollmentRepository, never()).findAll(any(Pageable.class));
     }
 
     @Test
