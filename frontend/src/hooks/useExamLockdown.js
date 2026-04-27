@@ -7,6 +7,7 @@ import { ROUTES } from '../constants/appConstants';
 export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
   const { openPrompt } = usePrompt();
   const navigate = useNavigate();
+  const lastReportTime = useRef({});
 
   useEffect(() => {
     if (!isActive || !attemptId) return;
@@ -51,8 +52,6 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
     const handleBlur = () => {
       reportViolation('TAB_SWITCH'); // Treating blur as tab switch for simplicity
     };
-
-    const lastReportTime = useRef({});
 
     const reportViolation = async (type, metadata = {}) => {
       // Throttle: don't report the same violation type more than once every 5 seconds
