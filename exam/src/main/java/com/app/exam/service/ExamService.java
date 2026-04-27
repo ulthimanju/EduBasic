@@ -89,17 +89,14 @@ public class ExamService {
                 throw new AccessDeniedException("Students can only access PUBLISHED exams");
             }
 
-            // Extract token for service-to-service call
-            String token = null;
+            // Extract Authorization header for service-to-service call
+            String authHeader = null;
             ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attr != null) {
-                String authHeader = attr.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-                if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                    token = authHeader.substring(7);
-                }
+                authHeader = attr.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
             }
 
-            if (token == null || !courseServiceClient.validateStudentAccess(id, token)) {
+            if (authHeader == null || !courseServiceClient.validateStudentAccess(id, authHeader)) {
                 throw new AccessDeniedException("Student is not authorized to access this exam via any enrolled course");
             }
         } else if (!isAdmin && !exam.getCreatedBy().equals(userId)) {
