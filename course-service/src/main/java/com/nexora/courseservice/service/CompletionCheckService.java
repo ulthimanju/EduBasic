@@ -18,6 +18,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -152,12 +154,23 @@ public class CompletionCheckService {
 
         log.info(LogMessages.COURSE_COMPLETED, studentId, course.getId());
 
-        eventPublisher.publish(new CourseCompletedEvent(
+        CourseCompletedEvent event = new CourseCompletedEvent(
                 course.getId(),
                 studentId,
                 LocalDateTime.now().toString(),
                 "AUTO"
-        ));
+        );
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    eventPublisher.publish(event);
+                }
+            });
+        } else {
+            eventPublisher.publish(event);
+        }
     }
 
     private void evictProgressCache(UUID studentId, UUID courseId) {
