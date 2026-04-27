@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../api/exam';
 import { usePrompt } from '../context/PromptContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,9 +8,10 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
   const { openPrompt } = usePrompt();
   const navigate = useNavigate();
   const lastReportTime = useRef({});
+  const [isTerminated, setIsTerminated] = useState(false);
 
   useEffect(() => {
-    if (!isActive || !attemptId) return;
+    if (!isActive || !attemptId || isTerminated) return;
 
     // Fullscreen enforcement
     const enterFullscreen = () => {
@@ -22,7 +23,7 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
     };
 
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
+      if (!document.fullscreenElement && !isTerminated) {
         reportViolation('FULLSCREEN_EXIT');
       }
     };
@@ -38,23 +39,23 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
         reportViolation('SHORTCUT_BLOCKED', { key: e.key });
       }
       if (e.key === 'F12' || (e.altKey && e.key === 'Tab')) {
-        // Alt+Tab might not be catchable in all browsers but we try
         reportViolation('SHORTCUT_BLOCKED', { key: e.key });
       }
     };
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
+      if (document.hidden && !isTerminated) {
         reportViolation('TAB_SWITCH');
       }
     };
 
     const handleBlur = () => {
-      reportViolation('TAB_SWITCH'); // Treating blur as tab switch for simplicity
+      if (!isTerminated) {
+        reportViolation('TAB_SWITCH');
+      }
     };
 
     const reportViolation = async (type, metadata = {}) => {
-      // Throttle: don't report the same violation type more than once every 5 seconds
       const now = Date.now();
       if (lastReportTime.current[type] && (now - lastReportTime.current[type] < 5000)) {
         return;
@@ -71,17 +72,27 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
         const { violationCount, maxViolations, autoSubmitted } = response.data;
 
         if (autoSubmitted) {
-          openPrompt({
-            type: 'message',
-            severity: 'danger',
-            title: 'Exam Terminated',
-            description: 'Your exam has been automatically submitted due to multiple security violations.',
-            confirmLabel: 'Exit',
-            onConfirm: () => {
-              if (onAutoSubmit) onAutoSubmit();
-              navigate(ROUTES.RESULT.replace(':attemptId', attemptId));
-            }
-          });
+          setIsTerminated(true);
+          if (onAutoSubmit) onAutoSubmit();
+
+          // Freeze UI immediately
+          const overlay = document.createElement('div');
+          overlay.id = 'exam-terminated-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:sans-serif;text-align:center;padding:20px;';
+          overlay.innerHTML = '<h1 style="color:#ff4d4f;margin-bottom:16px;">Exam Terminated</h1><p style="font-size:18px;max-width:500px;margin-bottom:24px;">Your exam has been automatically submitted due to multiple security violations. You are being redirected to the results page.</p><div class="spinner"></div>';
+          document.body.appendChild(overlay);
+
+          // Force exit fullscreen to allow navigation/seeing browser bars
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          }
+
+          // Delay slightly so user can see the message before redirect
+          setTimeout(() => {
+            navigate(ROUTES.RESULT.replace(':attemptId', attemptId), { replace: true });
+            document.body.removeChild(overlay);
+          }, 3000);
+
         } else {
           openPrompt({
             type: 'message',
@@ -123,5 +134,5 @@ export const useExamLockdown = (attemptId, isActive, onAutoSubmit) => {
       window.removeEventListener('blur', handleBlur);
       document.body.style.userSelect = 'auto';
     };
-  }, [attemptId, isActive]);
+  }, [attemptId, isActive, isTerminated, navigate, onAutoSubmit, openPrompt]);
 };

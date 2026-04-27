@@ -58,10 +58,12 @@ const ExamPage = () => {
   const [answers, setAnswers] = useState({}); // questionId -> answer
   const [dirtyQuestionIds, setDirtyQuestionIds] = useState(new Set());
   const [version, setVersion] = useState(0);
+  const [isTerminated, setIsTerminated] = useState(false);
 
   const syncIntervalRef = useRef(null);
 
-  useExamLockdown(attemptId, !!currentExam, () => {
+  useExamLockdown(attemptId, !!currentExam && !isTerminated, () => {
+    setIsTerminated(true);
     if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
   });
 
