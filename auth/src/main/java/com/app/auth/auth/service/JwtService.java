@@ -145,9 +145,15 @@ public class JwtService {
         return parseClaims(token).get("email", String.class);
     }
 
-    @SuppressWarnings("unchecked")
     public java.util.List<String> extractRoles(String token) {
-        return parseClaims(token).get("roles", java.util.List.class);
+        Object roles = parseClaims(token).get("roles");
+        if (roles instanceof java.util.List<?> list) {
+            return list.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .toList();
+        }
+        return java.util.List.of();
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────

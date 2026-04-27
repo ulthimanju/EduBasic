@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,8 +20,11 @@ public class ProctoringConsumer {
     public void consumeProctoringEvent(Map<String, Object> event) {
         UUID attemptId = UUID.fromString((String) event.get("attemptId"));
         String eventType = (String) event.get("eventType");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> eventData = (Map<String, Object>) event.get("eventData");
+        
+        Map<String, Object> eventData = event.get("eventData") instanceof Map<?, ?> rawMap
+            ? rawMap.entrySet().stream()
+                .collect(Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue))
+            : Map.of();
 
         log.info("Received proctoring event {} for attempt: {}", eventType, attemptId);
         

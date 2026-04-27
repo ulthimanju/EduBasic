@@ -34,7 +34,11 @@ public class GeminiService {
     @Value("${gemini.api-url}")
     private String apiUrl;
 
-    @SuppressWarnings("unchecked")
+    private record GeminiResponse(List<Candidate> candidates) {}
+    private record Candidate(Content content) {}
+    private record Content(List<Part> parts) {}
+    private record Part(String text) {}
+
     public List<Question> generateQuestions(String courseName, List<String> previousTopics, String difficulty, int count) {
         String topicsStr = previousTopics != null ? String.join(", ", previousTopics) : "None";
         
@@ -73,16 +77,14 @@ public class GeminiService {
             
             log.info(LogMessages.GENERATING_QUESTIONS_GEMINI, count, courseName, fullUrl);
             
-            Map<String, Object> response = restTemplate.postForObject(fullUrl, entity, Map.class);
+            String responseStr = restTemplate.postForObject(fullUrl, entity, String.class);
+            GeminiResponse response = objectMapper.readValue(responseStr, GeminiResponse.class);
             
-            if (response != null && response.containsKey("candidates")) {
-                List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-                if (!candidates.isEmpty()) {
-                    Map<String, Object> firstCandidate = candidates.get(0);
-                    Map<String, Object> contentRes = (Map<String, Object>) firstCandidate.get("content");
-                    List<Map<String, Object>> partsRes = (List<Map<String, Object>>) contentRes.get("parts");
-                    if (!partsRes.isEmpty()) {
-                        String text = (String) partsRes.get(0).get("text");
+            if (response != null && response.candidates() != null && !response.candidates().isEmpty()) {
+                Candidate candidate = response.candidates().get(0);
+                if (candidate.content() != null && candidate.content().parts() != null && !candidate.content().parts().isEmpty()) {
+                    String text = candidate.content().parts().get(0).text();
+                    if (text != null) {
                         // Sometimes Gemini wraps JSON in markdown blocks like ```json ... ```
                         String cleanedJson = text.replaceAll("^```json\\s*", "").replaceAll("\\s*```$", "").trim();
                         return objectMapper.readValue(cleanedJson, new TypeReference<List<Question>>() {});

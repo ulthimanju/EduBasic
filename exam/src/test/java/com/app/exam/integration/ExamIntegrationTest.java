@@ -36,7 +36,6 @@ public class ExamIntegrationTest {
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Container
-    @SuppressWarnings("resource")
     static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0")
             .asCompatibleSubstituteFor("apache/kafka"));
 

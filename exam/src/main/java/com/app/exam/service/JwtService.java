@@ -1,6 +1,8 @@
 package com.app.exam.service;
 
 import com.app.exam.LogMessages;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -28,6 +30,7 @@ public class JwtService {
     private String jwksUri;
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
     private final Map<String, PublicKey> keyCache = new ConcurrentHashMap<>();
 
     public boolean validateToken(String token) {
@@ -48,9 +51,15 @@ public class JwtService {
         return parseClaims(token).get("email", String.class);
     }
 
-    @SuppressWarnings("unchecked")
     public List<String> extractRoles(String token) {
-        return parseClaims(token).get("roles", List.class);
+        Object roles = parseClaims(token).get("roles");
+        if (roles instanceof List<?> list) {
+            return list.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .toList();
+        }
+        return List.of();
     }
 
     public String extractJwtId(String token) {
@@ -71,22 +80,25 @@ public class JwtService {
         return keyCache.computeIfAbsent("default", k -> fetchPublicKeyFromJwks());
     }
 
-    @SuppressWarnings("unchecked")
     private PublicKey fetchPublicKeyFromJwks() {
         try {
             log.info("Fetching JWKS from {}", jwksUri);
-            Map<String, Object> response = restTemplate.getForObject(jwksUri, Map.class);
-            if (response == null || !response.containsKey("keys")) {
-                throw new RuntimeException("JWKS response is empty or missing 'keys'");
-            }
-            List<Map<String, Object>> keys = (List<Map<String, Object>>) response.get("keys");
-            if (keys == null || keys.isEmpty()) {
+            String response = restTemplate.getForObject(jwksUri, String.class);
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode keys = root.path("keys");
+            
+            if (keys.isMissingNode() || !keys.isArray() || keys.isEmpty()) {
                 throw new RuntimeException("JWKS response contains no keys");
             }
-            Map<String, Object> keyData = keys.get(0); // Take first key
 
-            String nStr = (String) keyData.get("n");
-            String eStr = (String) keyData.get("e");
+            JsonNode keyData = keys.get(0); // Take first key
+
+            String nStr = keyData.path("n").asText();
+            String eStr = keyData.path("e").asText();
+
+            if (nStr.isEmpty() || eStr.isEmpty()) {
+                throw new RuntimeException("JWKS key data is missing 'n' or 'e'");
+            }
 
             byte[] nBytes = Base64.getUrlDecoder().decode(nStr);
             byte[] eBytes = Base64.getUrlDecoder().decode(eStr);
