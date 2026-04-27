@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { catalogApi } from '../api/catalog';
 import { enrollmentApi } from '../api/enrollment';
+import { handleMutationError } from '../utils/errorHandlers';
 
 export const useCatalog = ({ keyword, page = 0, size = 12 } = {}) =>
   useQuery({
@@ -25,5 +26,6 @@ export const useEnroll = () => {
       queryClient.invalidateQueries({ queryKey: ['my-courses'] });
       queryClient.invalidateQueries({ queryKey: ['catalog'] });
     },
+    onError: handleMutationError,
   });
 };

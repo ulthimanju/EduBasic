@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { instructorApi } from '../api/instructor';
+import { handleMutationError } from '../utils/errorHandlers';
 
 export const useMyCoursesInstructor = () =>
   useQuery({
@@ -20,6 +21,7 @@ export const useCreateCourse = () => {
     mutationFn: instructorApi.createCourse,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] }),
+    onError: handleMutationError,
   });
 };
 
@@ -29,6 +31,7 @@ export const useUpdateCourse = (courseId) => {
     mutationFn: (data) => instructorApi.updateCourse(courseId, data),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
 
@@ -40,6 +43,7 @@ export const usePublishCourse = () => {
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] });
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
     },
+    onError: handleMutationError,
   });
 };
 
@@ -49,6 +53,7 @@ export const useDeleteCourse = () => {
     mutationFn: instructorApi.deleteCourse,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] }),
+    onError: handleMutationError,
   });
 };
 
@@ -58,6 +63,7 @@ export const useAddModule = (courseId) => {
     mutationFn: (data) => instructorApi.addModule(courseId, data),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
 
@@ -67,6 +73,7 @@ export const useDeleteModule = (courseId) => {
     mutationFn: instructorApi.deleteModule,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
 
@@ -76,6 +83,7 @@ export const useAddLesson = (courseId) => {
     mutationFn: ({ moduleId, data }) => instructorApi.addLesson(moduleId, data),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
 
@@ -85,6 +93,7 @@ export const useDeleteLesson = (courseId) => {
     mutationFn: instructorApi.deleteLesson,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
 
@@ -94,6 +103,7 @@ export const useLinkExam = (courseId) => {
     mutationFn: (data) => instructorApi.linkExam(courseId, data),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
 
@@ -103,5 +113,6 @@ export const useUnlinkExam = (courseId) => {
     mutationFn: (examId) => instructorApi.unlinkExam(courseId, examId),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['instructor-course', courseId] }),
+    onError: handleMutationError,
   });
 };
