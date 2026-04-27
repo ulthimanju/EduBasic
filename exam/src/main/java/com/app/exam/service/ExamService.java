@@ -110,10 +110,22 @@ public class ExamService {
         return mapToFullResponse(exam);
     }
 
-    @Transactional
-    public void addSection(UUID examId, String title, String description, int orderIndex) {
-        Exam exam = examRepository.findById(examId)
+    private Exam getExamForUpdate(UUID id, UUID instructorId) {
+        Exam exam = examRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth != null && auth.getAuthorities().contains(new SimpleGrantedAuthority("ADMIN"));
+
+        if (!isAdmin && !exam.getCreatedBy().equals(instructorId)) {
+            throw new AccessDeniedException("You do not have permission to modify this exam");
+        }
+        return exam;
+    }
+
+    @Transactional
+    public void addSection(UUID examId, UUID instructorId, String title, String description, int orderIndex) {
+        Exam exam = getExamForUpdate(examId, instructorId);
         
         if (!exam.isHasSections()) {
             throw new RuntimeException("Exam does not support sections");
@@ -131,9 +143,8 @@ public class ExamService {
     }
 
     @Transactional
-    public void addQuestion(UUID examId, AddQuestionToExamRequest request) {
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+    public void addQuestion(UUID examId, UUID instructorId, AddQuestionToExamRequest request) {
+        Exam exam = getExamForUpdate(examId, instructorId);
         
         if (exam.getStatus() != ExamStatus.DRAFT) {
             throw new RuntimeException("Only DRAFT exams can be modified");
@@ -166,9 +177,8 @@ public class ExamService {
     }
 
     @Transactional
-    public void publishExam(UUID id) {
-        Exam exam = examRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+    public void publishExam(UUID id, UUID instructorId) {
+        Exam exam = getExamForUpdate(id, instructorId);
         
         if (exam.getStatus() != ExamStatus.DRAFT && exam.getStatus() != ExamStatus.PUBLISHED) {
             throw new RuntimeException("Only DRAFT or PUBLISHED exams can be snapshotted");

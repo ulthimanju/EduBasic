@@ -110,14 +110,54 @@ class ExamServiceTest {
 
     @Test
     void publishExam_CreatesSnapshot() {
+        UUID instructorId = UUID.randomUUID();
+        exam.setCreatedBy(instructorId);
+        
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        doReturn(List.of(new SimpleGrantedAuthority("INSTRUCTOR"))).when(authentication).getAuthorities();
+
         when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
         when(mappingRepository.countByExamId(examId)).thenReturn(1L);
         when(mappingRepository.findAllByExamIdOrderByOrderIndexAsc(examId)).thenReturn(List.of());
 
-        examService.publishExam(examId);
+        examService.publishExam(examId, instructorId);
 
         verify(snapshotRepository).save(any(ExamSnapshot.class));
         assertEquals(ExamStatus.PUBLISHED, exam.getStatus());
+    }
+
+    @Test
+    void publishExam_Fail_WrongInstructor() {
+        UUID creatorId = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        exam.setCreatedBy(creatorId);
+        
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        doReturn(List.of(new SimpleGrantedAuthority("INSTRUCTOR"))).when(authentication).getAuthorities();
+
+        when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
+
+        assertThrows(AccessDeniedException.class, () -> examService.publishExam(examId, otherId));
+    }
+
+    @Test
+    void addSection_Success_AdminOverride() {
+        UUID creatorId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        exam.setCreatedBy(creatorId);
+        exam.setHasSections(true);
+        
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        doReturn(List.of(new SimpleGrantedAuthority("ADMIN"))).when(authentication).getAuthorities();
+
+        when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
+
+        examService.addSection(examId, adminId, "Section", "Desc", 1);
+
+        verify(sectionRepository).save(any(ExamSection.class));
     }
 
     @Test

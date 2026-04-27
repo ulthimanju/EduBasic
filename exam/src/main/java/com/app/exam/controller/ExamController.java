@@ -53,19 +53,25 @@ public class ExamController {
 
     @PostMapping("/{id}/publish")
     public ResponseEntity<Void> publishExam(@PathVariable UUID id) {
-        examService.publishExam(id);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID instructorId = (UUID) auth.getPrincipal();
+        examService.publishExam(id, instructorId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/sections")
     public ResponseEntity<Void> addSection(@PathVariable UUID id, @RequestBody ExamSectionRequest request) {
-        examService.addSection(id, request.getTitle(), request.getDescription(), request.getOrderIndex());
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID instructorId = (UUID) auth.getPrincipal();
+        examService.addSection(id, instructorId, request.getTitle(), request.getDescription(), request.getOrderIndex());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/questions")
     public ResponseEntity<Void> addQuestion(@PathVariable UUID id, @Valid @RequestBody AddQuestionToExamRequest request) {
-        examService.addQuestion(id, request);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID instructorId = (UUID) auth.getPrincipal();
+        examService.addQuestion(id, instructorId, request);
         return ResponseEntity.ok().build();
     }
 }
