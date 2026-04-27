@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/question-bank")
 @RequiredArgsConstructor
+@Validated
 public class QuestionController {
 
     private final QuestionService questionService;
@@ -63,7 +65,7 @@ public class QuestionController {
     }
 
     @PostMapping("/bulk")
-    public ResponseEntity<Void> bulkImport(@RequestBody List<CreateQuestionRequest> requests) {
+    public ResponseEntity<Void> bulkImport(@RequestBody List<@Valid CreateQuestionRequest> requests) {
         questionService.bulkImport(requests);
         return ResponseEntity.noContent().build();
     }
