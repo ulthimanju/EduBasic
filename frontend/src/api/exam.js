@@ -64,7 +64,7 @@ examClient.interceptors.response.use(
         return examClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        useAuthStore.getState().clear();
+        useAuthStore.getState().clearAuth();
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         return Promise.reject(refreshError);
       } finally {
