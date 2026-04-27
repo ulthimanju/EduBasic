@@ -123,31 +123,15 @@ class AttemptServiceTest {
     }
 
     @Test
-    void syncAttempt_Success_RedisOnly() {
-        when(attemptRepository.findById(attemptId)).thenReturn(Optional.of(attempt));
-        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        when(attemptRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        SyncAttemptRequest request = new SyncAttemptRequest();
-        request.setVersion(0);
-        request.setAnswers(Map.of(UUID.randomUUID(), "Answer"));
-
-        attemptService.syncAttempt(studentId, attemptId, request);
-
-        verify(hashOperations).put(anyString(), eq("answers"), any());
-        verify(answerRepository, never()).saveAll(any());
-    }
-
-    @Test
     void syncAttempt_Success_FlushToPostgres() {
-        attempt.setVersion(5);
+        attempt.setVersion(0);
         when(attemptRepository.findById(attemptId)).thenReturn(Optional.of(attempt));
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         when(attemptRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(answerRepository.findAllByAttemptId(attemptId)).thenReturn(Collections.emptyList());
 
         SyncAttemptRequest request = new SyncAttemptRequest();
-        request.setVersion(5);
+        request.setVersion(0);
         UUID qId = UUID.randomUUID();
         request.setAnswers(Map.of(qId, "Answer"));
 
@@ -156,6 +140,7 @@ class AttemptServiceTest {
 
         attemptService.syncAttempt(studentId, attemptId, request);
 
+        verify(hashOperations).put(anyString(), eq("answers"), any());
         verify(answerRepository).saveAll(any());
     }
 

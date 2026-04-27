@@ -96,10 +96,8 @@ public class AttemptService {
         String redisKey = REDIS_PREFIX + attemptId;
         redisTemplate.opsForHash().put(redisKey, "answers", request.getAnswers());
         
-        // Every 5th version, we flush to Postgres as a checkpoint
-        if (request.getVersion() % 5 == 0) {
-            updateAnswers(attempt, request.getAnswers());
-        }
+        // Persist to Postgres on every sync to prevent data loss
+        updateAnswers(attempt, request.getAnswers());
 
         // Increment version in Postgres (heartbeat and lock)
         attempt.setVersion(attempt.getVersion() + 1);
