@@ -49,14 +49,8 @@ public class CatalogService {
             log.warn(LogMessages.CACHE_READ_FAILED, e.getMessage());
         }
 
-        Page<Course> courses;
-        if (keyword == null || keyword.isBlank()) {
-            courses = courseRepository.findByStatusAndIsDeletedFalse(CourseStatus.PUBLISHED, pageable);
-        } else {
-            courses = courseRepository.findByStatusAndIsDeletedFalseAndTitleContainingIgnoreCase(CourseStatus.PUBLISHED, keyword, pageable);
-        }
-
-        Page<CatalogCourseResponse> response = courses.map(this::mapToCatalogResponse);
+        Page<CourseRepository.CourseProjection> courses = courseRepository.findAllWithCounts(CourseStatus.PUBLISHED, keyword, pageable);
+        Page<CatalogCourseResponse> response = courses.map(this::mapProjectionToCatalogResponse);
 
         try {
             redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(response.getContent()), Duration.ofMinutes(10));
@@ -65,6 +59,21 @@ public class CatalogService {
         }
 
         return response;
+    }
+
+    private CatalogCourseResponse mapProjectionToCatalogResponse(CourseRepository.CourseProjection projection) {
+        CatalogCourseResponse res = new CatalogCourseResponse();
+        res.setId(projection.getId());
+        res.setTitle(projection.getTitle());
+        res.setDescription(projection.getDescription());
+        res.setThumbnailUrl(projection.getThumbnailUrl());
+        res.setStatus(projection.getStatus());
+        res.setCreatedBy(projection.getCreatedBy());
+        res.setCreatedAt(projection.getCreatedAt());
+        res.setTotalModules(projection.getTotalModules());
+        res.setTotalLessons(projection.getTotalLessons());
+        res.setTotalExams(projection.getTotalExams());
+        return res;
     }
 
     @Transactional(readOnly = true)

@@ -55,8 +55,21 @@ public class CourseService {
 
     @Transactional(readOnly = true)
     public Page<CourseSummaryResponse> listMyCourses(UUID instructorId, Pageable pageable) {
-        return courseRepository.findByCreatedByAndIsDeletedFalse(instructorId, pageable)
-                .map(this::mapToSummary);
+        Page<CourseRepository.CourseProjection> courses = courseRepository.findMyCoursesWithCounts(instructorId, pageable);
+        return courses.map(this::mapProjectionToSummary);
+    }
+
+    private CourseSummaryResponse mapProjectionToSummary(CourseRepository.CourseProjection projection) {
+        CourseSummaryResponse res = new CourseSummaryResponse();
+        res.setId(projection.getId());
+        res.setTitle(projection.getTitle());
+        res.setDescription(projection.getDescription());
+        res.setThumbnailUrl(projection.getThumbnailUrl());
+        res.setStatus(projection.getStatus());
+        res.setCreatedAt(projection.getCreatedAt());
+        res.setTotalModules(projection.getTotalModules());
+        res.setTotalLessons(projection.getTotalLessons());
+        return res;
     }
 
     @Transactional
