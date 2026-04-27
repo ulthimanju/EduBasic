@@ -37,10 +37,14 @@ public class JwtService {
 
     @PostConstruct
     public void init() {
+        log.info("Initializing JwtService - pre-fetching JWKS from {}", jwksUri);
         try {
-            fetchPublicKeyFromJwks();
+            PublicKey key = fetchPublicKeyFromJwks();
+            keyCache.put("default", key);
+            log.info("Successfully initialized JWKS on startup");
         } catch (Exception e) {
-            log.error("Failed to fetch JWKS on startup", e);
+            log.error("CRITICAL: Failed to fetch JWKS on startup. Service cannot start safely.", e);
+            throw new RuntimeException("Mandatory JWKS fetch failed on startup", e);
         }
     }
 
@@ -66,7 +70,20 @@ public class JwtService {
     }
 
     private PublicKey getPublicKey() {
-        return keyCache.computeIfAbsent("default", k -> fetchPublicKeyFromJwks());
+        PublicKey cached = keyCache.get("default");
+        if (cached != null) {
+            return cached;
+        }
+        
+        // Fallback for extreme cases, though init() should have filled it
+        synchronized (this) {
+            cached = keyCache.get("default");
+            if (cached == null) {
+                cached = fetchPublicKeyFromJwks();
+                keyCache.put("default", cached);
+            }
+            return cached;
+        }
     }
 
     private PublicKey fetchPublicKeyFromJwks() {
