@@ -12,6 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +35,7 @@ public class QuestionService {
         payloadValidator.validate(request.getType(), request.getPayload());
         
         Question question = new Question();
+        question.setCreatedBy(getCurrentUserId());
         question.setType(request.getType());
         question.setTitle(request.getTitle());
         question.setDescription(request.getDescription());
@@ -46,10 +51,16 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public Page<QuestionSummaryResponse> listQuestions(QuestionType type, Difficulty difficulty, UUID createdBy, String tag, Pageable pageable) {
+        UUID currentUserId = getCurrentUserId();
+        boolean isAdmin = isAdmin();
+        
+        // Instructors can only list their own questions, ignoring caller-supplied createdBy
+        UUID effectiveCreatedBy = isAdmin ? createdBy : currentUserId;
+
         Specification<Question> spec = Specification.allOf(
                 QuestionSpecification.hasType(type),
                 QuestionSpecification.hasDifficulty(difficulty),
-                QuestionSpecification.hasCreatedBy(createdBy),
+                QuestionSpecification.hasCreatedBy(effectiveCreatedBy),
                 QuestionSpecification.hasTag(tag)
         );
         
@@ -58,9 +69,14 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public QuestionResponse getQuestion(UUID id) {
-        return questionRepository.findById(id)
-                .map(this::mapToResponse)
+        Question question = questionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Question not found"));
+
+        if (!isAdmin() && !question.getCreatedBy().equals(getCurrentUserId())) {
+            throw new AccessDeniedException("You do not have permission to view this question");
+        }
+
+        return mapToResponse(question);
     }
 
     @Transactional
@@ -68,6 +84,10 @@ public class QuestionService {
         Question question = questionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Question not found"));
         
+        if (!isAdmin() && !question.getCreatedBy().equals(getCurrentUserId())) {
+            throw new AccessDeniedException("You do not have permission to update this question");
+        }
+
         payloadValidator.validate(request.getType(), request.getPayload());
 
         question.setType(request.getType());
@@ -85,7 +105,14 @@ public class QuestionService {
 
     @Transactional
     public void deleteQuestion(UUID id) {
-        questionRepository.deleteById(id);
+        Question question = questionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Question not found"));
+
+        if (!isAdmin() && !question.getCreatedBy().equals(getCurrentUserId())) {
+            throw new AccessDeniedException("You do not have permission to delete this question");
+        }
+
+        questionRepository.delete(question);
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +125,19 @@ public class QuestionService {
         for (CreateQuestionRequest request : requests) {
             createQuestion(request);
         }
+    }
+
+    private UUID getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null) {
+            throw new AccessDeniedException("Authentication required");
+        }
+        return (UUID) auth.getPrincipal();
+    }
+
+    private boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().contains(new SimpleGrantedAuthority("ADMIN"));
     }
 
     private List<String> normalizeTags(List<String> tags) {
