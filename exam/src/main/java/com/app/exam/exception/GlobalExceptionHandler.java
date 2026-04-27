@@ -31,6 +31,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex, HttpServletRequest request) {
         log.error("Runtime exception at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        
+        if (ex.getMessage() != null && (ex.getMessage().contains("Course-service unavailable") || 
+                                       ex.getMessage().contains("Course-service connection failed"))) {
+            return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCY_FAILURE", ex.getMessage(), request);
+        }
+        
         return buildResponse(HttpStatus.BAD_REQUEST, "BUSINESS_ERROR", ex.getMessage(), request);
     }
 
