@@ -1,5 +1,6 @@
 package com.app.exam.service;
 
+import com.app.exam.client.CourseServiceClient;
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
 import com.app.exam.repository.ExamQuestionMappingRepository;
@@ -8,6 +9,8 @@ import com.app.exam.repository.ExamSectionRepository;
 import com.app.exam.repository.QuestionRepository;
 import com.app.exam.repository.ExamSnapshotRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -33,6 +38,7 @@ public class ExamService {
     private final ExamQuestionMappingRepository mappingRepository;
     private final QuestionRepository questionRepository;
     private final ExamSnapshotRepository snapshotRepository;
+    private final CourseServiceClient courseServiceClient;
 
     @Transactional
     public ExamResponse createExam(CreateExamRequest request) {
@@ -72,6 +78,35 @@ public class ExamService {
     public ExamResponse getExam(UUID id) {
         Exam exam = examRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID userId = (UUID) auth.getPrincipal();
+        boolean isStudent = auth.getAuthorities().contains(new SimpleGrantedAuthority("STUDENT"));
+        boolean isAdmin = auth.getAuthorities().contains(new SimpleGrantedAuthority("ADMIN"));
+
+        if (isStudent) {
+            if (exam.getStatus() != ExamStatus.PUBLISHED) {
+                throw new AccessDeniedException("Students can only access PUBLISHED exams");
+            }
+
+            // Extract token for service-to-service call
+            String token = null;
+            ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attr != null) {
+                String authHeader = attr.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                }
+            }
+
+            if (token == null || !courseServiceClient.validateStudentAccess(userId, id, token)) {
+                throw new AccessDeniedException("Student is not authorized to access this exam via any enrolled course");
+            }
+        } else if (!isAdmin && !exam.getCreatedBy().equals(userId)) {
+            // Instructor check: must be the creator
+            throw new AccessDeniedException("Instructors can only access their own exams");
+        }
+
         return mapToFullResponse(exam);
     }
 

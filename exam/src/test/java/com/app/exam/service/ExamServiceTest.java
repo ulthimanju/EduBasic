@@ -1,5 +1,6 @@
 package com.app.exam.service;
 
+import com.app.exam.client.CourseServiceClient;
 import com.app.exam.domain.*;
 import com.app.exam.dto.ExamResponse;
 import com.app.exam.repository.*;
@@ -13,10 +14,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -40,6 +46,8 @@ class ExamServiceTest {
     @Mock
     private ExamSnapshotRepository snapshotRepository;
     @Mock
+    private CourseServiceClient courseServiceClient;
+    @Mock
     private SecurityContext securityContext;
     @Mock
     private Authentication authentication;
@@ -57,6 +65,13 @@ class ExamServiceTest {
         exam = new Exam();
         exam.setId(examId);
         exam.setStatus(ExamStatus.DRAFT);
+        RequestContextHolder.resetRequestAttributes();
+    }
+
+    private void mockRequestWithToken() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer test-token");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
     }
 
     @Test
@@ -107,9 +122,14 @@ class ExamServiceTest {
 
     @Test
     void getExam_RedactsPayloadForStudent() {
+        exam.setStatus(ExamStatus.PUBLISHED);
+        mockRequestWithToken();
         SecurityContextHolder.setContext(securityContext);
         when(securityContext.getAuthentication()).thenReturn(authentication);
+        UUID studentId = UUID.randomUUID();
+        when(authentication.getPrincipal()).thenReturn(studentId);
         doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
+        when(courseServiceClient.validateStudentAccess(eq(studentId), eq(examId), any())).thenReturn(true);
 
         Question question = new Question();
         question.setId(UUID.randomUUID());
@@ -135,9 +155,14 @@ class ExamServiceTest {
 
     @Test
     void getExam_RedactsFillBlankForStudent() {
+        exam.setStatus(ExamStatus.PUBLISHED);
+        mockRequestWithToken();
         SecurityContextHolder.setContext(securityContext);
         when(securityContext.getAuthentication()).thenReturn(authentication);
+        UUID studentId = UUID.randomUUID();
+        when(authentication.getPrincipal()).thenReturn(studentId);
         doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
+        when(courseServiceClient.validateStudentAccess(eq(studentId), eq(examId), any())).thenReturn(true);
 
         Question question = new Question();
         question.setType(QuestionType.FILL_BLANK);
@@ -160,5 +185,67 @@ class ExamServiceTest {
         
         JsonNode redactedPayload = response.getQuestions().get(0).getQuestion().getPayload();
         assertFalse(redactedPayload.get("blanks").get(0).has("acceptedAnswers"));
+    }
+
+    @Test
+    void getExam_Fail_StudentDraftExam() {
+        exam.setStatus(ExamStatus.DRAFT);
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(UUID.randomUUID());
+        doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
+        
+        when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
+
+        assertThrows(AccessDeniedException.class, () -> examService.getExam(examId));
+    }
+
+    @Test
+    void getExam_Fail_StudentNotEnrolled() {
+        exam.setStatus(ExamStatus.PUBLISHED);
+        mockRequestWithToken();
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        UUID studentId = UUID.randomUUID();
+        when(authentication.getPrincipal()).thenReturn(studentId);
+        doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
+        
+        when(courseServiceClient.validateStudentAccess(eq(studentId), eq(examId), any())).thenReturn(false);
+        when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
+
+        assertThrows(AccessDeniedException.class, () -> examService.getExam(examId));
+    }
+
+    @Test
+    void getExam_Fail_InstructorNotCreator() {
+        UUID creatorId = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        exam.setCreatedBy(creatorId);
+        
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(otherId);
+        doReturn(List.of(new SimpleGrantedAuthority("INSTRUCTOR"))).when(authentication).getAuthorities();
+        
+        when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
+
+        assertThrows(AccessDeniedException.class, () -> examService.getExam(examId));
+    }
+
+    @Test
+    void getExam_Success_AdminAccessAny() {
+        UUID creatorId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        exam.setCreatedBy(creatorId);
+        
+        SecurityContextHolder.setContext(securityContext);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(adminId);
+        doReturn(List.of(new SimpleGrantedAuthority("ADMIN"))).when(authentication).getAuthorities();
+        
+        when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
+        when(mappingRepository.findAllByExamIdOrderByOrderIndexAsc(examId)).thenReturn(List.of());
+
+        assertNotNull(examService.getExam(examId));
     }
 }

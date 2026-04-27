@@ -37,7 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/me/**").hasAuthority("STUDENT")
                         
                         // Public/Authenticated Shared
-                        .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**", "/api/v1/courses/*/outline").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**", "/api/v1/courses/*/outline", "/api/v1/internal/courses/validate-access").authenticated()
                         .requestMatchers("/actuator/health").permitAll()
                         
                         .anyRequest().authenticated()
