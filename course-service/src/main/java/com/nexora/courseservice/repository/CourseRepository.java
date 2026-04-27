@@ -16,4 +16,5 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
     Page<Course> findByStatusAndIsDeletedFalse(CourseStatus status, Pageable pageable);
     Optional<Course> findByIdAndIsDeletedFalse(UUID id);
     Optional<Course> findByIdAndCreatedByAndIsDeletedFalse(UUID id, UUID createdBy);
+    Page<Course> findByStatusAndIsDeletedFalseAndTitleContainingIgnoreCase(CourseStatus status, String keyword, Pageable pageable);
 }

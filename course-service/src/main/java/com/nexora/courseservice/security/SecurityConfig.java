@@ -31,7 +31,9 @@ public class SecurityConfig {
                         
                         // Student endpoints
                         .requestMatchers(HttpMethod.POST, "/api/v1/courses/*/enroll").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/*/enroll").hasAuthority("STUDENT")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/lessons/*/progress").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/lessons/*/progress").hasAuthority("STUDENT")
                         .requestMatchers("/api/v1/me/**").hasAuthority("STUDENT")
                         
                         // Public/Authenticated Shared
