@@ -87,6 +87,13 @@ services:
       zookeeper:
         condition: service_started
 
+  zipkin:
+    image: openzipkin/zipkin:3.4
+    container_name: edubasic-zipkin
+    <<: *common-config
+    ports:
+      - "9411:9411"
+
   auth:
     build:
       context: ./auth

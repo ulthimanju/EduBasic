@@ -52,6 +52,7 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(examCompletedConsumerFactory);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+        factory.getContainerProperties().setObservationEnabled(true);
         factory.setCommonErrorHandler(kafkaErrorHandler(commonKafkaTemplate));
         return factory;
     }
@@ -71,7 +72,9 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, CourseCompletedEvent> courseCompletedKafkaTemplate(
             ProducerFactory<String, CourseCompletedEvent> courseCompletedProducerFactory) {
-        return new KafkaTemplate<>(courseCompletedProducerFactory);
+        KafkaTemplate<String, CourseCompletedEvent> template = new KafkaTemplate<>(courseCompletedProducerFactory);
+        template.setObservationEnabled(true);
+        return template;
     }
 
     @Bean
@@ -85,7 +88,9 @@ public class KafkaConfig {
 
     @Bean
     public KafkaTemplate<String, Object> commonKafkaTemplate(ProducerFactory<String, Object> commonProducerFactory) {
-        return new KafkaTemplate<>(commonProducerFactory);
+        KafkaTemplate<String, Object> template = new KafkaTemplate<>(commonProducerFactory);
+        template.setObservationEnabled(true);
+        return template;
     }
 
     @Bean
