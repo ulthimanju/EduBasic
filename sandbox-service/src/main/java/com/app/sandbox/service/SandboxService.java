@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,49 +27,60 @@ public class SandboxService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "coding-submitted", groupId = "sandbox-group")
+    @KafkaListener(
+            topics = "coding-submitted",
+            groupId = "sandbox-group",
+            containerFactory = "sandboxListenerFactory"
+    )
     @Transactional
-    public void consumeSubmission(Map<String, Object> event) {
+    public void consumeSubmission(Map<String, Object> event, Acknowledgment ack) {
         log.info("Received coding submission for attempt: {}", event.get("attemptId"));
 
-        CodeSubmission submission = new CodeSubmission();
-        submission.setAttemptId(UUID.fromString((String) event.get("attemptId")));
-        submission.setQuestionId(UUID.fromString((String) event.get("questionId")));
-        submission.setLanguage((String) event.get("language"));
-        submission.setSourceCode((String) event.get("sourceCode"));
-        submission.setStatus("RUNNING");
-        submission = submissionRepository.save(submission);
+        try {
+            CodeSubmission submission = new CodeSubmission();
+            submission.setAttemptId(UUID.fromString((String) event.get("attemptId")));
+            submission.setQuestionId(UUID.fromString((String) event.get("questionId")));
+            submission.setLanguage((String) event.get("language"));
+            submission.setSourceCode((String) event.get("sourceCode"));
+            submission.setStatus("RUNNING");
+            submission = submissionRepository.save(submission);
 
-        JsonNode testCasesNode = objectMapper.valueToTree(event.get("testCases"));
-        int timeLimitMs = ((Number) event.getOrDefault("timeLimitMs", 2000)).intValue();
+            JsonNode testCasesNode = objectMapper.valueToTree(event.get("testCases"));
+            int timeLimitMs = ((Number) event.getOrDefault("timeLimitMs", 2000)).intValue();
 
-        List<Map<String, Object>> results = dockerExecutor.execute(
-            submission.getLanguage(),
-            submission.getSourceCode(),
-            testCasesNode,
-            timeLimitMs
-        );
+            List<Map<String, Object>> results = dockerExecutor.execute(
+                submission.getLanguage(),
+                submission.getSourceCode(),
+                testCasesNode,
+                timeLimitMs
+            );
 
-        long passedCount = results.stream().filter(r -> "PASSED".equals(r.get("status"))).count();
-        String overallStatus = passedCount == results.size() ? "PASSED" : (passedCount > 0 ? "PARTIAL" : "FAILED");
+            long passedCount = results.stream().filter(r -> "PASSED".equals(r.get("status"))).count();
+            String overallStatus = passedCount == results.size() ? "PASSED" : (passedCount > 0 ? "PARTIAL" : "FAILED");
 
-        submission.setTestCaseResults(results);
-        submission.setOverallStatus(overallStatus);
-        submission.setStatus("COMPLETED");
-        submission.setCompletedAt(OffsetDateTime.now());
-        submissionRepository.save(submission);
+            submission.setTestCaseResults(results);
+            submission.setOverallStatus(overallStatus);
+            submission.setStatus("COMPLETED");
+            submission.setCompletedAt(OffsetDateTime.now());
+            submissionRepository.save(submission);
 
-        // Produce result back to Evaluation Engine
-        Map<String, Object> resultEvent = Map.of(
-            "attemptId", submission.getAttemptId().toString(),
-            "questionId", submission.getQuestionId().toString(),
-            "overallStatus", overallStatus,
-            "totalPassed", (int) passedCount,
-            "totalTestCases", results.size(),
-            "scorePercent", (double) passedCount / results.size() * 100
-        );
+            // Produce result back to Evaluation Engine
+            Map<String, Object> resultEvent = Map.of(
+                "attemptId", submission.getAttemptId().toString(),
+                "questionId", submission.getQuestionId().toString(),
+                "overallStatus", overallStatus,
+                "totalPassed", (int) passedCount,
+                "totalTestCases", results.size(),
+                "scorePercent", (double) passedCount / results.size() * 100
+            );
 
-        kafkaTemplate.send("coding-result", submission.getAttemptId().toString(), resultEvent);
-        log.info("Published coding result for attempt: {}", submission.getAttemptId());
+            kafkaTemplate.send("coding-result", submission.getAttemptId().toString(), resultEvent);
+            log.info("Published coding result for attempt: {}", submission.getAttemptId());
+            
+            ack.acknowledge();
+        } catch (Exception e) {
+            log.error("Failed to process coding submission for attempt: {}. Message will be retried or sent to DLT.", event.get("attemptId"), e);
+            throw e; // Rethrow to trigger ErrorHandler
+        }
     }
 }
