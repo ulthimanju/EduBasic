@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import examApi from '../services/apiClient'; // Wait, should be examApi service
-import api from '../services/examApi';
+import api from '../api/exam';
 import { usePrompt } from '../context/PromptContext';
 
 export const useExamProctoring = (attemptId, isActive) => {

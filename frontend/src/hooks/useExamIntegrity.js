@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import examApi from '../services/examApi';
+import examApi from '../api/exam';
 
 export const useExamIntegrity = (sessionId, onTerminate, isActive = false) => {
   const [violationCount, setViolationCount] = useState(0);
@@ -27,7 +27,11 @@ export const useExamIntegrity = (sessionId, onTerminate, isActive = false) => {
     if (isTerminatedRef.current || !hasStartedRef.current) return;
 
     try {
-      const response = await examApi.reportViolation(sessionId, reason);
+      const response = await examApi.recordViolation(sessionId, {
+        violationType: reason,
+        timestamp: new Date().toISOString(),
+        metadata: { url: window.location.href }
+      });
       const newCount = response.data.violationCount;
       const status = response.data.status;
       
