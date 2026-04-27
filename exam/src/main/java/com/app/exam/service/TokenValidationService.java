@@ -19,8 +19,8 @@ public class TokenValidationService {
             String value = stringRedisTemplate.opsForValue().get(AUTH_JWT_PREFIX + jwtId);
             return JWT_INVALID.equals(value);
         } catch (Exception e) {
-            log.warn("Failed to check token revocation in Redis: {}", e.getMessage());
-            return false; // Fail-open (trust the JWT signature)
+            log.error("CRITICAL: Failed to check token revocation in Redis (Redis unavailable). Rejecting token for security: {}", e.getMessage());
+            return true; // Fail-closed (Reject token if we can't verify its status)
         }
     }
 }

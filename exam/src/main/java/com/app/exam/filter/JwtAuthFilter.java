@@ -43,8 +43,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String jwtId = jwtService.extractJwtId(jwt);
                 
                 if (tokenValidationService.isRevoked(jwtId)) {
-                    log.debug("Rejecting revoked token: {}", jwtId);
-                    chain.doFilter(request, response);
+                    log.warn("Rejecting revoked or unverifiable token: {}", jwtId);
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().write("Token is revoked or cannot be verified");
                     return;
                 }
 
