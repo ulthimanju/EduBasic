@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +30,7 @@ public class CourseController {
     private final CourseExamService courseExamService;
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<CourseSummaryResponse> createCourse(
             @Valid @RequestBody CreateCourseRequest request,
             @AuthenticationPrincipal UUID instructorId) {
@@ -36,6 +38,7 @@ public class CourseController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<Page<CourseSummaryResponse>> listMyCourses(
             @AuthenticationPrincipal UUID instructorId,
             Pageable pageable) {
@@ -50,6 +53,7 @@ public class CourseController {
     }
 
     @PutMapping("/{courseId}")
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<CourseResponse> updateCourse(
             @PathVariable UUID courseId,
             @Valid @RequestBody UpdateCourseRequest request,
@@ -58,6 +62,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{courseId}")
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<Void> deleteCourse(
             @PathVariable UUID courseId,
             @AuthenticationPrincipal UUID instructorId) {
@@ -66,6 +71,7 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/publish")
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<CourseResponse> publishCourse(
             @PathVariable UUID courseId,
             @AuthenticationPrincipal UUID instructorId,
@@ -74,6 +80,7 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/archive")
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<CourseResponse> archiveCourse(
             @PathVariable UUID courseId,
             @AuthenticationPrincipal UUID instructorId) {
@@ -81,6 +88,7 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/exams")
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<CourseExamResponse> linkExam(
             @PathVariable UUID courseId,
             @Valid @RequestBody LinkExamRequest request,
@@ -90,6 +98,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{courseId}/exams/{examId}")
+    @PreAuthorize("hasAnyAuthority('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<Void> unlinkExam(
             @PathVariable UUID courseId,
             @PathVariable UUID examId,

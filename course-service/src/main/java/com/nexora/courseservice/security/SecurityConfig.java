@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -13,6 +14,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -25,7 +27,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Management endpoints (Instructor/Admin)
-                        .requestMatchers(HttpMethod.POST, "/api/v1/courses", "/api/v1/courses/*/modules", "/api/v1/modules/*/lessons", "/api/v1/courses/*/exams").hasAnyAuthority("INSTRUCTOR", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/courses", "/api/v1/courses/*/modules", "/api/v1/modules/*/lessons", "/api/v1/courses/*/exams", "/api/v1/courses/*/publish", "/api/v1/courses/*/archive").hasAnyAuthority("INSTRUCTOR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/courses/**", "/api/v1/modules/**", "/api/v1/lessons/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/courses/**", "/api/v1/modules/**", "/api/v1/lessons/**").hasAnyAuthority("INSTRUCTOR", "ADMIN")
                         
