@@ -116,8 +116,25 @@ public class DockerExecutor {
 
         // 2. Run test cases
         List<Map<String, Object>> results = new ArrayList<>();
+        boolean timeoutOccurred = false;
+        
         for (JsonNode tc : testCases) {
-            results.add(runSingleTestCase(containerId, className, tc, timeLimitMs));
+            if (timeoutOccurred) {
+                results.add(Map.of(
+                    "testCaseId", tc.get("id").asText(),
+                    "status", "SKIPPED",
+                    "isHidden", tc.has("isHidden") && tc.get("isHidden").asBoolean()
+                ));
+                continue;
+            }
+
+            Map<String, Object> result = runSingleTestCase(containerId, className, tc, timeLimitMs);
+            results.add(result);
+
+            if ("TIME_LIMIT_EXCEEDED".equals(result.get("status"))) {
+                timeoutOccurred = true;
+                log.warn("Test case timed out, skipping remaining tests for container: {}", containerId);
+            }
         }
         return results;
     }
@@ -128,7 +145,10 @@ public class DockerExecutor {
         String expected = tc.get("expectedOutput").asText().trim();
         boolean isHidden = tc.has("isHidden") && tc.get("isHidden").asBoolean();
 
-        String runCmd = String.format("echo -n \"%s\" | java %s", input.replace("\"", "\\\""), className);
+        // Safe input passing via base64 to prevent shell injection
+        String encodedInput = Base64.getEncoder().encodeToString(input.getBytes(StandardCharsets.UTF_8));
+        String runCmd = String.format("echo %s | base64 -d > input.txt && java %s < input.txt", encodedInput, className);
+        
         long start = System.currentTimeMillis();
         
         try {
