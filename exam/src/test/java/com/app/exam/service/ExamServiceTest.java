@@ -169,7 +169,7 @@ class ExamServiceTest {
         UUID studentId = UUID.randomUUID();
         when(authentication.getPrincipal()).thenReturn(studentId);
         doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
-        when(courseServiceClient.validateStudentAccess(eq(studentId), eq(examId), any())).thenReturn(true);
+        when(courseServiceClient.validateStudentAccess(eq(examId), any())).thenReturn(true);
 
         Question question = new Question();
         question.setId(UUID.randomUUID());
@@ -202,7 +202,7 @@ class ExamServiceTest {
         UUID studentId = UUID.randomUUID();
         when(authentication.getPrincipal()).thenReturn(studentId);
         doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
-        when(courseServiceClient.validateStudentAccess(eq(studentId), eq(examId), any())).thenReturn(true);
+        when(courseServiceClient.validateStudentAccess(eq(examId), any())).thenReturn(true);
 
         Question question = new Question();
         question.setType(QuestionType.FILL_BLANK);
@@ -250,7 +250,7 @@ class ExamServiceTest {
         when(authentication.getPrincipal()).thenReturn(studentId);
         doReturn(List.of(new SimpleGrantedAuthority("STUDENT"))).when(authentication).getAuthorities();
         
-        when(courseServiceClient.validateStudentAccess(eq(studentId), eq(examId), any())).thenReturn(false);
+        when(courseServiceClient.validateStudentAccess(eq(examId), any())).thenReturn(false);
         when(examRepository.findById(examId)).thenReturn(Optional.of(exam));
 
         assertThrows(AccessDeniedException.class, () -> examService.getExam(examId));

@@ -22,7 +22,7 @@ public class CourseServiceClient {
     @Value("${course.service.url:http://course-service:8083}")
     private String courseServiceUrl;
 
-    public boolean validateStudentAccess(UUID studentId, UUID examId, String bearerToken) {
+    public boolean validateStudentAccess(UUID examId, String bearerToken) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken);
@@ -30,7 +30,6 @@ public class CourseServiceClient {
 
             String url = UriComponentsBuilder.fromUriString(courseServiceUrl)
                     .path("/api/v1/internal/courses/validate-access")
-                    .queryParam("studentId", studentId)
                     .queryParam("examId", examId)
                     .toUriString();
 

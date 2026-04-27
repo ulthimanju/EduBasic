@@ -99,7 +99,7 @@ public class ExamService {
                 }
             }
 
-            if (token == null || !courseServiceClient.validateStudentAccess(userId, id, token)) {
+            if (token == null || !courseServiceClient.validateStudentAccess(id, token)) {
                 throw new AccessDeniedException("Student is not authorized to access this exam via any enrolled course");
             }
         } else if (!isAdmin && !exam.getCreatedBy().equals(userId)) {

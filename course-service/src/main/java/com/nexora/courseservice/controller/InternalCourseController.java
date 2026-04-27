@@ -5,6 +5,7 @@ import com.nexora.courseservice.repository.CourseEnrollmentRepository;
 import com.nexora.courseservice.repository.CourseExamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +23,7 @@ public class InternalCourseController {
 
     @GetMapping("/validate-access")
     public ResponseEntity<Boolean> validateStudentAccess(
-            @RequestParam UUID studentId,
+            @AuthenticationPrincipal UUID studentId,
             @RequestParam UUID examId) {
         
         // Find any course linked to this exam where the student is actively enrolled
