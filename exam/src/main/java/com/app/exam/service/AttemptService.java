@@ -3,7 +3,6 @@ package com.app.exam.service;
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
 import com.app.exam.repository.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -31,7 +30,6 @@ public class AttemptService {
     private final ExamSnapshotRepository snapshotRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     private static final String REDIS_PREFIX = "exam:session:";
 

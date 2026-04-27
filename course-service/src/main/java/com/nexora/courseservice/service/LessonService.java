@@ -1,7 +1,6 @@
 package com.nexora.courseservice.service;
 
 import com.nexora.courseservice.constants.ErrorMessages;
-import com.nexora.courseservice.constants.ValidationMessages;
 import com.nexora.courseservice.dto.request.CreateLessonRequest;
 import com.nexora.courseservice.dto.request.ReorderRequest;
 import com.nexora.courseservice.dto.request.UpdateLessonRequest;

@@ -149,7 +149,4 @@ public class ExamIntegrationTest {
 
     @Autowired
     private ExamRepository examRepository;
-
-    @Autowired
-    private StudentAttemptRepository attemptRepository;
 }

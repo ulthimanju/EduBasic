@@ -28,7 +28,7 @@ public class CourseServiceClient {
             headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken);
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-            String url = UriComponentsBuilder.fromHttpUrl(courseServiceUrl)
+            String url = UriComponentsBuilder.fromUriString(courseServiceUrl)
                     .path("/api/v1/internal/courses/validate-access")
                     .queryParam("studentId", studentId)
                     .queryParam("examId", examId)

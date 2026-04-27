@@ -27,6 +27,8 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
     @EntityGraph(attributePaths = {"modules", "modules.lessons", "courseExams"})
     Optional<Course> findByIdAndCreatedByAndIsDeletedFalse(UUID id, UUID createdBy);
 
+    boolean existsByIdAndCreatedByAndIsDeletedFalse(UUID id, UUID createdBy);
+
     Page<Course> findByStatusAndIsDeletedFalseAndTitleContainingIgnoreCase(CourseStatus status, String keyword, Pageable pageable);
 
     @Query("SELECT c.id as id, c.title as title, c.description as description, c.thumbnailUrl as thumbnailUrl, " +
@@ -52,7 +54,7 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
         String getThumbnailUrl();
         CourseStatus getStatus();
         UUID getCreatedBy();
-        java.time.OffsetDateTime getCreatedAt();
+        java.time.LocalDateTime getCreatedAt();
         Integer getTotalModules();
         Integer getTotalLessons();
         Integer getTotalExams();

@@ -1,6 +1,5 @@
 package com.nexora.courseservice.controller;
 
-import com.nexora.courseservice.entity.CourseEnrollment;
 import com.nexora.courseservice.entity.EnrollmentStatus;
 import com.nexora.courseservice.repository.CourseEnrollmentRepository;
 import com.nexora.courseservice.repository.CourseExamRepository;

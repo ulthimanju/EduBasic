@@ -92,8 +92,9 @@ public class ModuleService {
 
     @Transactional
     public void reorderModules(UUID courseId, ReorderRequest request, UUID instructorId) {
-        Course course = courseRepository.findByIdAndCreatedByAndIsDeletedFalse(courseId, instructorId)
-                .orElseThrow(() -> new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND));
+        if (!courseRepository.existsByIdAndCreatedByAndIsDeletedFalse(courseId, instructorId)) {
+            throw new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND);
+        }
 
         List<CourseModule> modules = moduleRepository.findByCourseIdAndIsDeletedFalseOrderByOrderIndex(courseId);
         Map<UUID, CourseModule> moduleMap = modules.stream()

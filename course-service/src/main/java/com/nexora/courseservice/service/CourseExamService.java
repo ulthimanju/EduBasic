@@ -54,8 +54,9 @@ public class CourseExamService {
 
     @Transactional
     public void unlinkExam(UUID courseId, UUID examId, UUID instructorId) {
-        Course course = courseRepository.findByIdAndCreatedByAndIsDeletedFalse(courseId, instructorId)
-                .orElseThrow(() -> new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND));
+        if (!courseRepository.existsByIdAndCreatedByAndIsDeletedFalse(courseId, instructorId)) {
+            throw new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND);
+        }
 
         courseExamRepository.deleteByCourseIdAndExamId(courseId, examId);
     }

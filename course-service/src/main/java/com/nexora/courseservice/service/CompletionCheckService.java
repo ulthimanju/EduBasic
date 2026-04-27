@@ -213,6 +213,7 @@ public class CompletionCheckService {
             completionLogRepository.findByCourseIdAndStudentId(courseId, studentId)
                     .ifPresent(cl -> {
                         try {
+                            @SuppressWarnings("unchecked")
                             Map<String, Object> snapshot = objectMapper.readValue(cl.getSnapshot(), Map.class);
                             Object avgScoreObj = snapshot.get("avgScore");
                             if (avgScoreObj instanceof Number num) {

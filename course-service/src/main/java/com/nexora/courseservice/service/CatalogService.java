@@ -130,25 +130,4 @@ public class CatalogService {
 
         return res;
     }
-
-    private CatalogCourseResponse mapToCatalogResponse(Course course) {
-        CatalogCourseResponse res = new CatalogCourseResponse();
-        res.setId(course.getId());
-        res.setTitle(course.getTitle());
-        res.setDescription(course.getDescription());
-        res.setThumbnailUrl(course.getThumbnailUrl());
-        res.setStatus(course.getStatus());
-        res.setCreatedBy(course.getCreatedBy());
-        res.setCreatedAt(course.getCreatedAt());
-        
-        res.setTotalModules((int) course.getModules().stream().filter(m -> !m.isDeleted()).count());
-        res.setTotalLessons((int) course.getModules().stream()
-                .filter(m -> !m.isDeleted())
-                .flatMap(m -> m.getLessons().stream())
-                .filter(l -> !l.isDeleted())
-                .count());
-        res.setTotalExams(course.getCourseExams().size());
-        
-        return res;
-    }
 }

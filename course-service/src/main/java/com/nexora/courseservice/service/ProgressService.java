@@ -94,9 +94,9 @@ public class ProgressService {
 
     @Transactional(readOnly = true)
     public CourseOutlineResponse getCourseOutlineWithProgress(UUID courseId, UUID studentId) {
-        CourseEnrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId)
-                .filter(e -> e.getStatus() != EnrollmentStatus.DROPPED)
-                .orElseThrow(() -> new CourseServiceException(ErrorMessages.NOT_ENROLLED, "NOT_ENROLLED", HttpStatus.FORBIDDEN));
+        if (!enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(courseId, studentId, EnrollmentStatus.DROPPED)) {
+            throw new CourseServiceException(ErrorMessages.NOT_ENROLLED, "NOT_ENROLLED", HttpStatus.FORBIDDEN);
+        }
 
         Course course = courseRepository.findByIdAndIsDeletedFalse(courseId)
                 .orElseThrow(() -> new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND));
