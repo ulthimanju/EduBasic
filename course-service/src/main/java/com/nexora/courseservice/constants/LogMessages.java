@@ -18,4 +18,10 @@ public final class LogMessages {
     public static final String PROGRESS_UPDATED_LOG     = "Progress updated: student={} lesson={} percent={}";
     public static final String COMPLETION_CHECK_PASS    = "All completion rules passed for student={} course={}";
     public static final String COMPLETION_CHECK_FAIL    = "Completion check failed for student={} course={} reason={}";
+    public static final String EXAM_SCORE_CACHED          = "Exam score cached for student={} exam={}";
+    public static final String EXAM_COMPLETED_PROCESSING  = "Processing exam-completed event: student={} exam={} score={}";
+    public static final String EXAM_COMPLETED_DUPLICATE   = "Duplicate exam-completed event skipped: student={} exam={}";
+    public static final String COURSE_COMPLETED_PUBLISHED = "course-completed event published: student={} course={}";
+    public static final String COURSE_COMPLETED_PUBLISH_FAILED = "Failed to publish course-completed event: student={} course={}";
+    public static final String KAFKA_CONSUMER_ERROR       = "Kafka consumer error on topic={} partition={} offset={}";
 }

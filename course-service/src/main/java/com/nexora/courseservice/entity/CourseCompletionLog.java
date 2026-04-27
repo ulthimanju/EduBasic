@@ -26,8 +26,9 @@ public class CourseCompletionLog {
     @Column(name = "completed_at", nullable = false)
     private LocalDateTime completedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "trigger_type", nullable = false)
-    private String triggerType;
+    private TriggerType triggerType;
 
     @Column(columnDefinition = "jsonb", nullable = false)
     private String snapshot;

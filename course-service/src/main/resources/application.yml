@@ -36,13 +36,25 @@ spring:
     consumer:
       group-id: course-service-group
       auto-offset-reset: earliest
+      enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: "com.nexora.*"
+        spring.json.value.default.type: com.nexora.courseservice.event.ExamCompletedEvent
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+
+kafka:
+  topics:
+    exam-completed: ${KAFKA_TOPIC_EXAM_COMPLETED:exam-completed}
+    course-completed: ${KAFKA_TOPIC_COURSE_COMPLETED:course-completed}
 
 auth:
   jwks-uri: ${AUTH_JWKS_URI:http://auth-service:8080/api/v1/auth/.well-known/jwks.json}

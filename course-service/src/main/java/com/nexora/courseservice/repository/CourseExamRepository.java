@@ -11,6 +11,7 @@ import java.util.UUID;
 @Repository
 public interface CourseExamRepository extends JpaRepository<CourseExam, UUID> {
     List<CourseExam> findByCourseIdOrderByOrderIndex(UUID courseId);
+    List<CourseExam> findByExamId(UUID examId);
     Optional<CourseExam> findByCourseIdAndExamId(UUID courseId, UUID examId);
     boolean existsByCourseIdAndExamId(UUID courseId, UUID examId);
     void deleteByCourseIdAndExamId(UUID courseId, UUID examId);
