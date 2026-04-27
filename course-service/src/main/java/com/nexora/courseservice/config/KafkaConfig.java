@@ -46,12 +46,13 @@ public class KafkaConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, ExamCompletedEvent>
             examCompletedListenerFactory(
-                    ConsumerFactory<String, ExamCompletedEvent> examCompletedConsumerFactory) {
+                    ConsumerFactory<String, ExamCompletedEvent> examCompletedConsumerFactory,
+                    KafkaTemplate<String, Object> commonKafkaTemplate) {
         ConcurrentKafkaListenerContainerFactory<String, ExamCompletedEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(examCompletedConsumerFactory);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-        factory.setCommonErrorHandler(kafkaErrorHandler());
+        factory.setCommonErrorHandler(kafkaErrorHandler(commonKafkaTemplate));
         return factory;
     }
 
@@ -74,9 +75,23 @@ public class KafkaConfig {
     }
 
     @Bean
-    public DefaultErrorHandler kafkaErrorHandler() {
+    public ProducerFactory<String, Object> commonProducerFactory(
+            KafkaProperties kafkaProperties) {
+        Map<String, Object> props = new HashMap<>(kafkaProperties.buildProducerProperties());
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    public KafkaTemplate<String, Object> commonKafkaTemplate(ProducerFactory<String, Object> commonProducerFactory) {
+        return new KafkaTemplate<>(commonProducerFactory);
+    }
+
+    @Bean
+    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> commonKafkaTemplate) {
         DefaultErrorHandler handler = new DefaultErrorHandler(
-                new DeadLetterPublishingRecoverer(new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(new HashMap<>()))),
+                new DeadLetterPublishingRecoverer(commonKafkaTemplate),
                 new FixedBackOff(1000L, 3L)
         );
         handler.addNotRetryableExceptions(
