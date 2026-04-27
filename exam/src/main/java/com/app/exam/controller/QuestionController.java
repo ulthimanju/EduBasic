@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +27,7 @@ public class QuestionController {
 
     @PostMapping
     public ResponseEntity<QuestionResponse> createQuestion(@Valid @RequestBody CreateQuestionRequest request) {
-        return ResponseEntity.ok(questionService.createQuestion(request));
+        return new ResponseEntity<>(questionService.createQuestion(request), HttpStatus.CREATED);
     }
 
     @GetMapping
@@ -64,6 +65,6 @@ public class QuestionController {
     @PostMapping("/bulk")
     public ResponseEntity<Void> bulkImport(@RequestBody List<CreateQuestionRequest> requests) {
         questionService.bulkImport(requests);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }

@@ -8,6 +8,7 @@ import com.app.exam.service.AttemptService;
 import com.app.exam.service.CertificateService;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class AttemptController {
     @PostMapping
     public ResponseEntity<AttemptResponse> startAttempt(@RequestBody StartAttemptRequest request) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.ok(attemptService.startAttempt(studentId, request.getExamId()));
+        return new ResponseEntity<>(attemptService.startAttempt(studentId, request.getExamId()), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}/sync")
@@ -39,7 +40,7 @@ public class AttemptController {
     public ResponseEntity<Void> submitAttempt(@PathVariable UUID id) {
         UUID studentId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         attemptService.submitAttempt(studentId, id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
@@ -25,7 +26,7 @@ public class ExamController {
 
     @PostMapping
     public ResponseEntity<ExamResponse> createExam(@Valid @RequestBody CreateExamRequest request) {
-        return ResponseEntity.ok(examService.createExam(request));
+        return new ResponseEntity<>(examService.createExam(request), HttpStatus.CREATED);
     }
 
     @GetMapping
@@ -56,7 +57,7 @@ public class ExamController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID instructorId = (UUID) auth.getPrincipal();
         examService.publishExam(id, instructorId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/sections")
@@ -64,7 +65,7 @@ public class ExamController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID instructorId = (UUID) auth.getPrincipal();
         examService.addSection(id, instructorId, request.getTitle(), request.getDescription(), request.getOrderIndex());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/questions")
@@ -72,6 +73,6 @@ public class ExamController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID instructorId = (UUID) auth.getPrincipal();
         examService.addQuestion(id, instructorId, request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }
