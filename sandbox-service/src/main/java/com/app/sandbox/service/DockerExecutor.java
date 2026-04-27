@@ -11,6 +11,9 @@ import com.github.dockerjava.api.model.StreamType;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.api.model.Mount;
+import com.github.dockerjava.api.model.MountType;
+import com.github.dockerjava.api.model.WaitResponse;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +26,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,8 +35,8 @@ import java.util.regex.Pattern;
 public class DockerExecutor {
 
     private final DockerClient dockerClient;
-    private final BlockingQueue<String> containerPool = new ArrayBlockingQueue<>(5);
     private static final String IMAGE = "openjdk:21-slim";
+    private static final String WORKDIR = "/home/sandbox";
 
     public DockerExecutor() {
         DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
@@ -51,40 +52,29 @@ public class DockerExecutor {
 
     @PostConstruct
     public void init() {
-        log.info("Bootstrapping Sandbox Container Pool...");
+        log.info("Pulling Sandbox Image: {}...", IMAGE);
         try {
             dockerClient.pullImageCmd(IMAGE).start().awaitCompletion(5, TimeUnit.MINUTES);
-            for (int i = 0; i < 3; i++) {
-                containerPool.offer(createWarmContainer());
-            }
-            log.info("Sandbox Pool initialized with {} containers", containerPool.size());
         } catch (Exception e) {
-            log.error("Failed to initialize Sandbox Pool", e);
+            log.error("Failed to pull Sandbox Image", e);
         }
     }
 
-    @PreDestroy
-    public void cleanup() {
-        log.info("Cleaning up Sandbox Pool...");
-        String containerId;
-        while ((containerId = containerPool.poll()) != null) {
-            try {
-                dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-            } catch (Exception e) {
-                log.warn("Failed to remove container {}", containerId);
-            }
-        }
-    }
-
-    private String createWarmContainer() {
+    private String createSecureContainer() {
         CreateContainerResponse container = dockerClient.createContainerCmd(IMAGE)
                 .withHostConfig(HostConfig.newHostConfig()
-                        .withMemory(256 * 1024 * 1024L)
+                        .withMemory(256 * 1024 * 1024L) // 256MB
                         .withMemorySwap(256 * 1024 * 1024L)
-                        .withCpuQuota(50000L)
-                        .withNetworkMode("none"))
+                        .withCpuQuota(50000L) // 50% CPU
+                        .withPidsLimit(50L) // Prevent fork bombs
+                        .withNetworkMode("none")
+                        .withReadonlyRootfs(true)
+                        .withSecurityOpts(List.of("no-new-privileges"))
+                        .withTmpFs(Map.of(WORKDIR, "size=10m,mode=1777")))
+                .withWorkingDir(WORKDIR)
                 .withCmd("tail", "-f", "/dev/null")
                 .withNetworkDisabled(true)
+                .withUser("nobody")
                 .exec();
         dockerClient.startContainerCmd(container.getId()).exec();
         return container.getId();
@@ -98,28 +88,17 @@ public class DockerExecutor {
         String className = extractClassName(sourceCode);
         String containerId = null;
         try {
-            containerId = containerPool.poll(10, TimeUnit.SECONDS);
-            if (containerId == null) {
-                log.warn("Pool empty, creating on-demand container");
-                containerId = createWarmContainer();
-            }
-
+            containerId = createSecureContainer();
             return runAllTestCases(containerId, className, sourceCode, testCases, timeLimitMs);
-
         } catch (Exception e) {
             log.error("Execution failed", e);
             return createErrorResults(testCases, "Internal Error: " + e.getMessage());
         } finally {
             if (containerId != null) {
                 try {
-                    // Clean up files in container before returning to pool
-                    dockerClient.execCreateCmd(containerId).withCmd("sh", "-c", "rm -rf *").exec();
-                    containerPool.offer(containerId);
+                    dockerClient.removeContainerCmd(containerId).withForce(true).exec();
                 } catch (Exception e) {
-                    log.warn("Container tainted, removing: {}", containerId);
-                    try { dockerClient.removeContainerCmd(containerId).withForce(true).exec(); } catch (Exception ex) {}
-                    // Replenish pool
-                    new Thread(() -> containerPool.offer(createWarmContainer())).start();
+                    log.warn("Failed to remove container: {}", containerId);
                 }
             }
         }
