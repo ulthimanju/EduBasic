@@ -83,7 +83,7 @@ public class EnrollmentService {
         
         try {
             redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(response), Duration.ofHours(1));
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             log.warn(LogMessages.CACHE_WRITE_FAILED, e.getMessage());
         }
 
@@ -155,8 +155,12 @@ public class EnrollmentService {
     }
 
     private void evictEnrollmentCache(UUID studentId, UUID courseId) {
-        redisTemplate.delete(CacheKeys.enrollment(studentId, courseId));
-        redisTemplate.delete(CacheKeys.progress(studentId, courseId));
+        try {
+            redisTemplate.delete(CacheKeys.enrollment(studentId, courseId));
+            redisTemplate.delete(CacheKeys.progress(studentId, courseId));
+        } catch (Exception e) {
+            log.warn("Failed to evict enrollment/progress cache for student {} and course {}: {}", studentId, courseId, e.getMessage());
+        }
     }
 
     private EnrollmentResponse mapToResponse(CourseEnrollment e, String title) {
