@@ -98,7 +98,10 @@ public class EvaluationService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    kafkaTemplate.send("evaluation-completed", attemptId.toString(), event);
+                    kafkaTemplate.send("evaluation-completed", attemptId.toString(), event)
+                        .whenComplete((res, ex) -> {
+                            if (ex != null) log.error("Failed to publish evaluation-completed for attempt: {}", attemptId, ex);
+                        });
                 }
             });
         } else if (result.getStatus() == EvaluationStatus.PENDING_MANUAL) {
@@ -106,7 +109,10 @@ public class EvaluationService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), event);
+                    kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), event)
+                        .whenComplete((res, ex) -> {
+                            if (ex != null) log.error("Failed to publish evaluation-needs-manual for attempt: {}", attemptId, ex);
+                        });
                 }
             });
         }
@@ -126,7 +132,10 @@ public class EvaluationService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                kafkaTemplate.send("coding-submitted", attempt.getId().toString(), event);
+                kafkaTemplate.send("coding-submitted", attempt.getId().toString(), event)
+                    .whenComplete((res, ex) -> {
+                        if (ex != null) log.error("Failed to publish coding-submitted for attempt: {}", attempt.getId(), ex);
+                    });
             }
         });
     }
@@ -198,7 +207,10 @@ public class EvaluationService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    kafkaTemplate.send("evaluation-completed", attemptId.toString(), completeEvent);
+                    kafkaTemplate.send("evaluation-completed", attemptId.toString(), completeEvent)
+                        .whenComplete((res, ex) -> {
+                            if (ex != null) log.error("Failed to publish evaluation-completed for attempt: {}", attemptId, ex);
+                        });
                 }
             });
         } else if (result.getStatus() == EvaluationStatus.PENDING_MANUAL) {
@@ -206,7 +218,10 @@ public class EvaluationService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), manualEvent);
+                    kafkaTemplate.send("evaluation-needs-manual", attemptId.toString(), manualEvent)
+                        .whenComplete((res, ex) -> {
+                            if (ex != null) log.error("Failed to publish evaluation-needs-manual for attempt: {}", attemptId, ex);
+                        });
                 }
             });
         }

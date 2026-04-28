@@ -7,6 +7,7 @@ import com.app.exam.repository.StudentAttemptRepository;
 import com.app.exam.service.ProctoringService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/proctoring")
 @RequiredArgsConstructor
+@Slf4j
 public class ProctoringController {
 
     private final ProctoringService proctoringService;
@@ -45,7 +47,12 @@ public class ProctoringController {
         event.put("eventData", request.getEventData());
         event.put("timestamp", java.time.OffsetDateTime.now().toString());
 
-        kafkaTemplate.send("proctoring-events", attemptId.toString(), event);
+        kafkaTemplate.send("proctoring-events", attemptId.toString(), event)
+            .whenComplete((res, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to publish proctoring event for attempt: {}", attemptId, ex);
+                }
+            });
         
         return ResponseEntity.ok().build();
     }

@@ -156,12 +156,15 @@ public class AttemptService {
     }
 
     private void publishSubmitEvent(UUID attemptId, SubmitAttemptEvent event) {
-        try {
-            kafkaTemplate.send("exam-submitted", attemptId.toString(), event);
-            log.info("Published submission event for attempt: {}", attemptId);
-        } catch (Exception e) {
-            log.error("Failed to publish submission event for attempt: {} to topic: exam-submitted", attemptId, e);
-        }
+        kafkaTemplate.send("exam-submitted", attemptId.toString(), event)
+            .whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to publish submission event for attempt: {} to topic: exam-submitted", attemptId, ex);
+                } else {
+                    log.info("Published submission event for attempt: {} at offset: {}", 
+                        attemptId, result.getRecordMetadata().offset());
+                }
+            });
     }
 
     @Transactional

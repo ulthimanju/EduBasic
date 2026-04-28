@@ -115,7 +115,14 @@ public class SandboxService {
             "scorePercent", (double) passedCount / results.size() * 100
         );
 
-        kafkaTemplate.send("coding-result", submission.getAttemptId().toString(), resultEvent);
-        log.info("Published coding result for attempt: {}, question: {}", submission.getAttemptId(), submission.getQuestionId());
+        kafkaTemplate.send("coding-result", submission.getAttemptId().toString(), resultEvent)
+            .whenComplete((res, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to publish coding-result for attempt: {}", submission.getAttemptId(), ex);
+                } else {
+                    log.info("Published coding result for attempt: {}, question: {} at offset: {}", 
+                        submission.getAttemptId(), submission.getQuestionId(), res.getRecordMetadata().offset());
+                }
+            });
     }
 }
