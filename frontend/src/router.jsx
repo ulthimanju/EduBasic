@@ -14,10 +14,10 @@ import QuestionBankPage from './pages/QuestionBankPage/QuestionBankPage';
 import ResultPage from './pages/ResultPage/ResultPage';
 import ExamPage from './pages/ExamPage/ExamPage';
 import StartExamPage from './pages/ExamPage/StartExamPage';
-import useAuthBootstrap from './features/auth/hooks/useCurrentUser';
+import { useInitAuth, PublicOnlyRoute } from './features/auth';
 import Spinner from './components/common/Spinner/Spinner';
-import ConfirmModal from './components/common/ConfirmModal/ConfirmModal';
-import useUiStore from './stores/uiStore';
+import GlobalModals from './components/common/GlobalModals';
+import ErrorBoundary from './components/common/ErrorBoundary/ErrorBoundary';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,7 +29,12 @@ const queryClient = new QueryClient({
 });
 
 const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  {
+    element: <PublicOnlyRoute />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+    ]
+  },
   
   // Student routes
   {
@@ -65,8 +70,7 @@ const router = createBrowserRouter([
 ]);
 
 function AppContent() {
-  const { isInitializing } = useAuthBootstrap();
-  const { confirmModal, closeConfirmModal } = useUiStore();
+  const { isInitializing } = useInitAuth();
 
   if (isInitializing) {
     return (
@@ -77,15 +81,10 @@ function AppContent() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <RouterProvider router={router} />
-      {confirmModal && (
-        <ConfirmModal 
-          {...confirmModal} 
-          onCancel={confirmModal.onCancel || closeConfirmModal}
-        />
-      )}
-    </>
+      <GlobalModals />
+    </ErrorBoundary>
   );
 }
 

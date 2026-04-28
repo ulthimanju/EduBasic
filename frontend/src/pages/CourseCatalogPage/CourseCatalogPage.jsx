@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../../hooks/useCatalog';
-import CatalogCourseCard from '../../components/catalog/CatalogCourseCard/CatalogCourseCard';
+import CourseCard from '../../components/common/CourseCard/CourseCard';
 import CatalogSearchBar from '../../components/catalog/CatalogSearchBar/CatalogSearchBar';
 import SkeletonCard from '../../components/common/SkeletonCard/SkeletonCard';
 import ErrorBanner from '../../components/common/ErrorBanner/ErrorBanner';
@@ -16,7 +16,6 @@ export default function CourseCatalogPage() {
 
   const { data, isLoading, isError, refetch } = useCatalog({ keyword, page, size });
 
-  // Handle keyword change with debounce would be better, but keeping it simple for now
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchParams(prev => {
@@ -56,7 +55,7 @@ export default function CourseCatalogPage() {
             Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
           ) : (
             data?.content?.map(course => (
-              <CatalogCourseCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={course} variant="catalog" />
             ))
           )}
         </div>

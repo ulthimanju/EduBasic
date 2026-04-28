@@ -3,8 +3,7 @@ import { useMyCourses } from '../../hooks/useEnrollment';
 import Navbar from '../../components/layout/Navbar/Navbar';
 import SkeletonCard from '../../components/common/SkeletonCard/SkeletonCard';
 import ErrorBanner from '../../components/common/ErrorBanner/ErrorBanner';
-import ProgressBar from '../../components/common/ProgressBar/ProgressBar';
-import StatusBadge from '../../components/common/StatusBadge/StatusBadge';
+import CourseCard from '../../components/common/CourseCard/CourseCard';
 import { Link } from 'react-router-dom';
 import styles from './MyCoursesPage.module.css';
 
@@ -56,7 +55,7 @@ export default function MyCoursesPage() {
             Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
           ) : (
             filtered.map(course => (
-              <MyCourseSummaryCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={course} variant="enrolled" />
             ))
           )}
           {!isLoading && filtered.length === 0 && (
@@ -67,42 +66,6 @@ export default function MyCoursesPage() {
           )}
         </div>
       </main>
-    </div>
-  );
-}
-
-function MyCourseSummaryCard({ course }) {
-  const { id, title, thumbnailUrl, overallProgressPercent, completedLessons, totalLessons, passedExams, totalRequiredExams, enrollmentStatus } = course;
-
-  return (
-    <div className={styles.card}>
-      <div className={styles.cardThumb}>
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt={title} />
-        ) : (
-          <div className={styles.placeholder} />
-        )}
-      </div>
-      <div className={styles.cardBody}>
-        <h3 className={styles.cardTitle}>{title}</h3>
-        <div className={styles.progressSection}>
-          <div className={styles.progressLabel}>
-            <span>Overall Progress</span>
-            <span>{overallProgressPercent}%</span>
-          </div>
-          <ProgressBar percent={overallProgressPercent} />
-        </div>
-        <div className={styles.stats}>
-          <span>{completedLessons}/{totalLessons} lessons</span>
-          <span>{passedExams}/{totalRequiredExams} exams</span>
-        </div>
-        <div className={styles.cardFooter}>
-          <StatusBadge status={enrollmentStatus} />
-          <Link to={`/courses/${id}/learn`} className={styles.continueBtn}>
-            {enrollmentStatus === 'COMPLETED' ? 'Review' : 'Continue'}
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

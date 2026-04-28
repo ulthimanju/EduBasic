@@ -5,20 +5,20 @@ import {
   useCreateCourse, 
   useUpdateCourse, 
   useAddModule, 
-  useDeleteModule,
-  useAddLesson,
-  useDeleteLesson,
   useLinkExam,
   useUnlinkExam,
   usePublishCourse
 } from '../../hooks/useInstructor';
 import useUiStore from '../../stores/uiStore';
 import Navbar from '../../components/layout/Navbar/Navbar';
-import ModuleCard from '../../components/instructor/ModuleCard/ModuleCard';
 import LinkExamModal from '../../components/instructor/LinkExamModal/LinkExamModal';
 import Spinner from '../../components/common/Spinner/Spinner';
 import ErrorBanner from '../../components/common/ErrorBanner/ErrorBanner';
-import { Save, Send, Plus, ClipboardList, Trash2, ExternalLink } from 'lucide-react';
+
+import CourseMetaForm from './components/CourseMetaForm';
+import ModuleList from './components/ModuleList';
+import ExamLinker from './components/ExamLinker';
+
 import styles from './CourseBuilderPage.module.css';
 
 export default function CourseBuilderPage() {
@@ -108,164 +108,31 @@ export default function CourseBuilderPage() {
     <div className={styles.container}>
       <Navbar />
       <div className={styles.layout}>
-        {/* Left Panel: Metadata */}
-        <aside className={`${styles.panel} ${styles.leftPanel}`}>
-          <h2 className={styles.panelTitle}>Course Details</h2>
-          <div className={styles.formGroup}>
-            <label>Title</label>
-            <input 
-              type="text" 
-              value={metadata.title} 
-              onChange={e => setMetadata(m => ({ ...m, title: e.target.value }))}
-              placeholder="e.g. Advanced Java Patterns"
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Description</label>
-            <textarea 
-              value={metadata.description} 
-              onChange={e => setMetadata(m => ({ ...m, description: e.target.value }))}
-              placeholder="What will students learn?"
-              rows={4}
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Thumbnail URL</label>
-            <input 
-              type="text" 
-              value={metadata.thumbnailUrl} 
-              onChange={e => setMetadata(m => ({ ...m, thumbnailUrl: e.target.value }))}
-              placeholder="https://..."
-            />
-            {metadata.thumbnailUrl && (
-              <img src={metadata.thumbnailUrl} alt="Preview" className={styles.thumbPreview} />
-            )}
-          </div>
+        <CourseMetaForm 
+          metadata={metadata}
+          setMetadata={setMetadata}
+          onSave={handleSaveMetadata}
+          onPublish={() => publishMutation.mutate(courseId)}
+          isNew={isNew}
+          isSaving={createMutation.isPending || updateMutation.isPending}
+          isPublishing={publishMutation.isPending}
+          courseStatus={course?.status}
+          publishError={publishMutation.error}
+        />
 
-          <div className={styles.rulesSection}>
-            <h3 className={styles.subTitle}>Completion Rules</h3>
-            <label className={styles.checkboxLabel}>
-              <input 
-                type="checkbox" 
-                checked={metadata.requireAllLessons}
-                onChange={e => setMetadata(m => ({ ...m, requireAllLessons: e.target.checked }))}
-              />
-              Require all lessons
-            </label>
-            <label className={styles.checkboxLabel}>
-              <input 
-                type="checkbox" 
-                checked={metadata.requireAllExams}
-                onChange={e => setMetadata(m => ({ ...m, requireAllExams: e.target.checked }))}
-              />
-              Require all exams
-            </label>
-            <div className={styles.formGroupInline}>
-              <label>Min Pass %</label>
-              <input 
-                type="number" 
-                value={metadata.minPassPercentage}
-                onChange={e => setMetadata(m => ({ ...m, minPassPercentage: parseInt(e.target.value) }))}
-                min="0" max="100"
-              />
-            </div>
-          </div>
+        <ModuleList 
+          modules={course?.modules}
+          onAddModule={handleAddModule}
+          isNew={isNew}
+          courseId={courseId}
+        />
 
-          <div className={styles.metadataActions}>
-            <button 
-              className={styles.saveBtn} 
-              onClick={handleSaveMetadata}
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              <Save size={18} />
-              {isNew ? 'Create Course' : 'Save Changes'}
-            </button>
-            {!isNew && (
-              <button 
-                className={styles.publishBtn} 
-                onClick={() => publishMutation.mutate(courseId)}
-                disabled={publishMutation.isPending || course.status === 'PUBLISHED'}
-              >
-                <Send size={18} />
-                Publish
-              </button>
-            )}
-            {publishMutation.isError && (
-              <div className={styles.inlineError}>
-                ⚠ {publishMutation.error?.response?.data?.message || 'Publish failed'}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Center Panel: Module Builder */}
-        <main className={`${styles.panel} ${styles.centerPanel}`}>
-          <div className={styles.panelHeader}>
-            <h2 className={styles.panelTitle}>Curriculum</h2>
-            <button className={styles.addBtn} onClick={handleAddModule} disabled={isNew}>
-              <Plus size={18} /> Add Module
-            </button>
-          </div>
-
-          {isNew ? (
-            <div className={styles.emptyCurriculum}>
-              Save the course metadata first to start building the curriculum.
-            </div>
-          ) : (
-            <div className={styles.moduleList}>
-              {course.modules?.map((module, idx) => (
-                <ModuleCard 
-                  key={module.id} 
-                  module={module} 
-                  courseId={courseId} 
-                  isFirst={idx === 0}
-                  isLast={idx === (course.modules.length - 1)}
-                />
-              ))}
-              {course.modules?.length === 0 && (
-                <div className={styles.emptyState}>No modules added yet.</div>
-              )}
-            </div>
-          )}
-        </main>
-
-        {/* Right Panel: Exam Linker */}
-        <aside className={`${styles.panel} ${styles.rightPanel}`}>
-          <div className={styles.panelHeader}>
-            <h2 className={styles.panelTitle}>Linked Exams</h2>
-            <button 
-              className={styles.iconBtn} 
-              onClick={() => setShowExamModal(true)}
-              disabled={isNew}
-              title="Link Exam"
-            >
-              <Plus size={18} />
-            </button>
-          </div>
-
-          <div className={styles.examList}>
-            {course?.exams?.map(exam => (
-              <div key={exam.id} className={styles.examItem}>
-                <div className={styles.examInfo}>
-                  <ClipboardList size={16} />
-                  <span className={styles.examTitle}>{exam.title}</span>
-                </div>
-                <div className={styles.examBadges}>
-                  {exam.required && <span className={styles.badge}>Required</span>}
-                  <span className={styles.badge}>{exam.minPassPercentage}% pass</span>
-                </div>
-                <div className={styles.examActions}>
-                  <button onClick={() => handleUnlinkExam(exam.id, exam.title)} className={styles.unlinkBtn}>
-                    <Trash2 size={14} /> Unlink
-                  </button>
-                </div>
-              </div>
-            ))}
-            {!isNew && course?.exams?.length === 0 && (
-              <div className={styles.emptyStateSmall}>No exams linked.</div>
-            )}
-          </div>
-        </aside>
+        <ExamLinker 
+          exams={course?.exams}
+          onLink={() => setShowExamModal(true)}
+          onUnlink={handleUnlinkExam}
+          isNew={isNew}
+        />
       </div>
 
       {showExamModal && (

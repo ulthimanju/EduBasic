@@ -5,7 +5,7 @@
 
 export const ROUTES = {
   LOGIN:         '/login',
-  DASHBOARD:     '/dashboard',
+  DASHBOARD:     '/my-courses',
   COURSES:       '/courses',
   EXAM:          '/exam/:attemptId',
   RESULT:        '/result/:attemptId',

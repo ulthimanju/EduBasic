@@ -1,32 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useExamStore from '../../store/examStore';
-import examApi from '../../../../api/exam';
 import { Trophy, Home, AlertCircle, FileCheck } from 'lucide-react';
 import Spinner from '../../../../components/common/Spinner/Spinner';
+import StatusBadge from '../../../../components/common/StatusBadge/StatusBadge';
 import { ROUTES } from '../../../../constants/appConstants';
 
 const ResultPage = () => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { currentResult: result, fetchResult, isLoading } = useExamStore();
 
   useEffect(() => {
-    const fetchResult = async () => {
-      try {
-        const response = await examApi.getResult(attemptId);
-        setResult(response.data);
-      } catch (err) {
-        console.error('Failed to fetch result', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchResult();
-  }, [attemptId]);
+    if (attemptId) {
+      fetchResult(attemptId).catch(err => console.error('Failed to fetch result', err));
+    }
+  }, [attemptId, fetchResult]);
 
-  if (loading) return <Spinner />;
+  if (isLoading) return <Spinner />;
 
   if (!result) {
     return (
@@ -62,8 +53,8 @@ const ResultPage = () => {
             </div>
             <div style={{ textAlign: 'center' }}>
               <span className="exam-meta-label">Status</span>
-              <div className={`course-card__badge ${result.status.toLowerCase()}`} style={{ fontSize: 'var(--text-lg)' }}>
-                {result.status.replace('_', ' ')}
+              <div style={{ marginTop: 'var(--space-1)' }}>
+                <StatusBadge status={result.status} />
               </div>
             </div>
           </div>

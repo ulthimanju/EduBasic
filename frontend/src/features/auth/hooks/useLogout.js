@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logout as logoutService } from '../services/authService';
-import useAuthStore from '../../../stores/authStore';
+import useAuthStore from '../store/authStore';
 import { ROUTES } from '../../../constants/appConstants';
 
 /**

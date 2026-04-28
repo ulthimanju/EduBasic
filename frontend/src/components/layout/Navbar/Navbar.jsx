@@ -9,7 +9,7 @@ import {
   ClipboardList,
   PlusCircle
 } from 'lucide-react';
-import useAuthStore from '../../../stores/authStore';
+import useAuthStore from '../../../features/auth/store/authStore';
 import styles from './Navbar.module.css';
 
 export default function Navbar() {

@@ -9,6 +9,7 @@ const useExamStore = create((set, get) => ({
   exams: [],
   currentExam: null,
   currentAttempt: null,
+  currentResult: null,
   isLoading: false,
   error: null,
 
@@ -21,8 +22,8 @@ const useExamStore = create((set, get) => ({
     try {
       const response = await examApi.getQuestions(params);
       set({ 
-        questions: response.data.content, 
-        totalQuestions: response.data.totalElements,
+        questions: response.content, 
+        totalQuestions: response.totalElements,
         isLoading: false 
       });
     } catch (err) {
@@ -33,7 +34,7 @@ const useExamStore = create((set, get) => ({
   fetchTags: async () => {
     try {
       const response = await examApi.getTags();
-      set({ tags: response.data });
+      set({ tags: response });
     } catch (err) {
       console.error('Failed to fetch tags', err);
     }
@@ -57,7 +58,7 @@ const useExamStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await examApi.getExams(params);
-      set({ exams: response.data, isLoading: false });
+      set({ exams: response, isLoading: false });
     } catch (err) {
       set({ error: err.message, isLoading: false });
     }
@@ -67,7 +68,7 @@ const useExamStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await examApi.getExam(id);
-      set({ currentExam: response.data, isLoading: false });
+      set({ currentExam: response, isLoading: false });
     } catch (err) {
       set({ error: err.message, isLoading: false });
     }
@@ -78,7 +79,7 @@ const useExamStore = create((set, get) => ({
     try {
       const response = await examApi.createExam(data);
       set({ isLoading: false });
-      return response.data;
+      return response;
     } catch (err) {
       set({ error: err.message, isLoading: false });
       throw err;
@@ -90,8 +91,8 @@ const useExamStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await examApi.startAttempt(examId);
-      set({ currentAttempt: response.data, isLoading: false });
-      return response.data;
+      set({ currentAttempt: response, isLoading: false });
+      return response;
     } catch (err) {
       set({ error: err.message, isLoading: false });
       throw err;
@@ -102,8 +103,8 @@ const useExamStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await examApi.getAttempt(id);
-      set({ currentAttempt: response.data, isLoading: false });
-      return response.data;
+      set({ currentAttempt: response, isLoading: false });
+      return response;
     } catch (err) {
       set({ error: err.message, isLoading: false });
       throw err;
@@ -113,8 +114,8 @@ const useExamStore = create((set, get) => ({
   syncAttempt: async (attemptId, data) => {
     try {
       const response = await examApi.syncAttempt(attemptId, data);
-      set({ currentAttempt: response.data });
-      return response.data;
+      set({ currentAttempt: response });
+      return response;
     } catch (err) {
       console.error('Failed to sync attempt', err);
       throw err;
@@ -126,6 +127,18 @@ const useExamStore = create((set, get) => ({
     try {
       await examApi.submitAttempt(attemptId);
       set({ isLoading: false });
+    } catch (err) {
+      set({ error: err.message, isLoading: false });
+      throw err;
+    }
+  },
+
+  fetchResult: async (attemptId) => {
+    set({ isLoading: true });
+    try {
+      const response = await examApi.getResult(attemptId);
+      set({ currentResult: response, isLoading: false });
+      return response;
     } catch (err) {
       set({ error: err.message, isLoading: false });
       throw err;
