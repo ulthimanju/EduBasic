@@ -51,8 +51,11 @@ public class SandboxService {
                     });
 
             if ("COMPLETED".equals(submission.getStatus())) {
-                log.info("Submission for attempt {} and question {} already completed. Skipping and acknowledging.", attemptId, questionId);
-                publishResult(submission);
+                log.info("Submission for attempt {} and question {} already completed. Acknowledging.", attemptId, questionId);
+                if (!submission.isResultPublished()) {
+                    log.info("Result not published yet for completed submission {}. Publishing now.", submission.getId());
+                    publishResult(submission);
+                }
                 ack.acknowledge();
                 return;
             }
@@ -122,7 +125,16 @@ public class SandboxService {
                 } else {
                     log.info("Published coding result for attempt: {}, question: {} at offset: {}", 
                         submission.getAttemptId(), submission.getQuestionId(), res.getRecordMetadata().offset());
+                    markAsPublished(submission.getId());
                 }
             });
+    }
+
+    @Transactional
+    public void markAsPublished(UUID submissionId) {
+        submissionRepository.findById(submissionId).ifPresent(s -> {
+            s.setResultPublished(true);
+            submissionRepository.save(s);
+        });
     }
 }

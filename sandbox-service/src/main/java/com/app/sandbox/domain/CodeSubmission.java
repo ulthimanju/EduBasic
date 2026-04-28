@@ -47,4 +47,7 @@ public class CodeSubmission {
     private OffsetDateTime createdAt = OffsetDateTime.now();
     
     private OffsetDateTime completedAt;
+
+    @Column(name = "result_published")
+    private boolean resultPublished = false;
 }
