@@ -1,10 +1,10 @@
 import axios from 'axios';
 import useAuthStore from '../stores/authStore';
-import { API_BASE_URL } from '../config/runtimeConfig';
+import { API_BASE_URL, COURSE_SERVICE_BASE_URL } from '../config/runtimeConfig';
 
 // Main client for Course Service (8083)
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_COURSE_SERVICE_URL ?? 'http://localhost:8083',
+  baseURL: COURSE_SERVICE_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
