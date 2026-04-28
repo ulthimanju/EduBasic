@@ -28,6 +28,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message, request);
     }
 
+    @ExceptionHandler(ExamServiceException.class)
+    public ResponseEntity<ErrorResponse> handleExamServiceException(ExamServiceException ex, HttpServletRequest request) {
+        log.error("Exam service exception at {}: {} - {}", request.getRequestURI(), ex.getErrorCode(), ex.getMessage());
+        return buildResponse(ex.getStatus(), ex.getErrorCode(), ex.getMessage(), request);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex, HttpServletRequest request) {
         log.error("Runtime exception at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
@@ -37,7 +43,7 @@ public class GlobalExceptionHandler {
             return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCY_FAILURE", ex.getMessage(), request);
         }
         
-        return buildResponse(HttpStatus.BAD_REQUEST, "BUSINESS_ERROR", ex.getMessage(), request);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "An unexpected runtime error occurred", request);
     }
 
     @ExceptionHandler(Exception.class)

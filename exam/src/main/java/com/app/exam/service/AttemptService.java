@@ -2,10 +2,12 @@ package com.app.exam.service;
 
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
+import com.app.exam.exception.ExamServiceException;
 import com.app.exam.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,10 +38,10 @@ public class AttemptService {
     @Transactional
     public AttemptResponse startAttempt(UUID studentId, UUID examId) {
         Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+                .orElseThrow(() -> new ExamServiceException("Exam not found", "EXAM_NOT_FOUND", HttpStatus.NOT_FOUND));
 
         if (exam.getStatus() != ExamStatus.PUBLISHED) {
-            throw new RuntimeException("Exam is not published");
+            throw new ExamServiceException("Exam is not published", "EXAM_NOT_PUBLISHED", HttpStatus.CONFLICT);
         }
 
         // Check for existing IN_PROGRESS attempt
@@ -51,7 +53,7 @@ public class AttemptService {
         // Check attempt limits
         long attemptCount = attemptRepository.countByStudentIdAndExamId(studentId, examId);
         if (exam.getMaxAttempts() != null && attemptCount >= exam.getMaxAttempts()) {
-            throw new RuntimeException("Max attempts reached for this exam");
+            throw new ExamServiceException("Max attempts reached for this exam", "MAX_ATTEMPTS_REACHED", HttpStatus.CONFLICT);
         }
 
         StudentAttempt attempt = new StudentAttempt();
@@ -60,7 +62,7 @@ public class AttemptService {
         
         // Link to the latest snapshot
         ExamSnapshot snapshot = snapshotRepository.findByExamIdAndVersion(exam.getId(), exam.getCurrentVersion())
-                .orElseThrow(() -> new RuntimeException("Published exam version not found"));
+                .orElseThrow(() -> new ExamServiceException("Published exam version not found", "SNAPSHOT_NOT_FOUND", HttpStatus.INTERNAL_SERVER_ERROR));
         attempt.setExamSnapshot(snapshot);
 
         attempt.setStatus(AttemptStatus.IN_PROGRESS);
