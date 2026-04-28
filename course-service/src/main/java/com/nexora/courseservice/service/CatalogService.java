@@ -41,9 +41,9 @@ public class CatalogService {
         try {
             String cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached != null) {
-                // Simplified pagination cache - in a real app you'd want a more robust PageImpl serializer
-                List<CatalogCourseResponse> content = objectMapper.readValue(cached, objectMapper.getTypeFactory().constructCollectionType(List.class, CatalogCourseResponse.class));
-                return new PageImpl<>(content, pageable, content.size()); // Total count might be wrong but enough for demo
+                PaginatedResponse<CatalogCourseResponse> paginatedResponse = objectMapper.readValue(cached, 
+                        objectMapper.getTypeFactory().constructParametricType(PaginatedResponse.class, CatalogCourseResponse.class));
+                return new PageImpl<>(paginatedResponse.getContent(), pageable, paginatedResponse.getTotalElements());
             }
         } catch (Exception e) {
             log.warn(LogMessages.CACHE_READ_FAILED, e.getMessage());
@@ -53,8 +53,9 @@ public class CatalogService {
         Page<CatalogCourseResponse> response = courses.map(this::mapProjectionToCatalogResponse);
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(response.getContent()), Duration.ofMinutes(10));
-        } catch (JsonProcessingException e) {
+            PaginatedResponse<CatalogCourseResponse> paginatedResponse = PaginatedResponse.fromPage(response);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(paginatedResponse), Duration.ofMinutes(10));
+        } catch (Exception e) {
             log.warn(LogMessages.CACHE_WRITE_FAILED, e.getMessage());
         }
 
