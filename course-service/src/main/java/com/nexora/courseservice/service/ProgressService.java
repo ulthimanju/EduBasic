@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -105,6 +107,11 @@ public class ProgressService {
         Course course = courseRepository.findByIdAndIsDeletedFalse(courseId)
                 .orElseThrow(() -> new CourseServiceException(ErrorMessages.COURSE_NOT_FOUND, "COURSE_NOT_FOUND", HttpStatus.NOT_FOUND));
 
+        // Fetch all progress for the student in this course to avoid N+1 queries
+        List<LessonProgress> allProgress = progressRepository.findAllByStudentIdAndCourseId(studentId, courseId);
+        Map<UUID, LessonProgress> progressMap = allProgress.stream()
+                .collect(Collectors.toMap(LessonProgress::getLessonId, p -> p));
+
         CourseOutlineResponse res = new CourseOutlineResponse();
         res.setId(course.getId());
         res.setTitle(course.getTitle());
@@ -133,7 +140,8 @@ public class ProgressService {
                                 lr.setContentBody(l.getContentBody()); // Enrolled student sees all
                                 lr.setContentUrl(l.getContentUrl());
                                 
-                                lr.setProgress(getLessonProgress(l.getId(), studentId));
+                                LessonProgress progress = progressMap.get(l.getId());
+                                lr.setProgress(progress != null ? mapToProgressResponse(progress) : defaultProgress(l.getId()));
                                 return lr;
                             }).collect(Collectors.toList()));
                     return mr;
@@ -151,6 +159,14 @@ public class ProgressService {
                     return er;
                 }).collect(Collectors.toList()));
 
+        return res;
+    }
+
+    private LessonProgressResponse defaultProgress(UUID lessonId) {
+        LessonProgressResponse res = new LessonProgressResponse();
+        res.setLessonId(lessonId);
+        res.setStatus(ProgressStatus.NOT_STARTED);
+        res.setProgressPercent(0);
         return res;
     }
 
