@@ -69,8 +69,12 @@ public class ProgressService {
             progressRepository.save(progress);
             log.info(LogMessages.PROGRESS_UPDATED_LOG, studentId, lessonId, progress.getProgressPercent());
             
-            // Evict cache
-            redisTemplate.delete(CacheKeys.progress(studentId, courseId));
+            // Evict cache - guard against Redis outage
+            try {
+                redisTemplate.delete(CacheKeys.progress(studentId, courseId));
+            } catch (Exception e) {
+                log.warn("Failed to evict progress cache for student {} and course {}: {}", studentId, courseId, e.getMessage());
+            }
             
             // Trigger completion check
             completionCheckService.checkAndComplete(courseId, studentId);
