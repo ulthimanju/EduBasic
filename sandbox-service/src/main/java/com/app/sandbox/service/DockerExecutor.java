@@ -192,9 +192,17 @@ public class DockerExecutor {
             @Override
             public void onNext(Frame item) {
                 if (item.getStreamType() == StreamType.STDOUT) {
-                    try { stdout.write(item.getPayload()); } catch (Exception e) {}
+                    try { 
+                        stdout.write(item.getPayload()); 
+                    } catch (Exception e) {
+                        log.warn("Error capturing STDOUT for container {}: {}", containerId, e.getMessage());
+                    }
                 } else if (item.getStreamType() == StreamType.STDERR) {
-                    try { stderr.write(item.getPayload()); } catch (Exception e) {}
+                    try { 
+                        stderr.write(item.getPayload()); 
+                    } catch (Exception e) {
+                        log.warn("Error capturing STDERR for container {}: {}", containerId, e.getMessage());
+                    }
                 }
             }
         };
