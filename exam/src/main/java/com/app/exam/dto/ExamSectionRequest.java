@@ -1,5 +1,6 @@
 package com.app.exam.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -13,5 +14,6 @@ public class ExamSectionRequest {
     @Size(max = 500)
     private String description;
 
+    @Min(0)
     private Integer orderIndex;
 }
