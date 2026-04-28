@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -33,11 +34,24 @@ public class JwtService {
     private final ObjectMapper objectMapper;
     private final Map<String, PublicKey> keyCache = new ConcurrentHashMap<>();
 
+    @PostConstruct
+    public void init() {
+        log.info("Initializing JwtService - pre-fetching JWKS from {}", jwksUri);
+        try {
+            PublicKey key = fetchPublicKeyFromJwks();
+            keyCache.put("default", key);
+            log.info("Successfully pre-fetched JWKS public key");
+        } catch (Exception e) {
+            log.error("CRITICAL: Failed to fetch JWKS on startup from {}. Auth will be unavailable.", jwksUri, e);
+            throw new RuntimeException("Failed to initialize JwtService: JWKS fetch failed", e);
+        }
+    }
+
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
+        } catch (Exception e) {
             log.debug(LogMessages.JWT_VALIDATION_FAILED, e.getMessage());
             return false;
         }

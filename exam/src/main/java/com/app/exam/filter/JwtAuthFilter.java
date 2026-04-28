@@ -43,9 +43,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String jwtId = jwtService.extractJwtId(jwt);
                 
                 if (tokenValidationService.isRevoked(jwtId)) {
-                    log.warn("Rejecting revoked or unverifiable token: {}", jwtId);
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("Token is revoked or cannot be verified");
+                    log.warn("Rejecting revoked token: {}", jwtId);
+                    sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Token is revoked");
                     return;
                 }
 
@@ -58,10 +57,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(UUID.fromString(userId), null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                log.warn("Invalid JWT token provided");
+                sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid authentication token");
+                return;
             }
         }
 
         chain.doFilter(request, response);
+    }
+
+    private void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write(String.format("{\"error\": \"%s\", \"status\": %d}", message, status));
     }
 
     private Optional<String> extractJwtFromHeader(HttpServletRequest request) {
