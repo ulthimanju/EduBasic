@@ -53,6 +53,29 @@ public class KafkaConfig {
     }
 
     @Bean
+    public ConsumerFactory<String, Object> genericConsumerFactory(KafkaProperties kafkaProperties) {
+        Map<String, Object> props = new HashMap<>(kafkaProperties.buildConsumerProperties());
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, Object> genericListenerFactory(
+            ConsumerFactory<String, Object> genericConsumerFactory,
+            DefaultErrorHandler kafkaErrorHandler) {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(genericConsumerFactory);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler);
+        return factory;
+    }
+
+    @Bean
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
         return new DefaultErrorHandler(
                 new DeadLetterPublishingRecoverer(kafkaTemplate),

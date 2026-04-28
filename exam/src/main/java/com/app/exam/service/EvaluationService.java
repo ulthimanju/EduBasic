@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -130,14 +131,14 @@ public class EvaluationService {
         });
     }
 
-    @KafkaListener(topics = "coding-result", groupId = "evaluation-group")
+    @KafkaListener(topics = "coding-result", groupId = "evaluation-group", containerFactory = "genericListenerFactory")
     @Transactional
-    public void consumeCodingResult(Map<String, Object> event) {
+    public void consumeCodingResult(Map<String, Object> event, Acknowledgment ack) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             UUID attemptId = UUID.fromString((String) event.get("attemptId"));
             UUID questionId = UUID.fromString((String) event.get("questionId"));
-            double scorePercent = (double) event.get("scorePercent");
+            double scorePercent = Double.parseDouble(event.get("scorePercent").toString());
 
             log.info("Received coding result for attempt: {}, question: {}", attemptId, questionId);
 
@@ -145,7 +146,8 @@ public class EvaluationService {
                     .orElseThrow(() -> new RuntimeException("Answer not found"));
 
             ExamQuestionMapping mapping = mappingRepository.findAllByExamIdOrderByOrderIndexAsc(answer.getAttempt().getExam().getId())
-                    .stream().filter(m -> m.getQuestion().getId().equals(questionId)).findFirst().get();
+                    .stream().filter(m -> m.getQuestion().getId().equals(questionId)).findFirst()
+                    .orElseThrow(() -> new RuntimeException("Mapping not found"));
 
             BigDecimal marks = mapping.getMarks().multiply(BigDecimal.valueOf(scorePercent / 100.0));
             answer.setMarksObtained(marks);
@@ -154,6 +156,7 @@ public class EvaluationService {
 
             // Update overall result
             updateAttemptFinalStatus(attemptId);
+            ack.acknowledge();
         } finally {
             sample.stop(meterRegistry.timer("exam.evaluation.coding.result.time"));
         }
