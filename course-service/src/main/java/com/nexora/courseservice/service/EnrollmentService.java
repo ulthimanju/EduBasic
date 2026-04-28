@@ -92,9 +92,9 @@ public class EnrollmentService {
 
     @Transactional(readOnly = true)
     public Page<MyCourseSummaryResponse> getMyEnrolledCourses(UUID studentId, Pageable pageable) {
-        return enrollmentRepository.findByStudentIdAndStatusNot(studentId, EnrollmentStatus.DROPPED, pageable)
-                .map(e -> {
-                    String cacheKey = CacheKeys.progress(studentId, e.getCourseId());
+        return enrollmentRepository.findSummariesByStudentId(studentId, EnrollmentStatus.DROPPED, pageable)
+                .map(p -> {
+                    String cacheKey = CacheKeys.progress(studentId, p.getCourseId());
                     try {
                         String cached = redisTemplate.opsForValue().get(cacheKey);
                         if (cached != null) {
@@ -104,7 +104,18 @@ public class EnrollmentService {
                         log.warn(LogMessages.CACHE_READ_FAILED, ex.getMessage());
                     }
 
-                    MyCourseSummaryResponse summary = buildProgressSummary(e, studentId);
+                    MyCourseSummaryResponse summary = new MyCourseSummaryResponse();
+                    summary.setCourseId(p.getCourseId());
+                    summary.setCourseTitle(p.getCourseTitle());
+                    summary.setThumbnailUrl(p.getThumbnailUrl());
+                    summary.setEnrollmentStatus(p.getStatus());
+                    summary.setEnrolledAt(p.getEnrolledAt());
+                    summary.setCompletedAt(p.getCompletedAt());
+                    summary.setTotalLessons((int) p.getTotalLessons());
+                    summary.setCompletedLessons((int) p.getCompletedLessons());
+                    summary.setTotalRequiredExams((int) p.getTotalRequiredExams());
+                    summary.setPassedExams(0); // Will be updated in later phases
+                    summary.setOverallProgressPercent(p.getTotalLessons() > 0 ? (int) (p.getCompletedLessons() * 100 / p.getTotalLessons()) : 0);
                     
                     try {
                         redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(summary), Duration.ofMinutes(30));
@@ -128,30 +139,6 @@ public class EnrollmentService {
         enrollmentRepository.save(enrollment);
         evictEnrollmentCache(studentId, courseId);
         log.info(LogMessages.ENROLLMENT_DROPPED_LOG, studentId, courseId);
-    }
-
-    private MyCourseSummaryResponse buildProgressSummary(CourseEnrollment e, UUID studentId) {
-        Course course = courseRepository.findById(e.getCourseId()).orElse(null);
-        MyCourseSummaryResponse summary = new MyCourseSummaryResponse();
-        summary.setCourseId(e.getCourseId());
-        summary.setCourseTitle(course != null ? course.getTitle() : "Unknown");
-        summary.setThumbnailUrl(course != null ? course.getThumbnailUrl() : null);
-        summary.setEnrollmentStatus(e.getStatus());
-        summary.setEnrolledAt(e.getEnrolledAt());
-        summary.setCompletedAt(e.getCompletedAt());
-
-        long totalLessons = lessonRepository.countTotalLessonsForCourse(e.getCourseId());
-        long completedLessons = progressRepository.countCompletedLessonsForCourse(e.getCourseId(), studentId);
-        
-        summary.setTotalLessons((int) totalLessons);
-        summary.setCompletedLessons((int) completedLessons);
-        summary.setOverallProgressPercent(totalLessons > 0 ? (int) (completedLessons * 100 / totalLessons) : 0);
-        
-        // Required exams placeholder
-        summary.setTotalRequiredExams(course != null ? (int) course.getCourseExams().stream().filter(ce -> ce.isRequiredToComplete()).count() : 0);
-        summary.setPassedExams(0); // This will be handled in Phase 5
-
-        return summary;
     }
 
     private void evictEnrollmentCache(UUID studentId, UUID courseId) {
