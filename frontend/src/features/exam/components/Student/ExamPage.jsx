@@ -1,5 +1,7 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useTransition, useDeferredValue } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
+import examApi from '../../../../api/exam';
 import useExamStore from '../../store/examStore';
 import { ChevronLeft, ChevronRight, Save, Send, ShieldAlert } from 'lucide-react';
 import Spinner from '../../../../components/common/Spinner/Spinner';
@@ -18,18 +20,19 @@ const ExamPage = () => {
   const navigate = useNavigate();
   const { openPrompt } = usePrompt();
   
-  const { fetchExam, fetchAttempt, currentExam, syncAttempt, submitAttempt, isLoading } = useExamStore();
+  const { fetchExam, fetchAttempt, currentExam, syncAttempt, isLoading } = useExamStore();
   
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   
+  // React 19 useTransition for smooth UI during AI adaptive recalculations/answers
+  const [isPendingTransition, startTransition] = useTransition();
+
   const { answers, onAnswerChange, handleSync, version } = useAnswerSync(attemptId, syncAttempt);
 
   const { isTerminated } = useProctoring(attemptId, {
     isActive: !!currentExam,
-    onTerminate: () => {
-      // Auto-submit or redirect handled via useEffect
-    },
+    onTerminate: () => {},
     onWarning: (type, count, max) => {
       openPrompt({
         type: 'message',
@@ -41,14 +44,21 @@ const ExamPage = () => {
     }
   });
 
+  // Use React Query mutation for submission to prevent double submits without local flags
+  const submitMutation = useMutation({
+    mutationFn: () => examApi.submitAttempt(attemptId),
+    onSuccess: () => navigate(ROUTES.RESULT.replace(':attemptId', attemptId), { replace: true }),
+    onError: (err) => console.error('Submission failed', err)
+  });
+
   useEffect(() => {
-    if (isTerminated) {
+    if (isTerminated && !submitMutation.isPending && !submitMutation.isSuccess) {
       const timer = setTimeout(() => {
-        navigate(ROUTES.RESULT.replace(':attemptId', attemptId), { replace: true });
+        submitMutation.mutate();
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [isTerminated, attemptId, navigate]);
+  }, [isTerminated, submitMutation]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -65,14 +75,11 @@ const ExamPage = () => {
     }
   }, [attemptId, fetchAttempt, fetchExam, navigate]);
 
-  const performSubmit = useCallback(async () => {
-    try {
-      await submitAttempt(attemptId);
-      navigate(ROUTES.RESULT.replace(':attemptId', attemptId));
-    } catch (err) {
-      console.error('Submission failed', err);
+  const performSubmit = useCallback(() => {
+    if (!submitMutation.isPending) {
+      submitMutation.mutate();
     }
-  }, [attemptId, submitAttempt, navigate]);
+  }, [submitMutation]);
 
   const handleAutoSubmit = useCallback(() => {
     openPrompt({
@@ -105,28 +112,35 @@ const ExamPage = () => {
   const currentSection = useMemo(() => sections[currentSectionIdx], [sections, currentSectionIdx]);
   const currentMapping = useMemo(() => currentSection?.questions[currentQuestionIdx], [currentSection, currentQuestionIdx]);
   const currentQuestion = useMemo(() => currentMapping?.question, [currentMapping]);
+  
+  // React 19 useDeferredValue keeps question rendering smooth if it's computationally heavy
+  const deferredQuestion = useDeferredValue(currentQuestion);
 
   const handlePrev = useCallback(() => {
-    if (currentQuestionIdx > 0) setCurrentQuestionIdx(prev => prev - 1);
-    else if (currentSectionIdx > 0) {
-      const prevSecIdx = currentSectionIdx - 1;
-      setCurrentSectionIdx(prevSecIdx);
-      setCurrentQuestionIdx(sections[prevSecIdx].questions.length - 1);
-    }
+    startTransition(() => {
+      if (currentQuestionIdx > 0) setCurrentQuestionIdx(prev => prev - 1);
+      else if (currentSectionIdx > 0) {
+        const prevSecIdx = currentSectionIdx - 1;
+        setCurrentSectionIdx(prevSecIdx);
+        setCurrentQuestionIdx(sections[prevSecIdx].questions.length - 1);
+      }
+    });
   }, [currentQuestionIdx, currentSectionIdx, sections]);
 
   const handleNext = useCallback(() => {
-    if (currentQuestionIdx < currentSection.questions.length - 1) setCurrentQuestionIdx(prev => prev + 1);
-    else if (currentSectionIdx < sections.length - 1) {
-      setCurrentSectionIdx(prev => prev + 1);
-      setCurrentQuestionIdx(0);
-    }
+    startTransition(() => {
+      if (currentQuestionIdx < currentSection.questions.length - 1) setCurrentQuestionIdx(prev => prev + 1);
+      else if (currentSectionIdx < sections.length - 1) {
+        setCurrentSectionIdx(prev => prev + 1);
+        setCurrentQuestionIdx(0);
+      }
+    });
   }, [currentQuestionIdx, currentSection, currentSectionIdx, sections]);
 
   if (!currentExam || isLoading) return <Spinner />;
 
   return (
-    <div className="exam-layout animate-page-enter" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="exam-layout animate-page-enter" style={{ maxWidth: '1000px', margin: '0 auto', opacity: isPendingTransition ? 0.7 : 1 }}>
       {isTerminated && <TerminatedOverlay />}
       <header className="exam-toolbar panel">
         <div className="exam-toolbar__progress">
@@ -151,9 +165,13 @@ const ExamPage = () => {
             <Save size={16} />
             <span>Save</span>
           </button>
-          <button className="btn btn-primary" onClick={handleSubmitClick}>
-            <Send size={16} />
-            <span>Submit</span>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSubmitClick} 
+            disabled={submitMutation.isPending}
+          >
+            {submitMutation.isPending ? <Spinner size="sm" /> : <Send size={16} />}
+            <span>{submitMutation.isPending ? 'Submitting...' : 'Submit'}</span>
           </button>
         </div>
       </header>
@@ -161,20 +179,26 @@ const ExamPage = () => {
       <div className="exam-grid" style={{ gridTemplateColumns: '1fr 240px' }}>
         <main className="question-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-            <h1 className="question-title" style={{ fontSize: 'var(--text-xl)' }}>{currentQuestion.title}</h1>
+            <h1 className="question-title" style={{ fontSize: 'var(--text-xl)' }}>{deferredQuestion?.title}</h1>
             <span className="course-card__topic" style={{ background: 'var(--color-accent-subtle)', color: 'var(--color-accent)' }}>
-              {currentMapping.marks} Marks
+              {currentMapping?.marks} Marks
             </span>
           </div>
-          <p className="question-subtitle">{currentQuestion.description}</p>
+          <p className="question-subtitle">{deferredQuestion?.description}</p>
           
           <div className="divider" style={{ margin: 'var(--space-2) 0 var(--space-4)' }} />
 
-          <QuestionRenderer 
-            question={currentQuestion} 
-            answer={answers[currentQuestion.id]} 
-            onChange={(val) => onAnswerChange(currentQuestion.id, val)}
-          />
+          {deferredQuestion && (
+            <QuestionRenderer 
+              question={deferredQuestion} 
+              answer={answers[deferredQuestion.id]} 
+              onChange={(val) => {
+                startTransition(() => {
+                  onAnswerChange(deferredQuestion.id, val);
+                });
+              }}
+            />
+          )}
 
           <div className="exam-action-row" style={{ marginTop: 'auto', gap: 'var(--space-3)' }}>
             <button 
@@ -200,7 +224,7 @@ const ExamPage = () => {
           <QuestionNav 
             questions={currentSection.questions}
             currentQuestionIdx={currentQuestionIdx}
-            setCurrentQuestionIdx={setCurrentQuestionIdx}
+            setCurrentQuestionIdx={(idx) => startTransition(() => setCurrentQuestionIdx(idx))}
             answers={answers}
           />
 
