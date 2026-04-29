@@ -77,12 +77,12 @@ public class SandboxService {
             JsonNode testCasesNode = objectMapper.valueToTree(event.get("testCases"));
             int timeLimitMs = ((Number) event.getOrDefault("timeLimitMs", 2000)).intValue();
 
-            List<Map<String, Object>> results = dockerExecutor.execute(
+            List<Map<String, Object>> results = dockerExecutor.executeAsync(
                 submission.getLanguage(),
                 submission.getSourceCode(),
                 testCasesNode,
                 timeLimitMs
-            );
+            ).join();
 
             long passedCount = results.stream().filter(r -> "PASSED".equals(r.get("status"))).count();
             String overallStatus = passedCount == results.size() ? "PASSED" : (passedCount > 0 ? "PARTIAL" : "FAILED");

@@ -11,7 +11,10 @@ import com.github.dockerjava.api.model.StreamType;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Gauge;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -22,19 +25,44 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.UUID;
 
 @Service
 @Slf4j
 public class DockerExecutor {
 
     private final DockerClient dockerClient;
+    private final MeterRegistry meterRegistry;
     private static final String IMAGE = "openjdk:21-slim";
     private static final String WORKDIR = "/home/sandbox";
+    private static final int MAX_CONCURRENT_CONTAINERS = 10;
+    private static final int WARM_POOL_SIZE = 5;
 
-    public DockerExecutor() {
+    private final Semaphore concurrencySemaphore;
+    private final BlockingQueue<String> warmPool;
+    private final ExecutorService dockerThreadPool;
+
+    public DockerExecutor(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+        this.concurrencySemaphore = new Semaphore(MAX_CONCURRENT_CONTAINERS);
+        this.warmPool = new LinkedBlockingQueue<>(MAX_CONCURRENT_CONTAINERS);
+        this.dockerThreadPool = Executors.newFixedThreadPool(MAX_CONCURRENT_CONTAINERS, r -> {
+            Thread t = new Thread(r, "edubasic-docker-" + UUID.randomUUID().toString().substring(0, 8));
+            t.setDaemon(true);
+            return t;
+        });
+
+        Gauge.builder("sandbox.semaphore.permits", concurrencySemaphore, Semaphore::availablePermits)
+                .description("Available permits for Docker container execution")
+                .register(meterRegistry);
+        
+        Gauge.builder("sandbox.warmpool.size", warmPool, BlockingQueue::size)
+                .description("Number of pre-warmed Docker containers ready for use")
+                .register(meterRegistry);
+
         DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
         ApacheDockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
@@ -51,9 +79,38 @@ public class DockerExecutor {
         log.info("Pulling Sandbox Image: {}...", IMAGE);
         try {
             dockerClient.pullImageCmd(IMAGE).start().awaitCompletion(5, TimeUnit.MINUTES);
+            // Pre-spin N containers on startup
+            for (int i = 0; i < WARM_POOL_SIZE; i++) {
+                replenishWarmPoolAsync();
+            }
         } catch (Exception e) {
             log.error("Failed to pull Sandbox Image", e);
         }
+    }
+
+    @PreDestroy
+    public void cleanup() {
+        dockerThreadPool.shutdownNow();
+        String containerId;
+        while ((containerId = warmPool.poll()) != null) {
+            removeContainerQuietly(containerId);
+        }
+    }
+
+    private void replenishWarmPoolAsync() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                String containerId = createSecureContainer();
+                if (!warmPool.offer(containerId)) {
+                    // Pool is full, remove it
+                    removeContainerQuietly(containerId);
+                } else {
+                    log.debug("Replenished warm pool. Size: {}", warmPool.size());
+                }
+            } catch (Exception e) {
+                log.error("Failed to replenish container warm pool", e);
+            }
+        }, dockerThreadPool);
     }
 
     private String createSecureContainer() {
@@ -76,32 +133,60 @@ public class DockerExecutor {
         return container.getId();
     }
 
-    public List<Map<String, Object>> execute(String language, String sourceCode, JsonNode testCases, int timeLimitMs) {
-        if (!"JAVA".equalsIgnoreCase(language)) {
-            return List.of(Map.of("status", "ERROR", "actualOutput", "Only Java supported currently"));
-        }
-
-        String className = extractClassName(sourceCode);
-        String containerId = null;
-        try {
-            containerId = createSecureContainer();
-            return runAllTestCases(containerId, className, sourceCode, testCases, timeLimitMs);
-        } catch (Exception e) {
-            log.error("Execution failed", e);
-            return createErrorResults(testCases, "Internal Error: " + e.getMessage());
-        } finally {
-            if (containerId != null) {
-                try {
-                    dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-                } catch (Exception e) {
-                    log.warn("Failed to remove container: {}", containerId);
-                }
+    private void removeContainerQuietly(String containerId) {
+        if (containerId != null) {
+            try {
+                dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+            } catch (Exception e) {
+                log.warn("Failed to remove container: {}", containerId);
             }
         }
     }
 
+    public CompletableFuture<List<Map<String, Object>>> executeAsync(String language, String sourceCode, JsonNode testCases, int timeLimitMs) {
+        if (!"JAVA".equalsIgnoreCase(language)) {
+            return CompletableFuture.completedFuture(List.of(Map.of("status", "ERROR", "actualOutput", "Only Java supported currently")));
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            boolean acquired = false;
+            try {
+                // Prevent resource exhaustion
+                acquired = concurrencySemaphore.tryAcquire(5, TimeUnit.SECONDS);
+                if (!acquired) {
+                    throw new RuntimeException("Sandbox overloaded. Concurrency limit reached.");
+                }
+
+                String containerId = warmPool.poll();
+                if (containerId == null) {
+                    log.debug("Warm pool empty, creating container synchronously");
+                    containerId = createSecureContainer();
+                }
+
+                String className = extractClassName(sourceCode);
+                try {
+                    return runAllTestCases(containerId, className, sourceCode, testCases, timeLimitMs);
+                } finally {
+                    removeContainerQuietly(containerId);
+                    replenishWarmPoolAsync();
+                }
+            } catch (Exception e) {
+                log.error("Execution failed", e);
+                return createErrorResults(testCases, "Internal Error: " + e.getMessage());
+            } finally {
+                if (acquired) {
+                    concurrencySemaphore.release();
+                }
+            }
+        }, dockerThreadPool)
+        .orTimeout(30, TimeUnit.SECONDS) // Hard timeout to prevent runaway containers
+        .exceptionally(ex -> {
+            log.error("Container execution hard timeout or failure", ex);
+            return createErrorResults(testCases, "Execution Timeout or System Failure");
+        });
+    }
+
     private List<Map<String, Object>> runAllTestCases(String containerId, String className, String sourceCode, JsonNode testCases, int timeLimitMs) throws Exception {
-        // 1. Write and Compile
         String encodedSource = Base64.getEncoder().encodeToString(sourceCode.getBytes(StandardCharsets.UTF_8));
         String compileCmd = String.format("echo %s | base64 -d > %s.java && javac %s.java", encodedSource, className, className);
         
@@ -110,7 +195,6 @@ public class DockerExecutor {
             return createErrorResults(testCases, "Compilation Error: " + compileResult.stderr);
         }
 
-        // 2. Run test cases
         List<Map<String, Object>> results = new ArrayList<>();
         boolean timeoutOccurred = false;
         
@@ -129,7 +213,6 @@ public class DockerExecutor {
 
             if ("TIME_LIMIT_EXCEEDED".equals(result.get("status"))) {
                 timeoutOccurred = true;
-                log.warn("Test case timed out, skipping remaining tests for container: {}", containerId);
             }
         }
         return results;
@@ -141,12 +224,10 @@ public class DockerExecutor {
         String expected = tc.get("expectedOutput").asText().trim();
         boolean isHidden = tc.has("isHidden") && tc.get("isHidden").asBoolean();
 
-        // Safe input passing via base64 to prevent shell injection
         String encodedInput = Base64.getEncoder().encodeToString(input.getBytes(StandardCharsets.UTF_8));
         String runCmd = String.format("echo %s | base64 -d > input.txt && java %s < input.txt", encodedInput, className);
         
         long start = System.currentTimeMillis();
-        
         try {
             ExecResult runResult = runExec(containerId, runCmd, timeLimitMs);
             long executionTime = System.currentTimeMillis() - start;
@@ -166,13 +247,7 @@ public class DockerExecutor {
             );
         } catch (java.util.concurrent.TimeoutException e) {
             long executionTime = System.currentTimeMillis() - start;
-            log.warn("Test case {} timed out after {}ms", testCaseId, executionTime);
-            return Map.of(
-                "testCaseId", testCaseId,
-                "status", "TIME_LIMIT_EXCEEDED",
-                "executionTimeMs", (int)executionTime,
-                "isHidden", isHidden
-            );
+            return Map.of("testCaseId", testCaseId, "status", "TIME_LIMIT_EXCEEDED", "executionTimeMs", (int)executionTime, "isHidden", isHidden);
         } catch (Exception e) {
             return Map.of("testCaseId", testCaseId, "status", "ERROR", "actualOutput", e.getMessage(), "isHidden", isHidden);
         }
@@ -192,17 +267,9 @@ public class DockerExecutor {
             @Override
             public void onNext(Frame item) {
                 if (item.getStreamType() == StreamType.STDOUT) {
-                    try { 
-                        stdout.write(item.getPayload()); 
-                    } catch (Exception e) {
-                        log.warn("Error capturing STDOUT for container {}: {}", containerId, e.getMessage());
-                    }
+                    try { stdout.write(item.getPayload()); } catch (Exception ignored) {}
                 } else if (item.getStreamType() == StreamType.STDERR) {
-                    try { 
-                        stderr.write(item.getPayload()); 
-                    } catch (Exception e) {
-                        log.warn("Error capturing STDERR for container {}: {}", containerId, e.getMessage());
-                    }
+                    try { stderr.write(item.getPayload()); } catch (Exception ignored) {}
                 }
             }
         };
@@ -211,20 +278,14 @@ public class DockerExecutor {
         boolean finished = callback.awaitCompletion(timeoutMs, TimeUnit.MILLISECONDS);
         
         if (!finished) {
-            try {
-                callback.close();
-            } catch (Exception e) {
-                log.warn("Failed to close callback after timeout");
-            }
-            throw new java.util.concurrent.TimeoutException("Execution timed out after " + timeoutMs + "ms");
+            try { callback.close(); } catch (Exception ignored) {}
+            throw new java.util.concurrent.TimeoutException("Execution timed out");
         }
         
         ExecResult result = new ExecResult();
-        result.timedOut = false;
         result.stdout = stdout.toString(StandardCharsets.UTF_8);
         result.stderr = stderr.toString(StandardCharsets.UTF_8);
         result.exitCode = dockerClient.inspectExecCmd(execCreate.getId()).exec().getExitCodeLong().intValue();
-        
         return result;
     }
 
@@ -232,7 +293,6 @@ public class DockerExecutor {
         int exitCode;
         String stdout;
         String stderr;
-        boolean timedOut;
     }
 
     private List<Map<String, Object>> createErrorResults(JsonNode testCases, String errorMessage) {

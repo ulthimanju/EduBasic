@@ -25,6 +25,9 @@ class DockerExecutorTest {
     @Mock
     private DockerClient dockerClient;
 
+    @Mock
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry;
+
     @InjectMocks
     private DockerExecutor dockerExecutor;
 
@@ -103,7 +106,7 @@ class DockerExecutorTest {
             return null;
         }).when(execStartCmd).exec(any());
 
-        List<Map<String, Object>> results = dockerExecutor.execute("JAVA", sourceCode, testCases, 2000);
+        List<Map<String, Object>> results = dockerExecutor.executeAsync("JAVA", sourceCode, testCases, 2000).join();
 
         assertEquals(1, results.size());
         assertEquals("PASSED", results.get(0).get("status"));

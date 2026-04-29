@@ -39,6 +39,8 @@ class SandboxServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        lenient().when(kafkaTemplate.send(anyString(), any(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(mock(org.springframework.kafka.support.SendResult.class)));
     }
 
     @Test
@@ -62,8 +64,8 @@ class SandboxServiceTest {
         
         when(submissionRepository.findByAttemptIdAndQuestionId(attemptId, questionId)).thenReturn(Optional.empty());
         when(submissionRepository.save(any(CodeSubmission.class))).thenReturn(submission);
-        when(dockerExecutor.execute(anyString(), anyString(), any(), anyInt()))
-            .thenReturn(List.of(Map.of("testCaseId", "tc1", "status", "PASSED")));
+        when(dockerExecutor.executeAsync(anyString(), anyString(), any(), anyInt()))
+            .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(List.of(Map.of("testCaseId", "tc1", "status", "PASSED"))));
 
         sandboxService.consumeSubmission(event, ack);
 
@@ -98,7 +100,7 @@ class SandboxServiceTest {
 
         // Should NOT call save or dockerExecutor
         verify(submissionRepository, never()).save(any());
-        verify(dockerExecutor, never()).execute(any(), any(), any(), anyInt());
+        verify(dockerExecutor, never()).executeAsync(any(), any(), any(), anyInt());
         
         // SHOULD still publish result and acknowledge
         verify(kafkaTemplate).send(eq("coding-result"), anyString(), anyMap());
