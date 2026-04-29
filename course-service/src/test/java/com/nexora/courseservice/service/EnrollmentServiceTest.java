@@ -72,21 +72,21 @@ class EnrollmentServiceTest {
     @Test
     void getMyEnrolledCourses_ShouldFilterByStudentIdAndExcludeDropped() {
         Pageable pageable = PageRequest.of(0, 10);
-        CourseEnrollment enrollment = new CourseEnrollment();
-        enrollment.setCourseId(courseId);
-        enrollment.setStudentId(studentId);
-        enrollment.setStatus(EnrollmentStatus.ACTIVE);
+        com.nexora.courseservice.repository.CourseEnrollmentRepository.EnrollmentSummaryProjection summary = 
+            mock(com.nexora.courseservice.repository.CourseEnrollmentRepository.EnrollmentSummaryProjection.class);
         
-        Page<CourseEnrollment> page = new PageImpl<>(List.of(enrollment));
+        when(summary.getCourseId()).thenReturn(courseId);
+        when(summary.getCourseTitle()).thenReturn("Test Course");
+        
+        Page<com.nexora.courseservice.repository.CourseEnrollmentRepository.EnrollmentSummaryProjection> page = new PageImpl<>(List.of(summary));
         
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(enrollmentRepository.findByStudentIdAndStatusNot(eq(studentId), eq(EnrollmentStatus.DROPPED), any(Pageable.class)))
+        when(enrollmentRepository.findSummariesByStudentId(eq(studentId), eq(EnrollmentStatus.DROPPED), any(Pageable.class)))
                 .thenReturn(page);
-        when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
 
         enrollmentService.getMyEnrolledCourses(studentId, pageable);
 
-        verify(enrollmentRepository).findByStudentIdAndStatusNot(studentId, EnrollmentStatus.DROPPED, pageable);
+        verify(enrollmentRepository).findSummariesByStudentId(studentId, EnrollmentStatus.DROPPED, pageable);
         verify(enrollmentRepository, never()).findAll(any(Pageable.class));
     }
 

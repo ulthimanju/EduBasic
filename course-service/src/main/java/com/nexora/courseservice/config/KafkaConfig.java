@@ -95,9 +95,18 @@ public class KafkaConfig {
 
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> commonKafkaTemplate) {
+        org.springframework.util.backoff.ExponentialBackOff backOff = new org.springframework.util.backoff.ExponentialBackOff(1000L, 2.0);
+        backOff.setMaxInterval(10000L);
+        // We will just use the ExponentialBackOff directly, but Spring Kafka provides ExponentialBackOffWithMaxRetries
+        // Or simply use ExponentialBackOff but we need max retries.
+        org.springframework.kafka.support.ExponentialBackOffWithMaxRetries exponentialBackOff = new org.springframework.kafka.support.ExponentialBackOffWithMaxRetries(3);
+        exponentialBackOff.setInitialInterval(1000L);
+        exponentialBackOff.setMultiplier(2.0);
+        exponentialBackOff.setMaxInterval(10000L);
+
         DefaultErrorHandler handler = new DefaultErrorHandler(
                 new DeadLetterPublishingRecoverer(commonKafkaTemplate),
-                new FixedBackOff(1000L, 3L)
+                exponentialBackOff
         );
         handler.addNotRetryableExceptions(
                 IllegalArgumentException.class

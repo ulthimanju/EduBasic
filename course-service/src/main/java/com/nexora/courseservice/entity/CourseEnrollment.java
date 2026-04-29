@@ -33,6 +33,10 @@ public class CourseEnrollment {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Version
+    @Column(name = "version")
+    private Integer version;
+
     @PrePersist
     protected void onPersist() {
         enrolledAt = LocalDateTime.now();

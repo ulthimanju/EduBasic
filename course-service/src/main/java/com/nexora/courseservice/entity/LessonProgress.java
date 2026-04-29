@@ -36,6 +36,10 @@ public class LessonProgress {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Version
+    @Column(name = "version")
+    private Integer version;
+
     @PrePersist
     @PreUpdate
     protected void onUpdate() {
