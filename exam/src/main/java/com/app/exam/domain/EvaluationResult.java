@@ -32,6 +32,10 @@ public class EvaluationResult {
     @Column(name = "total_score")
     private BigDecimal totalScore;
 
+    @Version
+    @Column(name = "version")
+    private Integer version;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "result_json", columnDefinition = "JSONB")
     private Map<String, Object> resultJson;

@@ -161,7 +161,13 @@ public class AttemptService {
         kafkaTemplate.send("exam-submitted", attemptId.toString(), event)
             .whenComplete((result, ex) -> {
                 if (ex != null) {
-                    log.error("Failed to publish submission event for attempt: {} to topic: exam-submitted", attemptId, ex);
+                    log.error("Failed to publish submission event for attempt: {} to topic: exam-submitted. Routing to DLT.", attemptId, ex);
+                    kafkaTemplate.send("exam-submitted-dlt", attemptId.toString(), event)
+                        .whenComplete((dltResult, dltEx) -> {
+                            if (dltEx != null) {
+                                log.error("Failed to publish to DLT for attempt: {}", attemptId, dltEx);
+                            }
+                        });
                 } else {
                     log.info("Published submission event for attempt: {} at offset: {}", 
                         attemptId, result.getRecordMetadata().offset());

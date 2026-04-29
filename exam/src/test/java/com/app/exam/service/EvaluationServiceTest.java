@@ -58,6 +58,9 @@ class EvaluationServiceTest {
         attempt.setId(attemptId);
         attempt.setExam(exam);
         attempt.setStudentId(UUID.randomUUID());
+
+        lenient().when(kafkaTemplate.send(anyString(), any(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(mock(org.springframework.kafka.support.SendResult.class)));
     }
 
     @org.junit.jupiter.api.AfterEach

@@ -39,7 +39,8 @@ public class GeminiService {
     private record Content(List<Part> parts) {}
     private record Part(String text) {}
 
-    public List<Question> generateQuestions(String courseName, List<String> previousTopics, String difficulty, int count) {
+    @org.springframework.scheduling.annotation.Async("geminiExecutor")
+    public java.util.concurrent.CompletableFuture<List<Question>> generateQuestions(String courseName, List<String> previousTopics, String difficulty, int count) {
         String topicsStr = previousTopics != null ? String.join(", ", previousTopics) : "None";
         
         String prompt = """
@@ -87,15 +88,15 @@ public class GeminiService {
                     if (text != null) {
                         // Sometimes Gemini wraps JSON in markdown blocks like ```json ... ```
                         String cleanedJson = text.replaceAll("^```json\\s*", "").replaceAll("\\s*```$", "").trim();
-                        return objectMapper.readValue(cleanedJson, new TypeReference<List<Question>>() {});
+                        return java.util.concurrent.CompletableFuture.completedFuture(objectMapper.readValue(cleanedJson, new TypeReference<List<Question>>() {}));
                     }
                 }
             }
             
-            return List.of(); 
+            return java.util.concurrent.CompletableFuture.completedFuture(List.of()); 
         } catch (Exception e) {
             log.error(LogMessages.ERROR_CALLING_GEMINI_API, e.getMessage());
-            return List.of();
+            return java.util.concurrent.CompletableFuture.completedFuture(List.of());
         }
     }
 }

@@ -70,6 +70,9 @@ class AttemptServiceTest {
         attempt.setExam(exam);
         attempt.setStatus(AttemptStatus.IN_PROGRESS);
         attempt.setVersion(0);
+
+        lenient().when(kafkaTemplate.send(anyString(), any(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(mock(org.springframework.kafka.support.SendResult.class)));
     }
 
     @Test

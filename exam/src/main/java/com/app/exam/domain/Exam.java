@@ -51,6 +51,10 @@ public class Exam extends BaseEntity {
     @Column(name = "negative_marking")
     private boolean negativeMarking = false;
 
+    @Version
+    @Column(name = "entity_version")
+    private Integer entityVersion;
+
     @Column(name = "current_version")
     private Integer currentVersion = 1;
 
