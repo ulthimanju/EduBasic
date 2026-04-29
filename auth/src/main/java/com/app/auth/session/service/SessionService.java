@@ -16,21 +16,21 @@ public interface SessionService {
      * @param userId    internal UUID of the user (UserNode.id)
      * @param jwtId     JWT "jti" claim — unique per token
      * @param expiresAt token expiry — stored for cleanup queries
-     * @return the persisted SessionNode
+     * @return a CompletableFuture of the persisted SessionNode
      */
-    SessionNode createSession(String userId, String jwtId, Instant expiresAt);
+    java.util.concurrent.CompletableFuture<SessionNode> createSession(String userId, String jwtId, Instant expiresAt);
 
     /**
      * Mark a single session as revoked by its JWT jti value.
      * Used on logout.
      */
-    void revokeSession(String jwtId);
+    java.util.concurrent.CompletableFuture<Void> revokeSession(String jwtId);
 
     /**
      * Mark ALL sessions for the given user as revoked.
      * Used on global sign-out or account compromise.
      */
-    void revokeAllForUser(String userId);
+    java.util.concurrent.CompletableFuture<Void> revokeAllForUser(String userId);
 
     /**
      * Check if a session is valid in the database (not revoked and not expired).

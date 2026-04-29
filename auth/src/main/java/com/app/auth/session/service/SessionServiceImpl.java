@@ -39,7 +39,8 @@ public class SessionServiceImpl implements SessionService {
      */
     @Override
     @Transactional
-    public SessionNode createSession(String userId, String jwtId, Instant expiresAt) {
+    @org.springframework.scheduling.annotation.Async("authExecutor")
+    public java.util.concurrent.CompletableFuture<SessionNode> createSession(String userId, String jwtId, Instant expiresAt) {
         LocalDateTime issuedAt   = LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime expiresAtLdt = LocalDateTime.ofInstant(expiresAt, ZoneOffset.UTC);
         String sessionNodeId = UUID.randomUUID().toString();
@@ -48,7 +49,7 @@ public class SessionServiceImpl implements SessionService {
             sessionNodeId, userId, jwtId, issuedAt, expiresAtLdt);
 
         log.info(LogMessages.SESSION_CREATED, userId, jwtId);
-        return session;
+        return java.util.concurrent.CompletableFuture.completedFuture(session);
     }
 
     /**
@@ -57,9 +58,11 @@ public class SessionServiceImpl implements SessionService {
      */
     @Override
     @Transactional
-    public void revokeSession(String jwtId) {
+    @org.springframework.scheduling.annotation.Async("authExecutor")
+    public java.util.concurrent.CompletableFuture<Void> revokeSession(String jwtId) {
         sessionRepository.revokeBySessionId(jwtId)
                 .ifPresent(s -> log.info(LogMessages.SESSION_REVOKED, jwtId));
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -68,9 +71,11 @@ public class SessionServiceImpl implements SessionService {
      */
     @Override
     @Transactional
-    public void revokeAllForUser(String userId) {
+    @org.springframework.scheduling.annotation.Async("authExecutor")
+    public java.util.concurrent.CompletableFuture<Void> revokeAllForUser(String userId) {
         int count = sessionRepository.revokeAllSessionsForUser(userId).size();
         log.info(LogMessages.REVOKED_SESSIONS_FOR_USER, count, userId);
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
     }
 
     @Override

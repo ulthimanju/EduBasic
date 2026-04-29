@@ -23,6 +23,52 @@ The system follows a microservices architecture using Docker Compose for orchest
 - **Databases**: Neo4j 5.x, Redis 7.4, PostgreSQL 16.
 - **Infrastructure**: Docker, Docker Compose, Kafka (Confluent 7.8), Zookeeper, Zipkin 3.4, Nginx (Frontend server).
 
+## Concurrency & Performance Standards
+
+### Core Mandates
+- **Non-Blocking IO**: All blocking calls to external services (Neo4j, Gemini AI, Docker API) must be wrapped in `@Async` or handled via reactive patterns using a dedicated `AsyncTaskExecutor`.
+- **Thread Pool Management**:
+    - Use dedicated, named thread pools for different tasks (e.g., `geminiExecutor`, `dockerExecutor`).
+    - Prefix all custom executors with `edubasic-` for visibility in traces and thread dumps.
+    - Propagate `Brave/Zipkin` trace context into `@Async` threads using a `TraceableExecutorService` wrapper.
+- **Locking & Consistency**:
+    - Prefer **Optimistic Locking** (`@Version`) for handling concurrent updates to entities (e.g., exam submissions, course progress) to avoid pessimistic lock contention.
+    - Use database-level atomic increments for simple counters where appropriate.
+- **Messaging (Kafka)**:
+    - Ensure Kafka producers are non-blocking using `CompletableFuture` or `ListenableViewFuture` callbacks.
+    - Configure consumer concurrency (minimum `3` or based on partition count).
+    - Implement retry and dead-letter topics for robust error handling.
+- **Error Handling**: Every `@Async` method must have a corresponding `@Async` fallback or a comprehensive catch block to prevent silent failures.
+- **Observability**: Expose concurrency metrics (active thread counts, Kafka lag, semaphore permits, Redis pool stats) via Spring Actuator endpoints.
+
+### Service-Specific Standards
+
+#### Auth Service
+- Audit `JwtAuthenticationFilter` for statelessness and thread-safety.
+- Use Lettuce connection pool tuning (`LettucePoolingClientConfiguration`) for Redis.
+- Implement a Redis-backed token cache with TTL matching JWT expiry for session lookups.
+
+#### Exam Service
+- Wrap Gemini AI calls in a dedicated `geminiExecutor` pool with core/max sizes tuned for burst traffic.
+- Handle exam submissions with optimistic locking on the `Exam/Result` JPA entity.
+- Report Zipkin spans asynchronously to keep them off the critical path.
+
+#### Course Service
+- Protect course completion increments from race conditions.
+- Configure `DefaultErrorHandler` with exponential backoff for Kafka consumers.
+
+#### Sandbox Service
+- Use a dedicated `dockerExecutor` for container operations.
+- Maintain a **Container Warm Pool** to reduce startup latency; replenish asynchronously.
+- Enforce hard timeouts using `CompletableFuture.orTimeout()` (Java 11+).
+- Implement a semaphore-based concurrency limit (e.g., max 10 containers) and expose it as a metric.
+
+#### Frontend (React 19)
+- Use **Optimistic Updates** (`onMutate`) in React Query where appropriate.
+- Leverage React 19 concurrent features (`useTransition`, `useDeferredValue`) for a responsive UI during expensive recalculations.
+- Ensure Zustand stores are updated only via `set()` to remain safe in concurrent renders.
+- Prevent UI double-submissions by disabling buttons based on React Query's `isPending`/`isLoading` states.
+
 ## Package Structure
 ### Backend (Spring Boot)
 Standard Maven structure (`src/main/java/com/...`):

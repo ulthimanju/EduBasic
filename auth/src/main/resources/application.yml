@@ -32,8 +32,9 @@ spring:
       timeout: 2000ms
       lettuce:
         pool:
-          max-active: 10
-          min-idle: 2
+          max-active: 100
+          max-idle: 50
+          min-idle: 10
           max-wait: 2000ms
 
   # ── Cache ───────────────────────────────────────────────────────────────────

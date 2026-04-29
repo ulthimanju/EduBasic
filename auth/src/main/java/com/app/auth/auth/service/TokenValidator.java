@@ -64,8 +64,17 @@ public class TokenValidator {
             return false;
         }
 
-        // 3. Cache "valid" for a short time
-        cacheService.cacheJwtValidity(jwtId, true, CacheConstants.VALID_JWT_TTL_SECONDS);
+        // 3. Cache "valid" for the remaining lifetime of the JWT
+        try {
+            Instant expiry = jwtService.extractExpiration(token);
+            long remaining = Duration.between(Instant.now(), expiry).toSeconds();
+            if (remaining > 0) {
+                cacheService.cacheJwtValidity(jwtId, true, remaining);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to cache valid token {}: {}", jwtId, e.getMessage());
+            cacheService.cacheJwtValidity(jwtId, true, CacheConstants.VALID_JWT_TTL_SECONDS);
+        }
         return true;
     }
 
