@@ -3,6 +3,7 @@ package com.app.exam.integration;
 import com.app.exam.domain.*;
 import com.app.exam.dto.*;
 import com.app.exam.repository.*;
+import com.app.exam.integration.WithMockStudent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,7 +101,7 @@ public class ExamIntegrationTest {
     }
 
     @Test
-    @WithMockStudent
+    @com.app.exam.integration.WithMockStudent
     void fullAttemptAndSubmissionFlow() throws Exception {
         // 1. Setup - Create a published exam (needs to be done as instructor)
         // We use a helper or just do it in this test with different mock users if allowed,
